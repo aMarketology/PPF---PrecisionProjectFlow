@@ -375,7 +375,10 @@ export default function MarketplacePage() {
                       {/* Price Badge */}
                       <div className="absolute top-2 left-2">
                         <span className="text-xs font-bold text-white bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          ${product.price.toLocaleString()}
+                          ${(product.price / 100).toLocaleString(undefined, {
+                            minimumFractionDigits: 2,
+                            maximumFractionDigits: 2
+                          })}
                         </span>
                       </div>
 

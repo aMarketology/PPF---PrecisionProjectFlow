@@ -76,7 +76,7 @@ export default function Navigation() {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex gap-8 items-center">
-            {['Home', 'Marketplace', 'Projects', 'Profiles', 'Contact'].map((item, index) => (
+            {['Home', 'Marketplace', 'Claim Company', 'Contact'].map((item, index) => (
               <motion.div
                 key={item}
                 initial={{ opacity: 0, y: -20 }}
@@ -84,15 +84,17 @@ export default function Navigation() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Link
-                  href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
+                  href={item === 'Home' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`}
                   className={`font-medium transition-colors relative group ${
                     scrolled
                       ? 'text-gray-900 hover:text-blue-600'
-                      : 'text-gray-900 hover:text-blue-600'
+                      : 'text-white hover:text-blue-100'
                   }`}
                 >
                   {item}
-                  <span className="absolute -bottom-1 left-0 w-0 h-0.5 bg-blue-600 transition-all group-hover:w-full" />
+                  <span className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full ${
+                    scrolled ? 'bg-blue-600' : 'bg-white'
+                  }`} />
                 </Link>
               </motion.div>
             ))}
@@ -205,8 +207,8 @@ export default function Navigation() {
                   </AnimatePresence>
                 </>
               ) : (
-                // Signed Out - Get Started Button
-                <>
+                // Signed Out - Get Started & Log In Buttons
+                <div className="flex items-center gap-3">
                   <Link href="/get-started">
                     <motion.button
                       className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-md hover:shadow-lg"
@@ -219,14 +221,14 @@ export default function Navigation() {
 
                   <Link href="/login">
                     <motion.button
-                      className="ml-3 flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-semibold px-6 py-2.5 rounded-lg transition-all"
+                      className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-semibold px-6 py-2.5 rounded-lg transition-all"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
                       <span>Log In</span>
                     </motion.button>
                   </Link>
-                </>
+                </div>
               )}
             </motion.div>
           </div>

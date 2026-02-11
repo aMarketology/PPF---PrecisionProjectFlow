@@ -140,7 +140,7 @@ export default function HomePage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6 }}
-            className="text-center pt-12"
+            className="text-center"
           >
             <h1 className="text-5xl lg:text-6xl font-bold mb-6">
               Source Industrial Products & Services

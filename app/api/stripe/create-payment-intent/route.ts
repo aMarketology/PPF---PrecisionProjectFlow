@@ -72,8 +72,9 @@ export async function POST(request: NextRequest) {
     }
 
     // Calculate platform fee (10%)
+    // Note: product.price is already in cents (BIGINT) from database
     const platformFeePercent = 0.10;
-    const totalAmount = Math.round(product.price * 100); // Convert to cents
+    const totalAmount = product.price; // Already in cents, no conversion needed
     const platformFee = Math.round(totalAmount * platformFeePercent);
 
     // Create Payment Intent
@@ -101,9 +102,9 @@ export async function POST(request: NextRequest) {
         customer_id: user.id,
         product_id: product.id,
         company_id: product.company_profiles.id,
-        amount: product.price,
+        amount: product.price, // Store in cents
         currency: product.currency,
-        platform_fee: platformFee / 100, // Convert back to dollars
+        platform_fee: platformFee, // Store in cents
         status: 'created',
       }]);
 
