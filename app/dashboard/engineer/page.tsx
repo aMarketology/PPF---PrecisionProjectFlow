@@ -1,490 +1,414 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import { createClient } from '@/lib/supabase/client'
+import { format } from 'date-fns'
+import {
+  Package, Wrench, TrendingUp, Plus, ExternalLink,
+  DollarSign, Clock, CheckCircle2, XCircle, Building2,
+  Coins, MessageSquare, Settings, Eye, EyeOff, BarChart3,
+  ChevronRight, AlertCircle,
+} from 'lucide-react'
 
-// Mock data for demo purposes - will be replaced with real Supabase data
-const mockOrders = [
-  { id: '1', title: 'Electrical Panel Upgrade', client: 'John Smith', status: 'in_progress', amount: 2500, date: '2024-01-15' },
-  { id: '2', title: 'Industrial Wiring Design', client: 'ABC Manufacturing', status: 'pending', amount: 4200, date: '2024-01-18' },
-  { id: '3', title: 'Solar Integration Plan', client: 'Green Home LLC', status: 'completed', amount: 3800, date: '2024-01-10' },
-  { id: '4', title: 'Commercial HVAC Controls', client: 'Office Park Inc', status: 'completed', amount: 5600, date: '2024-01-05' },
-]
+interface Profile { id: string; full_name: string; company_name: string | null; email: string; user_type: string; token_balance: number; avatar_url: string | null; location: string | null }
+interface Order { id: string; status: string; total_amount: number; created_at: string; client: any; service: any }
+interface Service { id: string; title: string; description: string; price: number; category: string; active: boolean; created_at: string }
 
-const mockServices = [
-  { id: '1', title: 'Electrical Panel Design', price: 1500, orders: 12, rating: 4.9, active: true },
-  { id: '2', title: 'Industrial Automation', price: 3500, orders: 8, rating: 4.8, active: true },
-  { id: '3', title: 'Solar System Design', price: 2200, orders: 15, rating: 5.0, active: true },
-  { id: '4', title: 'Load Analysis', price: 800, orders: 22, rating: 4.7, active: false },
-]
+const STATUS_CFG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  pending:     { label: 'Pending',     cls: 'bg-amber-50 text-amber-700 border border-amber-200',   icon: <Clock className="w-3 h-3" /> },
+  in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border border-blue-200',      icon: <AlertCircle className="w-3 h-3" /> },
+  completed:   { label: 'Completed',   cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle2 className="w-3 h-3" /> },
+  cancelled:   { label: 'Cancelled',   cls: 'bg-red-50 text-red-600 border border-red-200',         icon: <XCircle className="w-3 h-3" /> },
+}
 
-const mockProposals = [
-  { id: '1', projectTitle: 'Factory Electrical Overhaul', client: 'Steel Works Inc', budget: '$15,000-$25,000', deadline: '2024-02-01', status: 'pending' },
-  { id: '2', projectTitle: 'Office Building Wiring', client: 'Downtown Properties', budget: '$8,000-$12,000', deadline: '2024-02-10', status: 'submitted' },
-]
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CFG[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600', icon: null }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.cls}`}>
+      {cfg.icon}{cfg.label}
+    </span>
+  )
+}
+
+function StatCard({ icon, label, value, sub, accent = false }: { icon: React.ReactNode; label: string; value: string; sub: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${accent ? 'bg-[#003D82] border-[#002960] text-white' : 'bg-white border-gray-100 shadow-sm'}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent ? 'bg-white/15' : 'bg-blue-50'}`}>
+        <span className={accent ? 'text-white' : 'text-[#003D82]'}>{icon}</span>
+      </div>
+      <div>
+        <p className={`text-2xl font-extrabold ${accent ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+        <p className={`text-xs font-semibold mt-0.5 ${accent ? 'text-blue-200' : 'text-gray-500'}`}>{label}</p>
+      </div>
+      <p className={`text-xs ${accent ? 'text-blue-200' : 'text-gray-400'}`}>{sub}</p>
+    </div>
+  )
+}
 
 export default function EngineerDashboard() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
+  const [profile, setProfile] = useState<Profile | null>(null)
+  const [orders, setOrders] = useState<Order[]>([])
+  const [services, setServices] = useState<Service[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'proposals' | 'earnings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'earnings'>('overview')
 
-  useEffect(() => {
-    async function loadUser() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        router.push('/login')
-        return
-      }
+  useEffect(() => { loadDashboard() }, [])
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+  async function loadDashboard() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
 
-      if (profile?.user_type !== 'engineer') {
-        router.push('/dashboard/client')
-        return
-      }
+    const { data: profileData } = await supabase.from('profiles').select('*').eq('id', user.id).single()
+    if (!profileData || profileData.user_type !== 'engineer') { router.push('/dashboard/client'); return }
+    setProfile(profileData)
 
-      setUser(user)
-      setProfile(profile)
-      setLoading(false)
-    }
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('id, status, total_amount, created_at, client:profiles!orders_client_id_fkey(full_name, email), service:services!orders_service_id_fkey(title)')
+      .eq('engineer_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setOrders((ordersData as any) || [])
 
-    loadUser()
-  }, [router])
+    const { data: servicesData } = await supabase.from('services').select('*').eq('provider_id', user.id).order('created_at', { ascending: false })
+    setServices(servicesData || [])
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    )
+    setLoading(false)
   }
 
-  const stats = {
-    totalEarnings: 42500,
-    pendingAmount: 6700,
-    ordersCompleted: 45,
-    activeOrders: 3,
-    averageRating: 4.9,
-    responseRate: 98,
+  async function toggleService(id: string, current: boolean) {
+    const supabase = createClient()
+    const { error } = await supabase.from('services').update({ active: !current }).eq('id', id)
+    if (!error) setServices(prev => prev.map(s => s.id === id ? { ...s, active: !current } : s))
   }
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    submitted: 'bg-purple-100 text-purple-800',
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-[#003D82]/20 border-t-[#003D82] rounded-full animate-spin" />
+    </div>
+  )
+
+  const completedOrders = orders.filter(o => o.status === 'completed')
+  const activeOrders    = orders.filter(o => o.status === 'in_progress' || o.status === 'pending')
+  const totalEarnings   = completedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+  const pendingAmount   = activeOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+  const displayName     = profile?.company_name ?? profile?.full_name ?? ''
+
+  const TABS = [
+    { key: 'overview',  label: 'Overview',  icon: <BarChart3 className="w-4 h-4" /> },
+    { key: 'orders',    label: `Orders (${orders.length})`, icon: <Package className="w-4 h-4" /> },
+    { key: 'services',  label: `Services (${services.length})`, icon: <Wrench className="w-4 h-4" /> },
+    { key: 'earnings',  label: 'Earnings',  icon: <TrendingUp className="w-4 h-4" /> },
+  ] as const
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
       <Navigation />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold text-gray-900">Engineer Dashboard</h1>
-          <p className="mt-1 text-gray-600">Welcome back, {profile?.full_name || 'Engineer'}!</p>
-        </div>
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8">
-            {['overview', 'orders', 'services', 'proposals', 'earnings'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors ${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab}
-              </button>
-            ))}
-          </nav>
+      {/* ── Hero header ── */}
+      <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-24 pb-28 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px)' }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt={displayName} className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+                <Building2 className="w-8 h-8 text-white" />
+              </div>
+            )}
+            <div>
+              <p className="text-blue-200 text-sm font-medium mb-0.5">Engineer Dashboard</p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{displayName}</h1>
+              {profile?.location && <p className="text-blue-300 text-sm mt-0.5">{profile.location}</p>}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5">
+              <Coins className="w-4 h-4 text-amber-300" />
+              <span className="font-bold text-white">{profile?.token_balance ?? 0}</span>
+              <span className="text-blue-200 text-sm">tokens</span>
+            </div>
+            <Link href={`/profiles/${profile?.id}`}
+              className="flex items-center gap-2 bg-white/10 border border-white/20 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all">
+              <Eye className="w-4 h-4" />View Profile
+            </Link>
+            <Link href="/services/create"
+              className="flex items-center gap-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all shadow-lg">
+              <Plus className="w-4 h-4" />Add Service
+            </Link>
+          </div>
         </div>
+      </div>
 
-        {/* Overview Tab */}
+      {/* ── Tab bar (overlaps hero) ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-6 relative z-10 mb-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 flex gap-1 overflow-x-auto">
+          {TABS.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
+                activeTab === tab.key
+                  ? 'bg-[#003D82] text-white shadow-sm'
+                  : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}>
+              {tab.icon}{tab.label}
+            </button>
+          ))}
+          <Link href="/settings"
+            className="ml-auto flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all whitespace-nowrap">
+            <Settings className="w-4 h-4" />Settings
+          </Link>
+        </div>
+      </div>
+
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
+
+        {/* ── OVERVIEW ── */}
+        <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Total Earnings</p>
-                    <p className="text-3xl font-bold text-gray-900">${stats.totalEarnings.toLocaleString()}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">💰</span>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-green-600">+12% from last month</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Pending Amount</p>
-                    <p className="text-3xl font-bold text-gray-900">${stats.pendingAmount.toLocaleString()}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">⏳</span>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-gray-500">{mockOrders.filter(o => o.status !== 'completed').length} orders in progress</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Orders Completed</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.ordersCompleted}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">✅</span>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-gray-500">{stats.activeOrders} active orders</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Average Rating</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.averageRating} ⭐</p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">🏆</span>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-gray-500">Based on 87 reviews</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Response Rate</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.responseRate}%</p>
-                  </div>
-                  <div className="w-12 h-12 bg-indigo-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">💬</span>
-                  </div>
-                </div>
-                <p className="mt-2 text-sm text-green-600">Excellent response time</p>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Active Services</p>
-                    <p className="text-3xl font-bold text-gray-900">{mockServices.filter(s => s.active).length}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">🛠️</span>
-                  </div>
-                </div>
-                <Link href="/dashboard/engineer?tab=services" className="mt-2 text-sm text-blue-600 hover:underline">Manage services →</Link>
-              </div>
+          <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8">
+            {/* Stat grid */}
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+              <StatCard icon={<DollarSign className="w-5 h-5" />} label="Total Earned" value={`$${totalEarnings.toLocaleString()}`} sub={`${completedOrders.length} completed orders`} accent />
+              <StatCard icon={<Clock className="w-5 h-5" />} label="Pending Revenue" value={`$${pendingAmount.toLocaleString()}`} sub={`${activeOrders.length} active orders`} />
+              <StatCard icon={<Wrench className="w-5 h-5" />} label="Active Services" value={String(services.filter(s => s.active).length)} sub={`${services.length} total listed`} />
+              <StatCard icon={<Coins className="w-5 h-5" />} label="Token Balance" value={String(profile?.token_balance ?? 0)} sub="For outreach messages" />
             </div>
 
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Recent Orders */}
-              <div className="bg-white rounded-xl shadow-sm">
-                <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-                </div>
-                <div className="divide-y divide-gray-200">
-                  {mockOrders.slice(0, 4).map((order) => (
-                    <div key={order.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{order.title}</p>
-                          <p className="text-sm text-gray-500">{order.client}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">${order.amount.toLocaleString()}</p>
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[order.status]}`}>
-                            {order.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <button 
-                    onClick={() => setActiveTab('orders')}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    View all orders →
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Recent orders */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="font-bold text-gray-900">Recent Orders</h2>
+                  <button onClick={() => setActiveTab('orders')} className="text-xs font-semibold text-[#003D82] hover:underline flex items-center gap-1">
+                    View all <ChevronRight className="w-3.5 h-3.5" />
                   </button>
                 </div>
-              </div>
-
-              {/* New Project Requests */}
-              <div className="bg-white rounded-xl shadow-sm">
-                <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">New Project Requests</h2>
-                </div>
-                <div className="divide-y divide-gray-200">
-                  {mockProposals.map((proposal) => (
-                    <div key={proposal.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{proposal.projectTitle}</p>
-                          <p className="text-sm text-gray-500">{proposal.client}</p>
-                          <p className="text-sm text-gray-400">Budget: {proposal.budget}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[proposal.status]}`}>
-                            {proposal.status}
-                          </span>
-                          <p className="text-xs text-gray-500 mt-1">Due: {proposal.deadline}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <button 
-                    onClick={() => setActiveTab('proposals')}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    View all proposals →
-                  </button>
-                </div>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Orders Tab */}
-        {activeTab === 'orders' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">All Orders</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Client</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {mockOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-gray-900">{order.title}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.client}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order.amount.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[order.status]}`}>
-                            {order.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button className="text-blue-600 hover:text-blue-700">View Details</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Services Tab */}
-        {activeTab === 'services' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">My Services</h2>
-              <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                + Add New Service
-              </button>
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {mockServices.map((service) => (
-                <div key={service.id} className={`bg-white rounded-xl shadow-sm p-6 ${!service.active && 'opacity-60'}`}>
-                  <div className="flex justify-between items-start mb-4">
-                    <h3 className="font-semibold text-gray-900">{service.title}</h3>
-                    <span className={`px-2 py-1 text-xs rounded-full ${service.active ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600'}`}>
-                      {service.active ? 'Active' : 'Inactive'}
-                    </span>
+                {orders.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <Package className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-semibold">No orders yet</p>
+                    <p className="text-gray-400 text-xs mt-1">Orders appear when clients purchase your services</p>
                   </div>
-                  <div className="grid grid-cols-3 gap-4 mb-4">
-                    <div>
-                      <p className="text-sm text-gray-500">Price</p>
-                      <p className="font-semibold">${service.price}</p>
+                ) : orders.slice(0, 5).map(o => (
+                  <div key={o.id} className="px-6 py-4 border-b border-gray-50 last:border-0 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{o.service?.title || 'Order'}</p>
+                      <p className="text-xs text-gray-400">{o.client?.full_name || 'Client'} · {format(new Date(o.created_at), 'MMM d')}</p>
                     </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Orders</p>
-                      <p className="font-semibold">{service.orders}</p>
-                    </div>
-                    <div>
-                      <p className="text-sm text-gray-500">Rating</p>
-                      <p className="font-semibold">{service.rating} ⭐</p>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="font-bold text-gray-900 text-sm">${o.total_amount?.toLocaleString()}</span>
+                      <StatusBadge status={o.status} />
                     </div>
                   </div>
-                  <div className="flex gap-2">
-                    <button className="flex-1 text-blue-600 border border-blue-600 px-3 py-2 rounded-lg hover:bg-blue-50 transition-colors text-sm">
-                      Edit
-                    </button>
-                    <button className={`flex-1 px-3 py-2 rounded-lg text-sm ${service.active ? 'text-red-600 border border-red-600 hover:bg-red-50' : 'text-green-600 border border-green-600 hover:bg-green-50'}`}>
-                      {service.active ? 'Deactivate' : 'Activate'}
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Proposals Tab */}
-        {activeTab === 'proposals' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Project Proposals</h2>
-                <p className="text-sm text-gray-500 mt-1">Review and respond to project requests from clients</p>
+                ))}
               </div>
-              <div className="divide-y divide-gray-200">
-                {mockProposals.map((proposal) => (
-                  <div key={proposal.id} className="p-6 hover:bg-gray-50 transition-colors">
-                    <div className="flex justify-between items-start">
-                      <div className="flex-1">
-                        <h3 className="font-semibold text-gray-900">{proposal.projectTitle}</h3>
-                        <p className="text-sm text-gray-500 mt-1">Client: {proposal.client}</p>
-                        <div className="flex gap-4 mt-2">
-                          <span className="text-sm text-gray-600">💰 {proposal.budget}</span>
-                          <span className="text-sm text-gray-600">📅 Deadline: {proposal.deadline}</span>
-                        </div>
-                      </div>
-                      <div className="flex flex-col items-end gap-2">
-                        <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[proposal.status]}`}>
-                          {proposal.status}
-                        </span>
-                        {proposal.status === 'pending' && (
-                          <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                            Submit Proposal
-                          </button>
-                        )}
-                      </div>
+
+              {/* Services */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="font-bold text-gray-900">My Services</h2>
+                  <Link href="/services/create" className="text-xs font-semibold text-[#FF6B35] hover:underline flex items-center gap-1">
+                    <Plus className="w-3.5 h-3.5" />Add new
+                  </Link>
+                </div>
+                {services.length === 0 ? (
+                  <div className="p-12 text-center">
+                    <Wrench className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="text-gray-500 text-sm font-semibold mb-3">No services listed yet</p>
+                    <Link href="/services/create" className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#003D82] text-white font-semibold rounded-xl text-xs hover:bg-[#002960] transition-all">
+                      <Plus className="w-3.5 h-3.5" />Add your first service
+                    </Link>
+                  </div>
+                ) : services.slice(0, 5).map(s => (
+                  <div key={s.id} className="px-6 py-4 border-b border-gray-50 last:border-0 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{s.title}</p>
+                      <p className="text-xs text-gray-400">{s.category}</p>
+                    </div>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="font-bold text-gray-900 text-sm">${s.price.toLocaleString()}</span>
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${s.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+                        {s.active ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {s.active ? 'Active' : 'Off'}
+                      </span>
                     </div>
                   </div>
                 ))}
               </div>
             </div>
+
+            {/* Quick links */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+              {[
+                { label: 'Messages', icon: <MessageSquare className="w-5 h-5" />, href: '/messages', color: 'text-[#003D82] bg-blue-50' },
+                { label: 'View Profile', icon: <Eye className="w-5 h-5" />, href: `/profiles/${profile?.id}`, color: 'text-emerald-700 bg-emerald-50' },
+                { label: 'Add Service', icon: <Plus className="w-5 h-5" />, href: '/services/create', color: 'text-[#FF6B35] bg-orange-50' },
+                { label: 'Settings', icon: <Settings className="w-5 h-5" />, href: '/settings', color: 'text-gray-600 bg-gray-100' },
+              ].map(item => (
+                <Link key={item.label} href={item.href}
+                  className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center gap-2 hover:shadow-md hover:border-gray-200 transition-all group">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>{item.icon}</div>
+                  <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">{item.label}</span>
+                </Link>
+              ))}
+            </div>
           </motion.div>
         )}
 
-        {/* Earnings Tab */}
+        {/* ── ORDERS ── */}
+        {activeTab === 'orders' && (
+          <motion.div key="orders" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-bold text-gray-900">All Orders <span className="text-gray-400 font-normal text-sm">({orders.length})</span></h2>
+              </div>
+              {orders.length === 0 ? (
+                <div className="p-20 text-center">
+                  <Package className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                  <p className="font-semibold text-gray-500">No orders yet</p>
+                  <p className="text-gray-400 text-sm mt-1">Orders appear when clients purchase your services</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        {['Service', 'Client', 'Date', 'Amount', 'Status'].map(h => (
+                          <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {orders.map(o => (
+                        <tr key={o.id} className="hover:bg-gray-50 transition-colors">
+                          <td className="px-6 py-4 font-semibold text-gray-900 text-sm">{o.service?.title || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{o.client?.full_name || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-400">{format(new Date(o.created_at), 'MMM d, yyyy')}</td>
+                          <td className="px-6 py-4 text-sm font-bold text-gray-900">${o.total_amount?.toLocaleString()}</td>
+                          <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+
+        {/* ── SERVICES ── */}
+        {activeTab === 'services' && (
+          <motion.div key="services" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+            <div className="flex items-center justify-between mb-5">
+              <h2 className="font-bold text-gray-900">My Services <span className="text-gray-400 font-normal text-sm">({services.length})</span></h2>
+              <Link href="/services/create" className="flex items-center gap-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all">
+                <Plus className="w-4 h-4" />Add Service
+              </Link>
+            </div>
+            {services.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-20 text-center">
+                <Wrench className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                <p className="font-semibold text-gray-500 mb-4">No services listed yet</p>
+                <Link href="/services/create" className="inline-flex items-center gap-2 bg-[#003D82] text-white font-semibold px-6 py-3 rounded-xl text-sm hover:bg-[#002960] transition-all">
+                  <Plus className="w-4 h-4" />Add Your First Service
+                </Link>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                {services.map((s, i) => (
+                  <motion.div key={s.id}
+                    initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
+                    className={`bg-white rounded-2xl border shadow-sm p-6 transition-all ${s.active ? 'border-gray-100' : 'border-gray-100 opacity-60'}`}>
+                    <div className="flex items-start justify-between gap-3 mb-3">
+                      <div className="min-w-0">
+                        <h3 className="font-bold text-gray-900 truncate">{s.title}</h3>
+                        <span className="inline-block text-[11px] px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-semibold mt-1">{s.category}</span>
+                      </div>
+                      <span className={`flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${s.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500 border border-gray-200'}`}>
+                        {s.active ? <CheckCircle2 className="w-3 h-3" /> : <XCircle className="w-3 h-3" />}
+                        {s.active ? 'Active' : 'Inactive'}
+                      </span>
+                    </div>
+                    <p className="text-sm text-gray-500 line-clamp-2 mb-4">{s.description}</p>
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-extrabold text-gray-900">${s.price.toLocaleString()}</span>
+                      <div className="flex items-center gap-2">
+                        <Link href={`/marketplace/service/${s.id}`}
+                          className="p-2 border border-gray-200 rounded-xl hover:border-[#003D82] hover:text-[#003D82] text-gray-400 transition-all">
+                          <ExternalLink className="w-4 h-4" />
+                        </Link>
+                        <button onClick={() => toggleService(s.id, s.active)}
+                          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
+                            s.active
+                              ? 'border-red-200 text-red-600 hover:bg-red-50'
+                              : 'border-emerald-200 text-emerald-600 hover:bg-emerald-50'
+                          }`}>
+                          {s.active ? <><EyeOff className="w-3.5 h-3.5" />Deactivate</> : <><Eye className="w-3.5 h-3.5" />Activate</>}
+                        </button>
+                      </div>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {/* ── EARNINGS ── */}
         {activeTab === 'earnings' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm text-gray-500">Available Balance</p>
-                <p className="text-3xl font-bold text-gray-900">$8,450</p>
-                <button className="mt-4 w-full bg-blue-600 text-white py-2 rounded-lg hover:bg-blue-700 transition-colors">
-                  Withdraw Funds
-                </button>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm text-gray-500">Pending Clearance</p>
-                <p className="text-3xl font-bold text-gray-900">$6,700</p>
-                <p className="mt-4 text-sm text-gray-500">Expected in 7-14 days</p>
-              </div>
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <p className="text-sm text-gray-500">Total Withdrawn</p>
-                <p className="text-3xl font-bold text-gray-900">$27,350</p>
-                <p className="mt-4 text-sm text-gray-500">Lifetime withdrawals</p>
-              </div>
+          <motion.div key="earnings" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+              <StatCard icon={<DollarSign className="w-5 h-5" />} label="Total Earned" value={`$${totalEarnings.toLocaleString()}`} sub={`${completedOrders.length} completed orders`} accent />
+              <StatCard icon={<Clock className="w-5 h-5" />} label="Pending Revenue" value={`$${pendingAmount.toLocaleString()}`} sub={`${activeOrders.length} active orders`} />
+              <StatCard icon={<Coins className="w-5 h-5" />} label="Token Balance" value={String(profile?.token_balance ?? 0)} sub="For outreach messages" />
             </div>
-
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Recent Transactions</h2>
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-bold text-gray-900">Completed Orders</h2>
               </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Description</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Type</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Order #1234 - Commercial HVAC Controls</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Jan 15, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">Payment</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">+$5,600</td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Withdrawal to Bank ****4521</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Jan 10, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-blue-600">Withdrawal</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">-$3,500</td>
-                    </tr>
-                    <tr>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">Order #1233 - Solar Integration Plan</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">Jan 8, 2024</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-green-600">Payment</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">+$3,800</td>
-                    </tr>
-                  </tbody>
-                </table>
-              </div>
+              {completedOrders.length === 0 ? (
+                <div className="p-16 text-center">
+                  <TrendingUp className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="text-gray-500 text-sm font-semibold">No completed orders yet</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="min-w-full">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-100">
+                        {['Service', 'Client', 'Date', 'Amount'].map(h => (
+                          <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-50">
+                      {completedOrders.map(o => (
+                        <tr key={o.id} className="hover:bg-gray-50">
+                          <td className="px-6 py-4 text-sm font-semibold text-gray-900">{o.service?.title || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-500">{o.client?.full_name || '—'}</td>
+                          <td className="px-6 py-4 text-sm text-gray-400">{format(new Date(o.created_at), 'MMM d, yyyy')}</td>
+                          <td className="px-6 py-4 text-sm font-bold text-emerald-600">+${o.total_amount?.toLocaleString()}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           </motion.div>
         )}
+        </AnimatePresence>
       </main>
-      
       <Footer />
     </div>
   )

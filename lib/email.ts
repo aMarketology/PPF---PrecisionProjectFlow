@@ -246,7 +246,7 @@ export async function sendEmail(template: EmailTemplate): Promise<{ success: boo
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        from: 'Precision Project Flow <noreply@precisionprojectflow.com>',
+        from: process.env.RESEND_FROM_EMAIL || 'Precision Project Flow <onboarding@resend.dev>',
         to: template.to,
         subject: template.subject,
         html: template.html,

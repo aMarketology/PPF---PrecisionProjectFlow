@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
+import { sendNotification } from '@/lib/email';
 
 // Mark this route as dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -37,87 +38,100 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch product details with company info
-    const { data: product, error: productError } = await supabase
-      .from('products')
+    // Fetch service details with provider info
+    const { data: service, error: serviceError } = await supabase
+      .from('services')
       .select(`
-        *,
-        company_profiles!inner (
-          id,
-          company_name,
-          stripe_connect_accounts (
-            stripe_account_id
-          )
-        )
+        id, title, description, price, category, provider_id,
+        provider:profiles!services_provider_id_fkey(id, full_name, email)
       `)
       .eq('id', productId)
-      .eq('is_active', true)
+      .eq('active', true)
       .single();
 
-    if (productError || !product) {
+    if (serviceError || !service) {
       return NextResponse.json(
-        { error: 'Product not found' },
+        { error: 'Service not found' },
         { status: 404 }
       );
     }
 
-    // Get Stripe Connect account ID
-    const stripeConnectAccount = product.company_profiles.stripe_connect_accounts?.[0];
-    
-    if (!stripeConnectAccount?.stripe_account_id) {
-      return NextResponse.json(
-        { error: 'Company has not connected their Stripe account' },
-        { status: 400 }
-      );
-    }
+    // price is stored as DECIMAL in dollars — convert to cents for Stripe
+    const totalAmount = Math.round(Number(service.price) * 100);
+    const platformFee = Math.round(totalAmount * 0.10);
 
-    // Calculate platform fee (10%)
-    // Note: product.price is already in cents (BIGINT) from database
-    const platformFeePercent = 0.10;
-    const totalAmount = product.price; // Already in cents, no conversion needed
-    const platformFee = Math.round(totalAmount * platformFeePercent);
-
-    // Create Payment Intent
+    // Create Payment Intent (direct charge to platform; no Stripe Connect required for now)
     const paymentIntent = await stripe.paymentIntents.create({
       amount: totalAmount,
-      currency: product.currency.toLowerCase(),
-      application_fee_amount: platformFee,
-      transfer_data: {
-        destination: stripeConnectAccount.stripe_account_id,
-      },
+      currency: 'usd',
       metadata: {
-        product_id: product.id,
-        product_name: product.name,
-        company_id: product.company_profiles.id,
-        company_name: product.company_profiles.company_name,
+        service_id: service.id,
+        service_title: service.title,
+        provider_id: service.provider_id,
         customer_id: user.id,
+        platform_fee_cents: String(platformFee),
       },
+      description: `PPF - ${service.title}`,
     });
 
-    // Store payment intent in database
-    const { error: insertError } = await supabase
-      .from('payment_intents')
+    // Create an order record in the database
+    const { error: orderError } = await supabase
+      .from('orders')
       .insert([{
-        stripe_payment_intent_id: paymentIntent.id,
-        customer_id: user.id,
-        product_id: product.id,
-        company_id: product.company_profiles.id,
-        amount: product.price, // Store in cents
-        currency: product.currency,
-        platform_fee: platformFee, // Store in cents
-        status: 'created',
+        client_id: user.id,
+        engineer_id: service.provider_id,
+        service_id: service.id,
+        status: 'pending',
+        total_amount: Number(service.price),
       }]);
 
-    if (insertError) {
-      console.error('Error storing payment intent:', insertError);
-      // Don't fail the request, payment intent is still created
+    if (orderError) {
+      console.error('Error creating order record:', orderError);
+      // Don't fail the checkout — order can be reconciled via webhook
     }
+
+    // Fetch buyer profile for emails
+    const { data: buyerProfile } = await supabase
+      .from('profiles')
+      .select('full_name, email')
+      .eq('id', user.id)
+      .single();
+
+    const provider = service.provider as any;
+    const buyerName = buyerProfile?.full_name || 'A client';
+    const buyerEmail = buyerProfile?.email || user.email!;
+    const vendorName = provider?.full_name || 'Vendor';
+    const vendorEmail = provider?.email;
+
+    // Email vendor: new order notification
+    if (vendorEmail) {
+      sendNotification('order_placed', vendorEmail, {
+        engineerName: vendorName,
+        clientName: buyerName,
+        orderTitle: service.title,
+        amount: Number(service.price),
+      }).catch(e => console.error('[Email] vendor notification failed:', e));
+    }
+
+    // Email buyer: order confirmation
+    sendNotification('order_accepted', buyerEmail, {
+      clientName: buyerName,
+      engineerName: vendorName,
+      orderTitle: service.title,
+    }).catch(e => console.error('[Email] buyer confirmation failed:', e));
+
+    // Auto-post transaction milestone to feed (fire and forget)
+    fetch(`${request.nextUrl.origin}/api/feed/auto-post`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ type: 'service_purchased', serviceId: service.id, vendorId: service.provider_id, buyerId: user.id }),
+    }).catch(e => console.error('[Feed] auto-post failed:', e));
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
-      amount: product.price,
-      currency: product.currency,
+      amount: totalAmount,
+      currency: 'usd',
     });
 
   } catch (error: any) {

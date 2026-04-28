@@ -66,9 +66,9 @@ function SignUpContent() {
   const [isLoading, setIsLoading] = useState(false);
   const totalSteps = 3;
 
-  // Get user type from URL parameter
+  // Get user type from URL parameter, default to 'engineer'
   const urlType = searchParams.get('type');
-  const initialUserType = urlType === 'provider' ? 'engineer' : 'client';
+  const initialUserType = urlType === 'client' ? 'client' : 'engineer';
 
   const accountForm = useForm<AccountFormData>({
     resolver: zodResolver(accountSchema),
@@ -133,22 +133,16 @@ function SignUpContent() {
       if (authError) throw authError;
       if (!authData.user) throw new Error('Failed to create user');
 
-      // Step 2: Update profile with all information
+      // Step 2: Update profile with only columns that exist in the table
       const profileUpdate: any = {
         full_name: accountData.fullName,
         email: accountData.email,
         user_type: accountData.userType,
       };
 
-      // Add profile data if provided (for clients)
-      if (profileData) {
+      // Add bio if provided (for clients)
+      if (profileData?.bio) {
         profileUpdate.bio = profileData.bio;
-        profileUpdate.location = profileData.location;
-      }
-
-      // Add company name for engineers
-      if (companyData) {
-        profileUpdate.company_name = companyData.companyName;
       }
 
       const { error: profileError } = await supabase
@@ -158,7 +152,8 @@ function SignUpContent() {
 
       if (profileError) {
         console.error('Profile update error:', profileError);
-        throw new Error('Failed to update profile');
+        // Non-fatal: the trigger already created the profile row,
+        // so we continue even if the update fails
       }
 
       // Small delay to ensure profile is committed before creating company

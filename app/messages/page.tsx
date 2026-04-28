@@ -13,13 +13,26 @@ import {
   X,
   Plus,
   CheckCheck,
-  Check
+  Check,
+  Lock,
+  DollarSign,
+  ShieldCheck,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 import Navigation from '@/app/components/Navigation';
 import Footer from '@/app/components/Footer';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Elements,
+  PaymentElement,
+  useStripe,
+  useElements,
+} from '@stripe/react-stripe-js';
+import { loadStripe } from '@stripe/stripe-js';
+
+const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
 
 interface UserProfile {
   id: string;
@@ -51,10 +64,88 @@ interface Message {
   is_read: boolean;
   read_at: string | null;
   created_at: string;
+  is_paid?: boolean;
+  is_system_message?: boolean;
+  payment_id?: string | null;
 }
 
-export default function MessagesPage() {
+// ── Token pack selector card ────────────────────────────────────────────────
+function TokenPackCard({
+  pack,
+  onSelect,
+}: {
+  pack: { id: string; name: string; tokens: number; price_cents: number };
+  onSelect: () => void;
+}) {
+  const [loading, setLoading] = useState(false);
+  const perToken = (pack.price_cents / pack.tokens / 100).toFixed(2);
+  return (
+    <button
+      onClick={async () => { setLoading(true); await onSelect(); setLoading(false); }}
+      disabled={loading}
+      className="w-full flex items-center justify-between px-4 py-3 border-2 border-gray-200 hover:border-blue-500 hover:bg-blue-50 rounded-xl transition-all text-left"
+    >
+      <div>
+        <p className="font-semibold text-gray-900">{pack.name}</p>
+        <p className="text-sm text-gray-500">{pack.tokens} tokens · ${perToken}/token</p>
+      </div>
+      <div className="text-right">
+        <p className="font-bold text-blue-600">${(pack.price_cents / 100).toFixed(0)}</p>
+        {loading && <Loader className="w-4 h-4 animate-spin ml-auto mt-1" />}
+      </div>
+    </button>
+  );
+}
+
+// ── Stripe payment form for a token pack ────────────────────────────────────
+function TokenPackPaymentForm({
+  onSuccess,
+  onBack,
+}: {
+  onSuccess: (paymentIntentId: string) => Promise<void>;
+  onBack: () => void;
+}) {
+  const stripe   = useStripe();
+  const elements = useElements();
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stripe || !elements) return;
+    setIsProcessing(true);
+    try {
+      const { error, paymentIntent } = await stripe.confirmPayment({
+        elements,
+        redirect: 'if_required',
+      });
+      if (error) { toast.error(error.message || 'Payment failed'); return; }
+      if (paymentIntent?.status === 'succeeded') await onSuccess(paymentIntent.id);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-4">
+      <PaymentElement />
+      <div className="flex gap-3 pt-2">
+        <button type="button" onClick={onBack}
+          className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 transition-all">
+          ← Back
+        </button>
+        <button type="submit" disabled={!stripe || isProcessing}
+          className="flex-1 px-4 py-3 bg-blue-600 hover:bg-blue-700 text-white font-semibold rounded-lg transition-all disabled:opacity-50 flex items-center justify-center gap-2">
+          {isProcessing ? <Loader className="w-5 h-5 animate-spin" /> : <><DollarSign className="w-4 h-4" />Pay & Get Tokens</>}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+// ── Main page component ─────────────────────────────────────────────────────
+function MessagesPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -65,12 +156,20 @@ export default function MessagesPage() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  
+
   // New conversation modal
   const [showNewConversationModal, setShowNewConversationModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
   const [isSearching, setIsSearching] = useState(false);
+
+  // Paywall state
+  const [showPaywallModal, setShowPaywallModal] = useState(false);
+  const [paywallClientSecret, setPaywallClientSecret] = useState<string | null>(null);
+  const [pendingMessage, setPendingMessage] = useState<string>('');
+  const [userMessageCount, setUserMessageCount] = useState(0);
+  const [tokenBalance, setTokenBalance] = useState<number | null>(null);
+  const [tokenPacks, setTokenPacks] = useState<Array<{id: string; name: string; tokens: number; price_cents: number}>>([]);
 
   useEffect(() => {
     initializeUser();
@@ -89,6 +188,30 @@ export default function MessagesPage() {
     }
   }, [selectedConversation]);
 
+  // Auto-open or create a conversation when ?with=<userId> is in the URL.
+  // We wait until loading is done (isLoadingConversations === false) so the
+  // `conversations` array is fully populated before we check for an existing thread.
+  useEffect(() => {
+    const withUserId = searchParams.get('with');
+    if (!withUserId || !currentUserId) return;
+    if (withUserId === currentUserId) return; // can't DM yourself
+    if (isLoadingConversations) return;       // wait until list is loaded
+
+    // Check if a conversation with this user already exists in the loaded list
+    const existing = conversations.find(
+      c => c.other_user?.id === withUserId
+    );
+
+    if (existing) {
+      // Already have this thread — just open it
+      setSelectedConversation(existing);
+    } else {
+      // Not in the list yet — create or fetch it from DB
+      openOrCreateConversation(withUserId);
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, currentUserId, isLoadingConversations]);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -106,7 +229,6 @@ export default function MessagesPage() {
     try {
       const supabase = createClient();
       
-      // Get current user
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) {
         router.push('/login');
@@ -114,17 +236,22 @@ export default function MessagesPage() {
       }
       setCurrentUserId(user.id);
 
-      // Get user profile
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, user_type')
-        .eq('id', user.id)
-        .single();
-      
-      if (profile) {
-        setCurrentUserProfile(profile);
+      const [profileRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, email, user_type, token_balance').eq('id', user.id).single(),
+      ]);
+
+      if (profileRes.data) {
+        setCurrentUserProfile(profileRes.data);
+        setTokenBalance(profileRes.data.token_balance ?? 0);
       }
-      
+
+      // Hardcoded packs — no DB table needed
+      setTokenPacks([
+        { id: 'starter',  name: 'Starter',  tokens: 10,  price_cents: 1000 },
+        { id: 'pro',      name: 'Pro',       tokens: 50,  price_cents: 4500 },
+        { id: 'business', name: 'Business',  tokens: 120, price_cents: 9900 },
+      ]);
+
     } catch (error: any) {
       console.error('Error initializing user:', error);
       toast.error('Failed to load user profile');
@@ -143,7 +270,15 @@ export default function MessagesPage() {
         .or(`participant_one_id.eq.${currentUserId},participant_two_id.eq.${currentUserId}`)
         .order('last_message_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        // Table missing — silently clear so ?with= can still bootstrap a new convo
+        if ((error as any)?.code === '42P01' || error.message?.includes('does not exist')) {
+          console.warn('⚠️  user_conversations table missing — run supabase/MESSAGING_TABLES.sql in your Supabase SQL editor.');
+          setConversations([]);
+          return;
+        }
+        throw error;
+      }
 
       // For each conversation, get the other user's profile and last message
       const conversationsWithDetails = await Promise.all(
@@ -208,6 +343,12 @@ export default function MessagesPage() {
 
       if (error) throw error;
       setMessages(data || []);
+
+      // Count how many messages current user has sent
+      const myCount = (data || []).filter(
+        (m: Message) => m.sender_id === currentUserId && !m.is_system_message
+      ).length;
+      setUserMessageCount(myCount);
       
     } catch (error: any) {
       console.error('Error loading messages:', error);
@@ -244,40 +385,93 @@ export default function MessagesPage() {
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
-    
     if (!replyMessage.trim() || !selectedConversation || !currentUserId) return;
 
     setIsSending(true);
     try {
-      const supabase = createClient();
-      
-      const { data, error } = await supabase
-        .from('user_messages')
-        .insert({
-          conversation_id: selectedConversation.id,
-          sender_id: currentUserId,
-          content: replyMessage.trim()
-        })
-        .select()
-        .single();
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedConversation.id,
+          content: replyMessage.trim(),
+        }),
+      });
 
-      if (error) throw error;
+      if (res.status === 402) {
+        const err = await res.json();
+        if (err.error === 'insufficient_tokens') {
+          // Not enough tokens — open the buy tokens modal
+          setPendingMessage(replyMessage.trim());
+          setShowPaywallModal(true);
+          return;
+        }
+        throw new Error(err.error || 'Payment required');
+      }
 
-      // Add message to local state
-      setMessages(prev => [...prev, data]);
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Failed to send message');
+      }
+
+      const data = await res.json();
+      setMessages(prev => [...prev, data.message]);
       setReplyMessage('');
-      
-      // Update conversation in list
+      setUserMessageCount(c => c + 1);
+      if (!data.free) setTokenBalance(b => Math.max(0, (b ?? 0) - (data.tokensSpent ?? 0)));
       await loadConversations();
-      
-      toast.success('Message sent!');
-      
+
     } catch (error: any) {
       console.error('Error sending message:', error);
-      toast.error('Failed to send message');
+      toast.error(error.message || 'Failed to send message');
     } finally {
       setIsSending(false);
     }
+  };
+
+  // Called after successful token purchase — retry the pending message
+  const sendMessageAfterPayment = async () => {
+    if (!selectedConversation || !pendingMessage) return;
+    setShowPaywallModal(false);
+    setPaywallClientSecret(null);
+
+    // Retry the send now that they have tokens
+    const res = await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conversationId: selectedConversation.id,
+        content: pendingMessage,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      setMessages(prev => [...prev, data.message]);
+      setReplyMessage('');
+      setPendingMessage('');
+      setUserMessageCount(c => c + 1);
+      if (!data.free) setTokenBalance(b => Math.max(0, (b ?? 0) - (data.tokensSpent ?? 0)));
+      await loadConversations();
+      toast.success('Message sent!');
+    } else {
+      toast.error('Failed to send message after purchase');
+    }
+  };
+
+  const sendMessageDirectly = async (content: string) => {
+    if (!selectedConversation) return;
+    const res = await fetch('/api/messages/send', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: selectedConversation.id, content }),
+    });
+    if (!res.ok) throw new Error('Failed to send message');
+    const data = await res.json();
+    setMessages(prev => [...prev, data.message]);
+    setReplyMessage('');
+    setUserMessageCount(c => c + 1);
+    await loadConversations();
   };
 
   const searchUsers = async () => {
@@ -341,6 +535,35 @@ export default function MessagesPage() {
     } catch (error: any) {
       console.error('Error starting conversation:', error);
       toast.error('Failed to start conversation');
+    }
+  };
+
+  // Called when ?with=<userId> is in the URL — look up the user then open/create the convo
+  const openOrCreateConversation = async (userId: string) => {
+    try {
+      const supabase = createClient();
+
+      const { data: otherUser, error } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, user_type')
+        .eq('id', userId)
+        .single();
+
+      if (error || !otherUser) {
+        console.error('openOrCreateConversation: user not found', userId, error);
+        toast.error('Could not find that user — make sure they have a profile.');
+        return;
+      }
+
+      await startConversation(otherUser as UserProfile);
+    } catch (err: any) {
+      console.error('openOrCreateConversation error:', err);
+      // Surface a helpful message if the DB tables are missing
+      if (err?.message?.includes('does not exist') || err?.code === '42P01') {
+        toast.error('Messaging tables not set up yet — run supabase/MESSAGING_TABLES.sql in your Supabase SQL editor.', { duration: 8000 });
+      } else {
+        toast.error('Could not open conversation');
+      }
     }
   };
 
@@ -513,11 +736,20 @@ export default function MessagesPage() {
 
                     {/* Reply Form */}
                     <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-gray-50">
+                      {/* Paywall notice — show when next message will cost $10 */}
+                      {userMessageCount >= 1 && !(selectedConversation as any).is_contracted && (
+                        <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                          <DollarSign className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                          <span>
+                            Your first message was free. Each additional message costs <strong>$10</strong> until you're under contract.
+                          </span>
+                        </div>
+                      )}
                       <div className="flex gap-3">
                         <textarea
                           value={replyMessage}
                           onChange={(e) => setReplyMessage(e.target.value)}
-                          placeholder="Type your message..."
+                          placeholder={userMessageCount === 0 ? "Send your first message free..." : "Type your message... ($10)"}
                           className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                           rows={2}
                           disabled={isSending}
@@ -529,6 +761,11 @@ export default function MessagesPage() {
                         >
                           {isSending ? (
                             <Loader className="w-5 h-5 animate-spin" />
+                          ) : userMessageCount >= 1 && !(selectedConversation as any).is_contracted ? (
+                            <>
+                              <Lock className="w-4 h-4" />
+                              Send $10
+                            </>
                           ) : (
                             <>
                               <Send className="w-5 h-5" />
@@ -553,7 +790,119 @@ export default function MessagesPage() {
         </div>
       </div>
 
-      {/* New Conversation Modal */}
+      {/* ── Paywall Modal ────────────────────────────────────── */}
+      <AnimatePresence>
+        {showPaywallModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="p-6 border-b border-gray-200 bg-gradient-to-r from-blue-600 to-blue-700 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-full flex items-center justify-center">
+                    <Lock className="w-5 h-5 text-white" />
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">You need tokens</h3>
+                    <p className="text-blue-100 text-sm">Cold outreach costs 2 tokens per message</p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => { setShowPaywallModal(false); setPaywallClientSecret(null); }}
+                  className="p-2 hover:bg-white/20 rounded-lg transition-colors"
+                >
+                  <X className="w-5 h-5 text-white" />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-4">
+                {/* Current balance */}
+                <div className="flex items-center justify-between px-4 py-3 bg-gray-50 rounded-lg border border-gray-200">
+                  <span className="text-sm text-gray-600">Your current balance</span>
+                  <span className="font-bold text-gray-900">{tokenBalance ?? 0} tokens</span>
+                </div>
+
+                {/* Pending message preview */}
+                {pendingMessage && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">Message waiting to send:</p>
+                    <div className="bg-blue-50 border border-blue-100 rounded-lg px-4 py-3 text-gray-800 text-sm italic max-h-20 overflow-y-auto">
+                      "{pendingMessage}"
+                    </div>
+                  </div>
+                )}
+
+                {/* Why tokens */}
+                <div className="flex items-start gap-2 text-sm text-gray-600 bg-amber-50 rounded-lg p-3 border border-amber-100">
+                  <ShieldCheck className="w-4 h-4 text-amber-500 mt-0.5 flex-shrink-0" />
+                  <span>
+                    Tokens prevent spam and ensure quality connections.
+                    Once you're <strong>under contract</strong> with someone, all messages are free.
+                  </span>
+                </div>
+
+                {/* Token packs */}
+                <div className="space-y-2">
+                  <p className="text-sm font-semibold text-gray-700">Choose a token pack:</p>
+                  {paywallClientSecret ? (
+                    // Stripe payment form for chosen pack
+                    <Elements stripe={stripePromise} options={{ clientSecret: paywallClientSecret }}>
+                      <TokenPackPaymentForm
+                        onSuccess={async (paymentIntentId) => {
+                          await fetch('/api/messages/credit-tokens', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ paymentIntentId }),
+                          });
+                          // Refresh balance from profile
+                          const supabase = createClient();
+                          const { data: profile } = await supabase
+                            .from('profiles')
+                            .select('token_balance')
+                            .eq('id', currentUserId)
+                            .single();
+                          setTokenBalance(profile?.token_balance ?? 0);
+                          await sendMessageAfterPayment();
+                        }}
+                        onBack={() => setPaywallClientSecret(null)}
+                      />
+                    </Elements>
+                  ) : (
+                    tokenPacks.map((pack) => (
+                      <TokenPackCard
+                        key={pack.id}
+                        pack={pack}
+                        onSelect={async () => {
+                          const res = await fetch('/api/stripe/buy-tokens', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ packId: pack.id }),
+                          });
+                          const data = await res.json();
+                          if (data.clientSecret) setPaywallClientSecret(data.clientSecret);
+                          else toast.error('Failed to start checkout');
+                        }}
+                      />
+                    ))
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── New Conversation Modal ───────────────────────────── */}
       <AnimatePresence>
         {showNewConversationModal && (
           <motion.div
@@ -641,5 +990,13 @@ export default function MessagesPage() {
 
       <Footer />
     </div>
+  );
+}
+
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader className="w-8 h-8 animate-spin text-[#003D82]" /></div>}>
+      <MessagesPageInner />
+    </Suspense>
   );
 }

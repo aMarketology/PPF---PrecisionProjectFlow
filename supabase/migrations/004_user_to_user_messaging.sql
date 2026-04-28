@@ -5,6 +5,13 @@
 DROP TABLE IF EXISTS user_messages CASCADE;
 DROP TABLE IF EXISTS user_conversations CASCADE;
 
+-- Drop existing functions that may have conflicting signatures
+DROP FUNCTION IF EXISTS get_or_create_conversation(uuid, uuid) CASCADE;
+DROP FUNCTION IF EXISTS get_unread_message_count(uuid) CASCADE;
+DROP FUNCTION IF EXISTS update_user_conversations_timestamp() CASCADE;
+DROP FUNCTION IF EXISTS update_user_messages_timestamp() CASCADE;
+DROP FUNCTION IF EXISTS update_conversation_last_message() CASCADE;
+
 -- Create user_conversations table
 -- Tracks direct message conversations between two users
 CREATE TABLE user_conversations (

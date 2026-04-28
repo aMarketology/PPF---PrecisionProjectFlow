@@ -1,6 +1,14 @@
 import type { Metadata } from 'next'
+import { Plus_Jakarta_Sans } from 'next/font/google'
 import { organizationSchema, servicesSchema, reviewSchema } from '@/lib/schema'
 import './globals.css'
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700', '800'],
+  variable: '--font-jakarta',
+  display: 'swap',
+})
 
 export const metadata: Metadata = {
   title: 'Precision Product Flow | Expert Product Flow Solutions',
@@ -70,7 +78,7 @@ export default function RootLayout({
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body>
+      <body className={`${plusJakartaSans.variable} font-jakarta antialiased`}>
         {children}
       </body>
     </html>

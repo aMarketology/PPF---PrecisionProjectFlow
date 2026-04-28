@@ -1,470 +1,373 @@
-'use client';
+'use client'
 
-import { useState, useMemo, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { mockCategories } from '@/lib/mockData';
-import Link from 'next/link';
-import Navigation from '../components/Navigation';
-import Footer from '../components/Footer';
-import { createClient } from '@/lib/supabase/client';
-import { 
-  Search, 
-  Filter, 
-  Star, 
-  Heart, 
-  MapPin, 
-  Clock, 
-  DollarSign,
-  ChevronDown,
-  SlidersHorizontal,
-  Loader
-} from 'lucide-react';
+import { useState, useMemo, useEffect } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import Link from 'next/link'
+import Navigation from '../components/Navigation'
+import Footer from '../components/Footer'
+import { createClient } from '@/lib/supabase/client'
+import { Search, Filter, Star, Heart, MapPin, DollarSign, ChevronDown, SlidersHorizontal, Loader, Clock, Award, Wifi, HardHat, X, CheckCircle2 } from 'lucide-react'
 
-interface Product {
-  id: string;
-  name: string;
-  description: string;
-  price: number;
-  category: string;
-  delivery_time_days: number;
-  image_url: string;
-  company_profiles: {
-    id: string;
-    company_name: string;
-    city: string;
-    state: string;
-    is_verified: boolean;
-  };
+interface Service {
+  id: string
+  title: string
+  description: string
+  price: number
+  category: string
+  tags: string[] | null
+  images: string[] | null
+  delivery_time: string | null
+  service_area: string | null
+  certifications: string[] | null
+  active: boolean
+  created_at: string
+  provider: {
+    id: string
+    full_name: string
+    location: string | null
+    avatar_url: string | null
+  } | null
+}
+
+const categories = [
+  'Structural Engineering',
+  'Mechanical Engineering',
+  'Electrical Engineering',
+  'Civil Engineering',
+  'Software Engineering',
+  'Consulting Services',
+  'Design Services',
+  'Analysis & Testing',
+  'Project Management',
+  'Other Services',
+]
+
+// Category-specific fallback images (used only when vendor hasn't uploaded photos)
+const categoryFallbacks: Record<string, string> = {
+  'Structural Engineering': 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=300&fit=crop',
+  'Mechanical Engineering': 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=400&h=300&fit=crop',
+  'Electrical Engineering': 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop',
+  'Civil Engineering': 'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=400&h=300&fit=crop',
+  'Software Engineering': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=400&h=300&fit=crop',
+  'Consulting Services': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop',
+  'Design Services': 'https://images.unsplash.com/photo-1559028006-448665bd7c7f?w=400&h=300&fit=crop',
+  'Analysis & Testing': 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&h=300&fit=crop',
+  'Project Management': 'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=400&h=300&fit=crop',
+  'Other Services': 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&h=300&fit=crop',
+}
+
+function getServiceImage(service: Service): string {
+  if (service.images && service.images.length > 0) return service.images[0]
+  return categoryFallbacks[service.category] || categoryFallbacks['Other Services']
+}
+
+const serviceAreaLabel: Record<string, string> = {
+  remote: 'Remote',
+  'on-site': 'On-Site',
+  both: 'Remote & On-Site',
 }
 
 export default function MarketplacePage() {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('all');
-  const [priceRange, setPriceRange] = useState([0, 20000]);
-  const [sortBy, setSortBy] = useState('newest');
-  const [selectedLocation, setSelectedLocation] = useState('all');
-  const [selectedExperience, setSelectedExperience] = useState('all');
-  const [selectedDelivery, setSelectedDelivery] = useState('all');
-  const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false);
-  const [products, setProducts] = useState<Product[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('all')
+  const [priceRange, setPriceRange] = useState([0, 50000])
+  const [sortBy, setSortBy] = useState('newest')
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const [showAdvancedFilters, setShowAdvancedFilters] = useState(false)
+  const [services, setServices] = useState<Service[]>([])
+  const [loading, setLoading] = useState(true)
 
-  // Fetch products from Supabase
-  useEffect(() => {
-    async function fetchProducts() {
-      try {
-        const supabase = createClient();
-        const { data, error } = await supabase
-          .from('products')
-          .select(`
-            *,
-            company_profiles (
-              id,
-              company_name,
-              city,
-              state,
-              is_verified
-            )
-          `)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false });
+  useEffect(() => { fetchServices() }, [])
 
-        if (error) {
-          console.error('Error fetching products:', error);
-          return;
-        }
+  async function fetchServices() {
+    try {
+      const supabase = createClient()
+      const { data, error } = await supabase
+        .from('services')
+        .select(`
+          id, title, description, price, category, tags, images, delivery_time, service_area, certifications, active, created_at,
+          provider:profiles!services_provider_id_fkey(id, full_name, location, avatar_url)
+        `)
+        .eq('active', true)
+        .order('created_at', { ascending: false })
 
-        setProducts(data || []);
-      } catch (error) {
-        console.error('Error:', error);
-      } finally {
-        setLoading(false);
-      }
+      if (error) { console.error('Error fetching services:', error); return }
+      setServices((data as any) || [])
+    } catch (error) {
+      console.error('Error:', error)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchProducts();
-  }, []);
+  const filteredServices = useMemo(() => {
+    let filtered = services.filter(s => {
+      const matchesSearch =
+        s.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        s.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.provider?.full_name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (s.tags || []).some(t => t.toLowerCase().includes(searchQuery.toLowerCase()))
 
-  // Dummy image URLs for services
-  const dummyImages = [
-    'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1559028006-448665bd7c7f?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=400&h=300&fit=crop',
-    'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=400&h=300&fit=crop',
-  ];
+      const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory
+      const matchesPrice = s.price >= priceRange[0] && s.price <= priceRange[1]
 
+      return matchesSearch && matchesCategory && matchesPrice
+    })
 
-  // Filter and sort products
-  const filteredProducts = useMemo(() => {
-    let filtered = products.filter(product => {
-      const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          product.description.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          product.company_profiles.company_name.toLowerCase().includes(searchQuery.toLowerCase());
-      
-      const matchesCategory = selectedCategory === 'all' || product.category === selectedCategory;
-      const matchesPrice = product.price >= priceRange[0] && product.price <= priceRange[1];
-      const matchesLocation = selectedLocation === 'all' || 
-                            product.company_profiles.state.toLowerCase() === selectedLocation.toLowerCase() ||
-                            product.company_profiles.city.toLowerCase().includes(selectedLocation.toLowerCase());
-      
-      return matchesSearch && matchesCategory && matchesPrice && matchesLocation;
-    });
-
-    // Sort products
     switch (sortBy) {
-      case 'price-low':
-        filtered.sort((a, b) => a.price - b.price);
-        break;
-      case 'price-high':
-        filtered.sort((a, b) => b.price - a.price);
-        break;
-      case 'newest':
-        // Already sorted by created_at from query
-        break;
-      case 'name':
-        filtered.sort((a, b) => a.name.localeCompare(b.name));
-        break;
+      case 'price-low': filtered.sort((a, b) => a.price - b.price); break
+      case 'price-high': filtered.sort((a, b) => b.price - a.price); break
+      case 'name': filtered.sort((a, b) => a.title.localeCompare(b.title)); break
     }
 
-    return filtered;
-  }, [products, searchQuery, selectedCategory, priceRange, sortBy, selectedLocation]);
+    return filtered
+  }, [services, searchQuery, selectedCategory, priceRange, sortBy])
 
-  const toggleFavorite = (productId: string, e: React.MouseEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    const newFavorites = new Set(favorites);
-    if (newFavorites.has(productId)) {
-      newFavorites.delete(productId);
-    } else {
-      newFavorites.add(productId);
-    }
-    setFavorites(newFavorites);
-  };
+  const toggleFavorite = (id: string, e: React.MouseEvent) => {
+    e.preventDefault()
+    e.stopPropagation()
+    setFavorites(prev => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+  }
 
   return (
     <>
       <Navigation />
-      <div className="bg-gradient-to-br from-blue-50 via-white to-slate-50 min-h-screen pt-24">
-        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-6">
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
 
-          {/* Header */}
-          <motion.div 
-            className="mb-6"
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h1 className="text-3xl font-bold text-gray-900 mb-2">Engineering Services Marketplace</h1>
-            <p className="text-gray-600">
-              {loading ? 'Loading...' : `Browse ${products.length}+ professional services from real companies`}
-            </p>
-          </motion.div>
+        {/* ── Page Header ── */}
+        <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-28 pb-14">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+              <p className="text-blue-300 text-sm font-semibold tracking-widest uppercase mb-3">Engineering Marketplace</p>
+              <h1 className="text-4xl lg:text-5xl font-extrabold text-white mb-3 leading-tight">
+                Find the Right Expert,<br className="hidden sm:block" /> Right Now
+              </h1>
+              <p className="text-blue-200 text-lg max-w-2xl">
+                {loading ? 'Loading services...' : `${services.length} professional engineering services from verified vendors`}
+              </p>
+            </motion.div>
 
-          {/* Search & Filter Bar */}
-          <motion.div 
-            className="sticky top-20 z-40 bg-white/95 backdrop-blur-md border border-gray-200 rounded-2xl p-4 mb-6 shadow-lg"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-          >
-            {/* Main Search Bar */}
-            <div className="flex flex-col lg:flex-row gap-4 mb-4">
-              <div className="flex-1 relative">
-                <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
+            {/* ── Search Bar in Header ── */}
+            <motion.div
+              className="mt-8 max-w-3xl"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+            >
+              <div className="relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
                 <input
                   type="text"
-                  placeholder="Search engineering services, skills, or professionals..."
+                  placeholder="Search services, vendors, or keywords..."
                   value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-white border border-gray-300 rounded-xl text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
+                  onChange={e => setSearchQuery(e.target.value)}
+                  className="w-full pl-12 pr-36 py-4 bg-white rounded-xl text-gray-900 text-sm font-medium placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-400 shadow-xl"
                 />
+                <button className="absolute right-2 top-1/2 -translate-y-1/2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold px-5 py-2.5 rounded-lg transition-colors">
+                  Search
+                </button>
               </div>
-              
-              <motion.button
-                onClick={() => setShowAdvancedFilters(!showAdvancedFilters)}
-                className="px-6 py-3 bg-white border border-gray-300 rounded-xl text-gray-700 hover:text-gray-900 hover:bg-gray-50 transition-all inline-flex items-center"
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <SlidersHorizontal className="h-4 w-4 mr-2" />
-                Filters
-              </motion.button>
-            </div>
+            </motion.div>
+          </div>
+        </div>
 
-            {/* Quick Filter Chips */}
-            <div className="flex flex-wrap gap-3 mb-4">
+        {/* ── Filter Bar ── */}
+        <div className="sticky top-16 z-40 bg-white border-b border-gray-200 shadow-sm">
+          <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-wrap items-center gap-3 py-3">
               <select
                 value={selectedCategory}
-                onChange={(e) => setSelectedCategory(e.target.value)}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                onChange={e => setSelectedCategory(e.target.value)}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
               >
                 <option value="all">All Categories</option>
-                {mockCategories.map((category) => (
-                  <option key={category.id} value={category.id}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={selectedLocation}
-                onChange={(e) => setSelectedLocation(e.target.value)}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 transition-all"
-              >
-                <option value="all">All Locations</option>
-                <option value="remote">Remote</option>
-                <option value="usa">United States</option>
-                <option value="europe">Europe</option>
-                <option value="asia">Asia</option>
+                {categories.map(cat => <option key={cat} value={cat}>{cat}</option>)}
               </select>
 
               <select
                 value={sortBy}
-                onChange={(e) => setSortBy(e.target.value)}
-                className="px-4 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 text-sm focus:ring-2 focus:ring-blue-500 transition-all"
+                onChange={e => setSortBy(e.target.value)}
+                className="px-4 py-2 bg-white border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
               >
-                <option value="rating">Highest Rated</option>
+                <option value="newest">Newest First</option>
                 <option value="price-low">Price: Low to High</option>
                 <option value="price-high">Price: High to Low</option>
-                <option value="newest">Newest First</option>
-                <option value="popular">Most Popular</option>
+                <option value="name">Name A–Z</option>
               </select>
 
-              <div className="flex items-center space-x-2 text-gray-700">
-                <span className="text-sm">Price:</span>
+              <div className="flex items-center gap-2 text-sm text-gray-600 font-medium">
+                <span>Price:</span>
                 <input
                   type="number"
                   placeholder="Min"
                   value={priceRange[0] || ''}
-                  onChange={(e) => setPriceRange([Number(e.target.value) || 0, priceRange[1]])}
-                  className="w-20 px-2 py-1 bg-white border border-gray-300 rounded text-sm text-gray-900"
+                  onChange={e => setPriceRange([Number(e.target.value) || 0, priceRange[1]])}
+                  className="w-20 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
                 />
-                <span>-</span>
+                <span className="text-gray-400">—</span>
                 <input
                   type="number"
                   placeholder="Max"
-                  value={priceRange[1] || ''}
-                  onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value) || 10000])}
-                  className="w-20 px-2 py-1 bg-white border border-gray-300 rounded text-sm text-gray-900"
+                  value={priceRange[1] === 50000 ? '' : priceRange[1]}
+                  onChange={e => setPriceRange([priceRange[0], Number(e.target.value) || 50000])}
+                  className="w-20 px-3 py-2 bg-white border border-gray-200 rounded-lg text-sm text-gray-700 outline-none focus:ring-2 focus:ring-blue-500"
                 />
               </div>
-            </div>
 
-            {/* Advanced Filters */}
-            <AnimatePresence>
-              {showAdvancedFilters && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  exit={{ opacity: 0, height: 0 }}
-                  className="border-t border-gray-200 pt-6 mt-6"
+              <div className="ml-auto text-sm text-gray-500 font-medium">
+                {loading ? '' : `${filteredServices.length} result${filteredServices.length !== 1 ? 's' : ''}`}
+              </div>
+
+              {(searchQuery || selectedCategory !== 'all' || priceRange[0] > 0 || priceRange[1] < 50000) && (
+                <button
+                  onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]) }}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 transition-colors"
                 >
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Price Range ($)
-                      </label>
-                      <div className="flex items-center space-x-4">
-                        <input
-                          type="number"
-                          placeholder="Min"
-                          value={priceRange[0]}
-                          onChange={(e) => setPriceRange([Number(e.target.value), priceRange[1]])}
-                          className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                        />
-                        <span className="text-gray-400">to</span>
-                        <input
-                          type="number"
-                          placeholder="Max"
-                          value={priceRange[1]}
-                          onChange={(e) => setPriceRange([priceRange[0], Number(e.target.value)])}
-                          className="flex-1 px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Experience Level
-                      </label>
-                      <select className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
-                        <option value="">All Levels</option>
-                        <option value="entry">Entry Level</option>
-                        <option value="mid">Mid Level</option>
-                        <option value="senior">Senior Level</option>
-                        <option value="expert">Expert</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-3">
-                        Delivery Time
-                      </label>
-                      <select className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all">
-                        <option value="">Any Time</option>
-                        <option value="1-3">1-3 days</option>
-                        <option value="4-7">4-7 days</option>
-                        <option value="1-2weeks">1-2 weeks</option>
-                        <option value="2weeks+">2+ weeks</option>
-                      </select>
-                    </div>
-                  </div>
-                </motion.div>
+                  <X className="w-3.5 h-3.5" /> Clear filters
+                </button>
               )}
-            </AnimatePresence>
-          </motion.div>
-
-          {/* Results Counter */}
-          <motion.div 
-            className="flex items-center justify-between mb-4"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 0.2 }}
-          >
-            <p className="text-gray-600">
-              {loading ? 'Loading products...' : `Showing ${filteredProducts.length} of ${products.length} products`}
-            </p>
-          </motion.div>
-
-          {/* Grid */}
-          {loading ? (
-            <div className="flex justify-center items-center py-20">
-              <Loader className="h-10 w-10 animate-spin text-blue-500" />
-              <span className="ml-3 text-gray-600">Loading products...</span>
             </div>
+          </div>
+        </div>
+
+        {/* ── Grid ── */}
+        <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-8">
+          {loading ? (
+            <div className="flex flex-col items-center justify-center py-32 gap-4">
+              <Loader className="h-10 w-10 animate-spin text-[#003D82]" />
+              <p className="text-gray-500 font-medium">Loading services...</p>
+            </div>
+          ) : filteredServices.length === 0 ? (
+            <motion.div className="text-center py-24" initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+              <div className="w-20 h-20 bg-gray-100 rounded-2xl flex items-center justify-center mx-auto mb-5">
+                <Search className="h-10 w-10 text-gray-300" />
+              </div>
+              <h3 className="text-xl font-bold text-gray-900 mb-2">
+                {services.length === 0 ? 'No services listed yet' : 'No matching services'}
+              </h3>
+              <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">
+                {services.length === 0
+                  ? 'Vendors can list their first service from their dashboard.'
+                  : 'Try broadening your search or clearing filters.'}
+              </p>
+              <button
+                onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]) }}
+                className="bg-[#003D82] text-white px-6 py-3 rounded-xl hover:bg-[#002960] transition-all font-semibold text-sm"
+              >
+                Clear all filters
+              </button>
+            </motion.div>
           ) : (
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-9 gap-3">
-            {filteredProducts.map((product, index) => (
-              <Link key={product.id} href={`/marketplace/service/${product.id}`}>
-                <motion.div
-                  initial={{ opacity: 0, scale: 0.9 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: index * 0.05, duration: 0.3 }}
-                  className="group bg-white border border-gray-200 hover:border-blue-300 rounded-xl overflow-hidden transition-all duration-300 hover:shadow-2xl hover:shadow-blue-100 cursor-pointer h-full"
-                  whileHover={{ y: -3, scale: 1.02 }}
-                  style={{ aspectRatio: '5/4' }}
-                >
-                  <div className="h-full flex flex-col">
-                    {/* Image Section */}
-                    <div className="relative h-3/5 overflow-hidden">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+              {filteredServices.map((service, index) => (
+                <Link key={service.id} href={`/marketplace/service/${service.id}`}>
+                  <motion.div
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.04, duration: 0.3 }}
+                    className="group bg-white border border-gray-100 hover:border-[#003D82]/30 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 cursor-pointer h-full flex flex-col"
+                    whileHover={{ y: -4 }}
+                  >
+                    {/* Image */}
+                    <div className="relative h-44 overflow-hidden bg-gray-100 flex-shrink-0">
                       <img
-                        src={product.image_url}
-                        alt={product.name}
-                        className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                        src={getServiceImage(service)}
+                        alt={service.title}
+                        className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                        onError={e => { (e.target as HTMLImageElement).src = categoryFallbacks['Other Services'] }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent" />
-                      
-                      {/* Favorite Button */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+
+                      {/* Multi-image dots */}
+                      {service.images && service.images.length > 1 && (
+                        <div className="absolute bottom-2.5 left-1/2 -translate-x-1/2 flex gap-1">
+                          {service.images.slice(0, 4).map((_, i) => (
+                            <div key={i} className={`rounded-full transition-all ${i === 0 ? 'w-4 h-1.5 bg-white' : 'w-1.5 h-1.5 bg-white/50'}`} />
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Favorite */}
                       <motion.button
-                        onClick={(e) => toggleFavorite(product.id, e)}
-                        className="absolute top-2 right-2 p-1.5 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all"
-                        whileHover={{ scale: 1.1 }}
+                        onClick={e => toggleFavorite(service.id, e)}
+                        className="absolute top-3 right-3 p-1.5 bg-white/90 backdrop-blur-sm rounded-full shadow-sm hover:bg-white transition-all"
+                        whileHover={{ scale: 1.15 }}
                         whileTap={{ scale: 0.9 }}
                       >
-                        <Heart 
-                          className={`h-3 w-3 transition-colors ${
-                            favorites.has(product.id) 
-                              ? 'text-red-500 fill-current' 
-                              : 'text-gray-600 hover:text-red-500'
-                          }`}
-                        />
+                        <Heart className={`h-3.5 w-3.5 transition-colors ${favorites.has(service.id) ? 'text-red-500 fill-current' : 'text-gray-500'}`} />
                       </motion.button>
 
                       {/* Price Badge */}
-                      <div className="absolute top-2 left-2">
-                        <span className="text-xs font-bold text-white bg-black/60 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          ${(product.price / 100).toLocaleString(undefined, {
-                            minimumFractionDigits: 2,
-                            maximumFractionDigits: 2
-                          })}
+                      <div className="absolute bottom-3 left-3">
+                        <span className="text-sm font-bold text-white drop-shadow-md">
+                          ${Number(service.price).toLocaleString()}
                         </span>
                       </div>
-
-                      {/* Verified Badge */}
-                      {product.company_profiles.is_verified && (
-                        <div className="absolute bottom-2 right-2 flex items-center bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg">
-                          <Star className="h-3 w-3 text-blue-500 fill-current mr-1" />
-                          <span className="text-xs font-medium text-gray-900">Verified</span>
-                        </div>
-                      )}
                     </div>
 
-                    {/* Content Section */}
-                    <div className="flex-1 p-3 flex flex-col justify-between">
-                      <div>
-                        <h3 className="font-semibold text-gray-900 text-sm mb-1 line-clamp-2 group-hover:text-blue-600 transition-colors">
-                          {product.name}
-                        </h3>
-                        
-                        <div className="flex items-center mb-2">
-                          <div className="w-4 h-4 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center mr-2">
-                            <span className="text-white text-xs font-bold">
-                              {product.company_profiles.company_name.charAt(0)}
-                            </span>
-                          </div>
-                          <span className="text-xs text-gray-600 truncate">{product.company_profiles.company_name}</span>
-                        </div>
+                    {/* Content */}
+                    <div className="p-4 flex flex-col flex-1">
+                      {/* Category pill */}
+                      <span className="inline-block text-[11px] font-semibold text-[#003D82] bg-blue-50 px-2 py-0.5 rounded-md mb-2 self-start">
+                        {service.category.replace(' Engineering', ' Eng.')}
+                      </span>
 
-                        <div className="flex items-center justify-between text-xs text-gray-500">
-                          <div className="flex items-center">
-                            <MapPin className="h-3 w-3 mr-1" />
-                            <span className="truncate">{product.company_profiles.city}, {product.company_profiles.state}</span>
-                          </div>
-                          <div className="flex items-center">
-                            <Clock className="h-3 w-3 mr-1" />
-                            <span>{product.delivery_time_days}d</span>
-                          </div>
-                        </div>
-                      </div>
+                      <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-[#003D82] transition-colors">
+                        {service.title}
+                      </h3>
 
-                      <div className="mt-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-xs text-blue-600 bg-blue-50 px-2 py-1 rounded-full font-medium">
-                            {product.category.replace('-', ' ').toUpperCase()}
+                      {/* Provider */}
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0">
+                          <span className="text-white text-[9px] font-bold">
+                            {(service.provider?.full_name || 'V').charAt(0).toUpperCase()}
                           </span>
                         </div>
+                        <span className="text-xs text-gray-500 font-medium truncate">{service.provider?.full_name || 'Vendor'}</span>
+                        <CheckCircle2 className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                      </div>
+
+                      {/* Meta badges */}
+                      <div className="flex flex-wrap gap-1 mt-auto">
+                        {service.delivery_time && (
+                          <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+                            <Clock className="w-2.5 h-2.5" />
+                            {service.delivery_time}
+                          </span>
+                        )}
+                        {service.service_area && (
+                          <span className="text-[11px] text-slate-600 bg-slate-50 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+                            {service.service_area === 'remote' ? <Wifi className="w-2.5 h-2.5" /> : <HardHat className="w-2.5 h-2.5" />}
+                            {serviceAreaLabel[service.service_area] || service.service_area}
+                          </span>
+                        )}
+                        {service.certifications && service.certifications.length > 0 && (
+                          <span className="text-[11px] text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
+                            <Award className="w-2.5 h-2.5" />
+                            {service.certifications[0]}
+                            {service.certifications.length > 1 && ` +${service.certifications.length - 1}`}
+                          </span>
+                        )}
+                        {service.provider?.location && (
+                          <span className="text-[11px] text-gray-400 flex items-center gap-0.5">
+                            <MapPin className="w-2.5 h-2.5" />
+                            {service.provider.location}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
-                </motion.div>
-              </Link>
-            ))}
-          </div>
-          )}
-
-          {/* No Results */}
-          {!loading && filteredProducts.length === 0 && (
-            <motion.div 
-              className="text-center py-16"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-            >
-              <div className="w-24 h-24 bg-gray-100 border border-gray-200 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                <Search className="h-12 w-12 text-gray-400" />
-              </div>
-              <h3 className="text-xl font-semibold text-gray-900 mb-3">No products found</h3>
-              <p className="text-gray-600 mb-6 max-w-md mx-auto">
-                Try adjusting your search criteria or browse different categories to discover amazing services from real companies
-              </p>
-              <motion.button 
-                onClick={() => {
-                  setSearchQuery('');
-                  setSelectedCategory('all');
-                  setPriceRange([0, 10000]);
-                }}
-                className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-blue-800 transition-all font-medium inline-flex items-center"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
-              >
-                Clear all filters
-              </motion.button>
-            </motion.div>
+                  </motion.div>
+                </Link>
+              ))}
+            </div>
           )}
         </div>
       </div>
       <Footer />
     </>
-  );
+  )
 }

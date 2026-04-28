@@ -32,7 +32,24 @@ export default function LoginPage() {
         toast.error(result.error);
       } else {
         toast.success('Welcome back!');
-        router.push('/');
+        // Fetch profile to redirect to correct dashboard
+        const { createClient } = await import('@/lib/supabase/client');
+        const supabase = createClient();
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user) {
+          const { data: profile } = await supabase
+            .from('profiles')
+            .select('user_type')
+            .eq('id', user.id)
+            .single();
+          if (profile?.user_type === 'engineer') {
+            router.push('/dashboard/engineer');
+          } else {
+            router.push('/dashboard/client');
+          }
+        } else {
+          router.push('/');
+        }
       }
     } catch (err) {
       setError('An unexpected error occurred');

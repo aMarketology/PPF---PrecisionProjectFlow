@@ -35,3 +35,10 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# Sensitive / secret files
+PPF_MOBILE_INTEGRATION.md
+ppf-mobile-env-template.md
+passwords.md
+*.env.local
+*.env*.local

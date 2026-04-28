@@ -1,469 +1,298 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import { createClient } from '@/lib/supabase/client'
+import { format } from 'date-fns'
+import {
+  Package, MessageSquare, ShoppingBag, DollarSign,
+  Clock, CheckCircle2, XCircle, AlertCircle, Coins,
+  Search, FileText, ChevronRight, BarChart3, Settings,
+  User,
+} from 'lucide-react'
 
-// Mock data for demo purposes - will be replaced with real Supabase data
-const mockOrders = [
-  { id: '1', title: 'Electrical Panel Upgrade', engineer: 'ElectricDisk Inc', status: 'in_progress', amount: 2500, date: '2024-01-15', deliveryDate: '2024-01-25' },
-  { id: '2', title: 'HVAC System Design', engineer: 'CoolAir Specialists', status: 'pending', amount: 4200, date: '2024-01-18', deliveryDate: '2024-02-01' },
-  { id: '3', title: 'Plumbing Renovation Plan', engineer: 'MCG Plumbing LLC', status: 'completed', amount: 1800, date: '2024-01-05', deliveryDate: '2024-01-12' },
-  { id: '4', title: 'Structural Analysis', engineer: 'Steel Builders Co', status: 'completed', amount: 3500, date: '2023-12-20', deliveryDate: '2023-12-30' },
-]
+interface Profile {
+  id: string
+  full_name: string
+  email: string
+  user_type: string
+  token_balance: number
+  avatar_url: string | null
+  location: string | null
+}
 
-const mockSavedServices = [
-  { id: '1', title: 'Commercial Electrical Design', provider: 'ElectricDisk Inc', price: 2500, rating: 4.9 },
-  { id: '2', title: 'Industrial Plumbing Design', provider: 'MCG Plumbing LLC', price: 3200, rating: 4.8 },
-  { id: '3', title: 'Custom CNC Machining', provider: 'Allens Performance Machine', price: 1500, rating: 5.0 },
-]
+interface Order {
+  id: string
+  status: string
+  total_amount: number
+  created_at: string
+  engineer: { full_name: string; email: string } | null
+  service: { title: string } | null
+}
 
-const mockProjectRequests = [
-  { id: '1', title: 'Office Building Electrical Overhaul', budget: '$15,000-$25,000', proposals: 5, deadline: '2024-02-01', status: 'active' },
-  { id: '2', title: 'Factory HVAC System', budget: '$30,000-$50,000', proposals: 3, deadline: '2024-02-15', status: 'active' },
-]
+const STATUS_CFG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
+  pending:     { label: 'Pending',     cls: 'bg-amber-50 text-amber-700 border border-amber-200',       icon: <Clock className="w-3 h-3" /> },
+  in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border border-blue-200',          icon: <AlertCircle className="w-3 h-3" /> },
+  completed:   { label: 'Completed',   cls: 'bg-emerald-50 text-emerald-700 border border-emerald-200', icon: <CheckCircle2 className="w-3 h-3" /> },
+  cancelled:   { label: 'Cancelled',   cls: 'bg-red-50 text-red-600 border border-red-200',             icon: <XCircle className="w-3 h-3" /> },
+}
+
+function StatusBadge({ status }: { status: string }) {
+  const cfg = STATUS_CFG[status] ?? { label: status, cls: 'bg-gray-100 text-gray-600', icon: null }
+  return (
+    <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-semibold ${cfg.cls}`}>
+      {cfg.icon}{cfg.label}
+    </span>
+  )
+}
+
+function StatCard({ icon, label, value, sub, accent = false }: { icon: React.ReactNode; label: string; value: string; sub: string; accent?: boolean }) {
+  return (
+    <div className={`rounded-2xl border p-5 flex flex-col gap-3 ${accent ? 'bg-[#003D82] border-[#002960]' : 'bg-white border-gray-100 shadow-sm'}`}>
+      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${accent ? 'bg-white/15' : 'bg-blue-50'}`}>
+        <span className={accent ? 'text-white' : 'text-[#003D82]'}>{icon}</span>
+      </div>
+      <div>
+        <p className={`text-2xl font-extrabold ${accent ? 'text-white' : 'text-gray-900'}`}>{value}</p>
+        <p className={`text-xs font-semibold mt-0.5 ${accent ? 'text-blue-200' : 'text-gray-500'}`}>{label}</p>
+      </div>
+      <p className={`text-xs ${accent ? 'text-blue-200' : 'text-gray-400'}`}>{sub}</p>
+    </div>
+  )
+}
 
 export default function ClientDashboard() {
   const router = useRouter()
-  const [user, setUser] = useState<any>(null)
-  const [profile, setProfile] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'projects' | 'saved' | 'messages'>('overview')
+  const [profile, setProfile]         = useState<Profile | null>(null)
+  const [orders, setOrders]           = useState<Order[]>([])
+  const [unreadCount, setUnreadCount] = useState(0)
+  const [loading, setLoading]         = useState(true)
+  const [activeTab, setActiveTab]     = useState<'overview' | 'orders'>('overview')
 
-  useEffect(() => {
-    async function loadUser() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user) {
-        router.push('/login')
-        return
-      }
+  useEffect(() => { loadDashboard() }, [])
 
-      const { data: profile } = await supabase
-        .from('profiles')
-        .select('*')
-        .eq('id', user.id)
-        .single()
+  async function loadDashboard() {
+    const supabase = createClient()
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) { router.push('/login'); return }
 
-      if (profile?.user_type === 'engineer') {
-        router.push('/dashboard/engineer')
-        return
-      }
+    const { data: profileData } = await supabase
+      .from('profiles').select('*').eq('id', user.id).single()
+    if (!profileData) { router.push('/login'); return }
+    if (profileData.user_type === 'engineer') { router.push('/dashboard/engineer'); return }
+    setProfile(profileData)
 
-      setUser(user)
-      setProfile(profile)
-      setLoading(false)
-    }
+    const { data: ordersData } = await supabase
+      .from('orders')
+      .select('id, status, total_amount, created_at, engineer:profiles!orders_engineer_id_fkey(full_name, email), service:services!orders_service_id_fkey(title)')
+      .eq('client_id', user.id)
+      .order('created_at', { ascending: false })
+      .limit(50)
+    setOrders((ordersData as any) || [])
 
-    loadUser()
-  }, [router])
+    try {
+      const { data } = await supabase.rpc('get_unread_message_count', { p_user_id: user.id })
+      setUnreadCount(data || 0)
+    } catch { /* optional */ }
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-600"></div>
-      </div>
-    )
+    setLoading(false)
   }
 
-  const stats = {
-    totalSpent: 12000,
-    activeOrders: 2,
-    completedOrders: 8,
-    savedServices: mockSavedServices.length,
-    unreadMessages: 3,
-    activeProjects: mockProjectRequests.length,
-  }
+  if (loading) return (
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta flex items-center justify-center">
+      <div className="w-10 h-10 border-4 border-[#003D82]/20 border-t-[#003D82] rounded-full animate-spin" />
+    </div>
+  )
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-100 text-yellow-800',
-    in_progress: 'bg-blue-100 text-blue-800',
-    completed: 'bg-green-100 text-green-800',
-    cancelled: 'bg-red-100 text-red-800',
-    active: 'bg-green-100 text-green-800',
-    closed: 'bg-gray-100 text-gray-800',
-  }
+  const activeOrders    = orders.filter(o => o.status === 'pending' || o.status === 'in_progress')
+  const completedOrders = orders.filter(o => o.status === 'completed')
+  const totalSpent      = completedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
+
+  const TABS = [
+    { key: 'overview', label: 'Overview',                  icon: <BarChart3 className="w-4 h-4" /> },
+    { key: 'orders',   label: `Orders (${orders.length})`, icon: <Package className="w-4 h-4" /> },
+  ] as const
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
       <Navigation />
-      
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 pt-24">
-        {/* Header */}
-        <div className="mb-8 flex justify-between items-center">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Client Dashboard</h1>
-            <p className="mt-1 text-gray-600">Welcome back, {profile?.full_name || 'Client'}!</p>
+
+      {/* ── Hero header ── */}
+      <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-24 pb-28 relative overflow-hidden">
+        <div className="absolute inset-0 opacity-10"
+          style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px)' }}
+        />
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
+          <div className="flex items-center gap-4">
+            {profile?.avatar_url ? (
+              <img src={profile.avatar_url} alt={profile.full_name} className="w-16 h-16 rounded-2xl object-cover border-2 border-white/20" />
+            ) : (
+              <div className="w-16 h-16 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center">
+                <User className="w-8 h-8 text-white" />
+              </div>
+            )}
+            <div>
+              <p className="text-blue-200 text-sm font-medium mb-0.5">Client Dashboard</p>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{profile?.full_name || 'Welcome back!'}</h1>
+              {profile?.location && <p className="text-blue-300 text-sm mt-0.5">{profile.location}</p>}
+            </div>
           </div>
-          <Link
-            href="/marketplace"
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Browse Services
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2 bg-white/10 border border-white/20 rounded-xl px-4 py-2.5">
+              <Coins className="w-4 h-4 text-amber-300" />
+              <span className="font-bold text-white">{profile?.token_balance ?? 0}</span>
+              <span className="text-blue-200 text-sm">tokens</span>
+            </div>
+            {unreadCount > 0 && (
+              <Link href="/messages"
+                className="flex items-center gap-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all">
+                <MessageSquare className="w-4 h-4" />
+                Messages <span className="bg-white text-[#FF6B35] text-xs font-bold rounded-full px-1.5 py-0.5">{unreadCount}</span>
+              </Link>
+            )}
+            <Link href="/marketplace"
+              className="flex items-center gap-2 bg-white/10 border border-white/20 hover:bg-white/20 text-white font-semibold px-4 py-2.5 rounded-xl text-sm transition-all">
+              <Search className="w-4 h-4" />Browse Services
+            </Link>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Tab bar ── */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 -mt-6 relative z-10 mb-8">
+        <div className="bg-white rounded-2xl shadow-xl border border-gray-100 p-1.5 flex gap-1 overflow-x-auto">
+          {TABS.map(tab => (
+            <button key={tab.key} onClick={() => setActiveTab(tab.key)}
+              className={`flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold whitespace-nowrap transition-all ${
+                activeTab === tab.key ? 'bg-[#003D82] text-white shadow-sm' : 'text-gray-500 hover:text-gray-800 hover:bg-gray-50'
+              }`}>
+              {tab.icon}{tab.label}
+            </button>
+          ))}
+          <Link href="/settings"
+            className="ml-auto flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-semibold text-gray-400 hover:text-gray-700 hover:bg-gray-50 transition-all whitespace-nowrap">
+            <Settings className="w-4 h-4" />Settings
           </Link>
         </div>
+      </div>
 
-        {/* Tabs */}
-        <div className="border-b border-gray-200 mb-8">
-          <nav className="-mb-px flex space-x-8">
-            {['overview', 'orders', 'projects', 'saved', 'messages'].map((tab) => (
-              <button
-                key={tab}
-                onClick={() => setActiveTab(tab as any)}
-                className={`py-4 px-1 border-b-2 font-medium text-sm capitalize transition-colors ${
-                  activeTab === tab
-                    ? 'border-blue-500 text-blue-600'
-                    : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                }`}
-              >
-                {tab}
-                {tab === 'messages' && stats.unreadMessages > 0 && (
-                  <span className="ml-2 bg-red-500 text-white text-xs rounded-full px-2 py-0.5">
-                    {stats.unreadMessages}
-                  </span>
-                )}
-              </button>
-            ))}
-          </nav>
-        </div>
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 pb-20">
+        <AnimatePresence mode="wait">
 
-        {/* Overview Tab */}
-        {activeTab === 'overview' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="space-y-8"
-          >
-            {/* Stats Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Total Spent</p>
-                    <p className="text-3xl font-bold text-gray-900">${stats.totalSpent.toLocaleString()}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-blue-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">💳</span>
-                  </div>
-                </div>
+          {/* ── OVERVIEW ── */}
+          {activeTab === 'overview' && (
+            <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8">
+              <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+                <StatCard icon={<DollarSign className="w-5 h-5" />} label="Total Spent"  value={`$${totalSpent.toLocaleString()}`} sub={`${completedOrders.length} completed`} accent />
+                <StatCard icon={<Clock className="w-5 h-5" />}       label="Active Orders" value={String(activeOrders.length)}     sub="In progress or pending" />
+                <StatCard icon={<CheckCircle2 className="w-5 h-5" />} label="Completed"  value={String(completedOrders.length)}   sub="Successfully delivered" />
+                <StatCard icon={<Coins className="w-5 h-5" />}        label="Tokens"      value={String(profile?.token_balance ?? 0)} sub="For outreach messages" />
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Active Orders</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.activeOrders}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">📦</span>
-                  </div>
+              {/* Recent orders */}
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+                  <h2 className="font-bold text-gray-900">Recent Orders</h2>
+                  <button onClick={() => setActiveTab('orders')}
+                    className="text-xs font-semibold text-[#003D82] hover:underline flex items-center gap-1">
+                    View all <ChevronRight className="w-3.5 h-3.5" />
+                  </button>
                 </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Completed Orders</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.completedOrders}</p>
+                {orders.length === 0 ? (
+                  <div className="p-16 text-center">
+                    <Package className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                    <p className="font-semibold text-gray-500 mb-1">No orders yet</p>
+                    <p className="text-gray-400 text-sm mb-4">Browse the marketplace to find engineering services</p>
+                    <Link href="/marketplace"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#003D82] text-white font-semibold rounded-xl text-sm hover:bg-[#002960] transition-all">
+                      <Search className="w-4 h-4" />Browse Marketplace
+                    </Link>
                   </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">✅</span>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-white rounded-xl shadow-sm p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-gray-500">Active Projects</p>
-                    <p className="text-3xl font-bold text-gray-900">{stats.activeProjects}</p>
-                  </div>
-                  <div className="w-12 h-12 bg-purple-100 rounded-full flex items-center justify-center">
-                    <span className="text-2xl">📋</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Recent Activity */}
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-              {/* Recent Orders */}
-              <div className="bg-white rounded-xl shadow-sm">
-                <div className="p-6 border-b border-gray-200">
-                  <h2 className="text-lg font-semibold text-gray-900">Recent Orders</h2>
-                </div>
-                <div className="divide-y divide-gray-200">
-                  {mockOrders.slice(0, 4).map((order) => (
-                    <div key={order.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{order.title}</p>
-                          <p className="text-sm text-gray-500">{order.engineer}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-semibold text-gray-900">${order.amount.toLocaleString()}</p>
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[order.status]}`}>
-                            {order.status.replace('_', ' ')}
-                          </span>
-                        </div>
-                      </div>
+                ) : orders.slice(0, 5).map(o => (
+                  <div key={o.id} className="px-6 py-4 border-b border-gray-50 last:border-0 flex items-center justify-between gap-4 hover:bg-gray-50 transition-colors">
+                    <div className="min-w-0">
+                      <p className="font-semibold text-gray-900 text-sm truncate">{o.service?.title || 'Order'}</p>
+                      <p className="text-xs text-gray-400">{o.engineer?.full_name || 'Vendor'} · {format(new Date(o.created_at), 'MMM d')}</p>
                     </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <button 
-                    onClick={() => setActiveTab('orders')}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    View all orders →
-                  </button>
-                </div>
-              </div>
-
-              {/* Active Project Requests */}
-              <div className="bg-white rounded-xl shadow-sm">
-                <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-                  <h2 className="text-lg font-semibold text-gray-900">Project Requests</h2>
-                  <button className="text-blue-600 hover:text-blue-700 text-sm font-medium">
-                    + New Request
-                  </button>
-                </div>
-                <div className="divide-y divide-gray-200">
-                  {mockProjectRequests.map((project) => (
-                    <div key={project.id} className="p-4 hover:bg-gray-50 transition-colors">
-                      <div className="flex items-center justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900">{project.title}</p>
-                          <p className="text-sm text-gray-500">Budget: {project.budget}</p>
-                          <p className="text-xs text-gray-400">Deadline: {project.deadline}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[project.status]}`}>
-                            {project.proposals} proposals
-                          </span>
-                          <button className="block mt-2 text-blue-600 hover:text-blue-700 text-sm">
-                            Review →
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="p-4 border-t border-gray-200">
-                  <button 
-                    onClick={() => setActiveTab('projects')}
-                    className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                  >
-                    View all projects →
-                  </button>
-                </div>
-              </div>
-            </div>
-
-            {/* Saved Services */}
-            <div className="bg-white rounded-xl shadow-sm">
-              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
-                <h2 className="text-lg font-semibold text-gray-900">Saved Services</h2>
-                <button 
-                  onClick={() => setActiveTab('saved')}
-                  className="text-blue-600 hover:text-blue-700 text-sm font-medium"
-                >
-                  View all →
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-6">
-                {mockSavedServices.map((service) => (
-                  <div key={service.id} className="border border-gray-200 rounded-lg p-4 hover:shadow-md transition-shadow">
-                    <h3 className="font-semibold text-gray-900">{service.title}</h3>
-                    <p className="text-sm text-gray-500">{service.provider}</p>
-                    <div className="flex justify-between items-center mt-3">
-                      <span className="font-semibold text-blue-600">${service.price}</span>
-                      <span className="text-sm text-gray-500">{service.rating} ⭐</span>
+                    <div className="flex items-center gap-3 flex-shrink-0">
+                      <span className="font-bold text-gray-900 text-sm">${o.total_amount?.toLocaleString()}</span>
+                      <StatusBadge status={o.status} />
                     </div>
                   </div>
                 ))}
               </div>
-            </div>
-          </motion.div>
-        )}
 
-        {/* Orders Tab */}
-        {activeTab === 'orders' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">All Orders</h2>
-              </div>
-              <div className="overflow-x-auto">
-                <table className="min-w-full divide-y divide-gray-200">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Engineer</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Order Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Delivery Date</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                    </tr>
-                  </thead>
-                  <tbody className="bg-white divide-y divide-gray-200">
-                    {mockOrders.map((order) => (
-                      <tr key={order.id} className="hover:bg-gray-50">
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <div className="font-medium text-gray-900">{order.title}</div>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.engineer}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.date}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">{order.deliveryDate}</td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">${order.amount.toLocaleString()}</td>
-                        <td className="px-6 py-4 whitespace-nowrap">
-                          <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[order.status]}`}>
-                            {order.status.replace('_', ' ')}
-                          </span>
-                        </td>
-                        <td className="px-6 py-4 whitespace-nowrap text-sm">
-                          <button className="text-blue-600 hover:text-blue-700">View Details</button>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Projects Tab */}
-        {activeTab === 'projects' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-lg font-semibold text-gray-900">My Project Requests</h2>
-              <Link 
-                href="/projects/new"
-                className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                + Post New Project
-              </Link>
-            </div>
-            <div className="space-y-4">
-              {mockProjectRequests.map((project) => (
-                <div key={project.id} className="bg-white rounded-xl shadow-sm p-6">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h3 className="font-semibold text-gray-900 text-lg">{project.title}</h3>
-                      <div className="flex gap-4 mt-2">
-                        <span className="text-sm text-gray-600">💰 Budget: {project.budget}</span>
-                        <span className="text-sm text-gray-600">📅 Deadline: {project.deadline}</span>
-                      </div>
-                    </div>
-                    <span className={`inline-flex px-3 py-1 text-sm rounded-full ${statusColors[project.status]}`}>
-                      {project.status}
-                    </span>
-                  </div>
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="bg-blue-100 text-blue-800 px-3 py-1 rounded-full text-sm font-medium">
-                        {project.proposals} proposals received
-                      </span>
-                    </div>
-                    <div className="flex gap-2">
-                      <button className="text-blue-600 border border-blue-600 px-4 py-2 rounded-lg hover:bg-blue-50 transition-colors text-sm">
-                        Edit
-                      </button>
-                      <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                        View Proposals
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Saved Tab */}
-        {activeTab === 'saved' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <h2 className="text-lg font-semibold text-gray-900 mb-6">Saved Services</h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {mockSavedServices.map((service) => (
-                <div key={service.id} className="bg-white rounded-xl shadow-sm p-6 hover:shadow-md transition-shadow">
-                  <h3 className="font-semibold text-gray-900 text-lg">{service.title}</h3>
-                  <p className="text-gray-500 mt-1">{service.provider}</p>
-                  <div className="flex justify-between items-center mt-4">
-                    <span className="text-2xl font-bold text-blue-600">${service.price}</span>
-                    <span className="text-gray-500">{service.rating} ⭐</span>
-                  </div>
-                  <div className="flex gap-2 mt-4">
-                    <button className="flex-1 text-red-600 border border-red-600 px-3 py-2 rounded-lg hover:bg-red-50 transition-colors text-sm">
-                      Remove
-                    </button>
-                    <button className="flex-1 bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm">
-                      View Service
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
-        )}
-
-        {/* Messages Tab */}
-        {activeTab === 'messages' && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
-            <div className="bg-white rounded-xl shadow-sm">
-              <div className="p-6 border-b border-gray-200">
-                <h2 className="text-lg font-semibold text-gray-900">Messages</h2>
-              </div>
-              <div className="divide-y divide-gray-200">
+              {/* Quick actions */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
                 {[
-                  { id: '1', from: 'ElectricDisk Inc', message: 'Your order has been updated. Please review the changes.', time: '2 hours ago', unread: true },
-                  { id: '2', from: 'MCG Plumbing LLC', message: 'Thank you for your order! We will start work tomorrow.', time: '1 day ago', unread: true },
-                  { id: '3', from: 'Allens Performance Machine', message: 'Your project has been completed. Please review and approve.', time: '3 days ago', unread: true },
-                  { id: '4', from: 'Support Team', message: 'Welcome to Precision Project Flow! Let us know if you have any questions.', time: '1 week ago', unread: false },
-                ].map((msg) => (
-                  <div key={msg.id} className={`p-4 hover:bg-gray-50 transition-colors cursor-pointer ${msg.unread ? 'bg-blue-50' : ''}`}>
-                    <div className="flex items-start gap-4">
-                      <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center text-gray-600 font-semibold">
-                        {msg.from.charAt(0)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="flex justify-between items-start">
-                          <h3 className={`font-medium ${msg.unread ? 'text-gray-900' : 'text-gray-600'}`}>{msg.from}</h3>
-                          <span className="text-xs text-gray-500">{msg.time}</span>
-                        </div>
-                        <p className={`text-sm mt-1 ${msg.unread ? 'text-gray-700' : 'text-gray-500'}`}>{msg.message}</p>
-                      </div>
-                      {msg.unread && (
-                        <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
-                      )}
-                    </div>
-                  </div>
+                  { label: 'Marketplace',   icon: <Search className="w-5 h-5" />,        href: '/marketplace', color: 'text-[#003D82] bg-blue-50',    badge: 0 },
+                  { label: 'Messages',      icon: <MessageSquare className="w-5 h-5" />,  href: '/messages',    color: 'text-emerald-700 bg-emerald-50', badge: unreadCount },
+                  { label: 'Request Quote', icon: <FileText className="w-5 h-5" />,       href: '/rfq',         color: 'text-[#FF6B35] bg-orange-50',   badge: 0 },
+                  { label: 'Settings',      icon: <Settings className="w-5 h-5" />,       href: '/settings',    color: 'text-gray-600 bg-gray-100',     badge: 0 },
+                ].map(item => (
+                  <Link key={item.label} href={item.href}
+                    className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 flex flex-col items-center gap-2 hover:shadow-md hover:border-gray-200 transition-all group relative">
+                    <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${item.color}`}>{item.icon}</div>
+                    {item.badge > 0 && (
+                      <span className="absolute top-3 right-3 w-5 h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center">{item.badge}</span>
+                    )}
+                    <span className="text-sm font-semibold text-gray-700 group-hover:text-gray-900">{item.label}</span>
+                  </Link>
                 ))}
               </div>
-            </div>
-          </motion.div>
-        )}
+            </motion.div>
+          )}
+
+          {/* ── ORDERS ── */}
+          {activeTab === 'orders' && (
+            <motion.div key="orders" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}>
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+                <div className="px-6 py-4 border-b border-gray-100">
+                  <h2 className="font-bold text-gray-900">All Orders <span className="text-gray-400 font-normal text-sm">({orders.length})</span></h2>
+                </div>
+                {orders.length === 0 ? (
+                  <div className="p-20 text-center">
+                    <ShoppingBag className="w-12 h-12 text-gray-200 mx-auto mb-3" />
+                    <p className="font-semibold text-gray-500 mb-5">No orders yet</p>
+                    <Link href="/marketplace"
+                      className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#003D82] text-white font-semibold rounded-xl text-sm hover:bg-[#002960] transition-all">
+                      Browse Marketplace
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="min-w-full">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-gray-100">
+                          {['Service', 'Vendor', 'Date', 'Amount', 'Status'].map(h => (
+                            <th key={h} className="px-6 py-3 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-50">
+                        {orders.map(o => (
+                          <tr key={o.id} className="hover:bg-gray-50 transition-colors">
+                            <td className="px-6 py-4 font-semibold text-gray-900 text-sm">{o.service?.title || '—'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-500">{o.engineer?.full_name || '—'}</td>
+                            <td className="px-6 py-4 text-sm text-gray-400">{format(new Date(o.created_at), 'MMM d, yyyy')}</td>
+                            <td className="px-6 py-4 text-sm font-bold text-gray-900">${o.total_amount?.toLocaleString()}</td>
+                            <td className="px-6 py-4"><StatusBadge status={o.status} /></td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+
+        </AnimatePresence>
       </main>
-      
       <Footer />
     </div>
   )

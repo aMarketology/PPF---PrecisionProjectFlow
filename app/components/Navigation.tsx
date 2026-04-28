@@ -76,7 +76,7 @@ export default function Navigation() {
 
           {/* Desktop Menu */}
           <div className="hidden md:flex gap-8 items-center">
-            {['Home', 'Marketplace', 'Claim Company', 'Contact'].map((item, index) => (
+            {['Home', 'Marketplace', 'Profiles', 'RFQ', 'Contact'].map((item, index) => (
               <motion.div
                 key={item}
                 initial={{ opacity: 0, y: -20 }}
@@ -84,7 +84,7 @@ export default function Navigation() {
                 transition={{ delay: index * 0.1 }}
               >
                 <Link
-                  href={item === 'Home' ? '/' : `/${item.toLowerCase().replace(' ', '-')}`}
+                  href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
                   className={`font-medium transition-colors relative group ${
                     scrolled
                       ? 'text-gray-900 hover:text-blue-600'
@@ -141,12 +141,12 @@ export default function Navigation() {
                         <div className="py-2">
                           {user.profile?.user_type === 'engineer' && (
                             <Link
-                              href="/products/create"
-                              className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700 transition-colors font-medium mx-2 rounded-lg mb-2"
+                              href="/dashboard/engineer"
+                              className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-[#003D82] to-[#005BB5] text-white hover:from-[#002960] hover:to-[#003D82] transition-colors font-medium mx-2 rounded-lg mb-2"
                               onClick={() => setUserMenuOpen(false)}
                             >
-                              <Package className="h-4 w-4" />
-                              <span>List Product</span>
+                              <Briefcase className="h-4 w-4" />
+                              <span>Engineer Dashboard</span>
                             </Link>
                           )}
                           <Link
@@ -158,12 +158,12 @@ export default function Navigation() {
                             <span>Dashboard</span>
                           </Link>
                           <Link
-                            href="/profile"
+                            href="/settings"
                             className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <User className="h-4 w-4" />
-                            <span>Profile</span>
+                            <span>Profile & Settings</span>
                           </Link>
                           <Link
                             href="/messages"
@@ -172,22 +172,6 @@ export default function Navigation() {
                           >
                             <MessageSquare className="h-4 w-4" />
                             <span>Messages</span>
-                          </Link>
-                          <Link
-                            href="/orders"
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <Package className="h-4 w-4" />
-                            <span>Orders</span>
-                          </Link>
-                          <Link
-                            href="/settings"
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
-                            onClick={() => setUserMenuOpen(false)}
-                          >
-                            <Settings className="h-4 w-4" />
-                            <span>Settings</span>
                           </Link>
                           <div className="border-t border-gray-200 my-2"></div>
                           <button
@@ -307,12 +291,12 @@ export default function Navigation() {
                       </span>
                     </div>
                     <Link
-                      href="/profile"
+                      href="/settings"
                       className="flex items-center gap-3 px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
                       onClick={() => setMobileMenuOpen(false)}
                     >
                       <User className="h-4 w-4" />
-                      <span>Profile</span>
+                      <span>Profile & Settings</span>
                     </Link>
                     <Link
                       href="/messages"
@@ -321,22 +305,6 @@ export default function Navigation() {
                     >
                       <MessageSquare className="h-4 w-4" />
                       <span>Messages</span>
-                    </Link>
-                    <Link
-                      href="/orders"
-                      className="flex items-center gap-3 px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Package className="h-4 w-4" />
-                      <span>Orders</span>
-                    </Link>
-                    <Link
-                      href="/settings"
-                      className="flex items-center gap-3 px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <Settings className="h-4 w-4" />
-                      <span>Settings</span>
                     </Link>
                     <div className="border-t border-gray-200 my-2"></div>
                     <button
