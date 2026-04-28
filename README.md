@@ -1,103 +1,111 @@
-# Precision Project Flow - Engineering Marketplace
+# Precision Project Flow (PPF)
 
-A professional B2B marketplace connecting businesses with verified engineering companies across all disciplines.
+A B2B marketplace connecting engineers, vendors, and suppliers with clients for precision manufacturing and engineering services.
 
-**Status:** 85% Complete | **Launch Date:** February 28, 2026 | **Version:** 1.0-beta
+**Stack:** Next.js 14 (App Router) · TypeScript · Tailwind CSS · Supabase · Stripe · Framer Motion
 
-## 🎯 What We've Built
+---
 
-### ✅ Core Platform (85% Complete)
-- **10 Major Companies** - Bechtel, AECOM, Fluor, Jacobs, KBR, Black & Veatch, HDR, Parsons, WSP, Wood
-- **34 Professional Services** - $5K to $120K engineering services ready to purchase
-- **Company Claims System** - Companies can claim and manage their profiles
-- **User Authentication** - Secure signup/login with Supabase (client & engineer roles)
-- **User-to-User Messaging** - Direct communication between any users
-- **Product Marketplace** - Search, filter, and browse engineering services
-- **Company Profiles** - Complete company management system
-- **Admin Tools** - Claim review and platform management
+## 🚀 Getting Started
 
-### 🔨 In Development (15% Remaining)
-- **Payment Processing** - Stripe Connect integration (Week 1)
-- **Order Management** - Complete fulfillment workflow (Week 2)
-- **Email Notifications** - Automated emails via Resend (Week 3)
-- **Production Deployment** - Final testing and launch (Week 3)
-
-## 🛠️ Tech Stack
-
-- **Framework**: Next.js 14 (App Router)
-- **Language**: TypeScript
-- **Styling**: Tailwind CSS
-- **Database**: Supabase (PostgreSQL)
-- **Authentication**: Supabase Auth
-- **Payments**: Stripe
-- **Animations**: Framer Motion
-- **Forms**: React Hook Form + Zod
-
-## 📦 Getting Started
-
-### Prerequisites
-
-- Node.js 18+ 
-- npm or yarn
-- Supabase account
-- Stripe account
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/aMarketology/PPF---PrecisionProjectFlow.git
-cd PPF---PrecisionProjectFlow
-```
-
-2. Install dependencies:
+### 1. Install dependencies
 ```bash
 npm install
 ```
 
-3. Set up environment variables:
-Create a `.env.local` file with:
+### 2. Set up environment variables
+Create `.env.local` in the project root:
 ```env
-NEXT_PUBLIC_SUPABASE_URL=your_supabase_url
+NEXT_PUBLIC_SUPABASE_URL=your_supabase_project_url
 NEXT_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
-NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_key
-STRIPE_SECRET_KEY=your_stripe_secret
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=your_stripe_publishable_key
+STRIPE_SECRET_KEY=your_stripe_secret_key
+STRIPE_WEBHOOK_SECRET=your_stripe_webhook_secret
+NEXT_PUBLIC_APP_URL=http://localhost:3000
 ```
 
-4. Run the development server:
+### 3. Run the development server
 ```bash
 npm run dev
 ```
 
-5. Open [http://localhost:3000](http://localhost:3000)
+Open [http://localhost:3000](http://localhost:3000)
+
+### 4. Run a production build check
+```bash
+npm run build
+```
+
+---
 
 ## 🗄️ Database Setup
 
-Run the migrations in your Supabase SQL Editor:
-```bash
-supabase/migrations/*.sql
+All SQL migrations live in `supabase/`. Run them in order in your Supabase SQL Editor:
+
+| File | Purpose |
+|------|---------|
+| `supabase/schema.sql` | Core tables (profiles, services, orders) |
+| `supabase/MESSAGING_TABLES.sql` | Conversations + messages |
+| `supabase/MESSAGING_PAYWALL.sql` | Token balance RPCs |
+| `supabase/FEED_AND_STORAGE.sql` | Feed + Storage bucket setup |
+| `supabase/COMPLETE_SETUP.sql` | All-in-one setup script |
+
+See `docs/DATABASE.md` for full schema reference.
+
+---
+
+## 👤 User Types
+
+| Type | Description |
+|------|-------------|
+| `client` | Browses marketplace, sends RFQs, messages engineers |
+| `engineer` | Lists services, receives leads, manages orders (also used for suppliers/vendors) |
+
+---
+
+## 📁 Project Structure
+
+```
+app/
+├── api/              # API routes (messages, stripe, feed)
+├── components/       # Shared components (Navigation, Footer, etc.)
+├── dashboard/        # Client + Engineer dashboards
+├── get-started/      # Onboarding pages (clients, vendors, suppliers)
+├── marketplace/      # Service listings
+├── messages/         # Messaging UI
+├── profiles/         # Engineer/vendor profiles
+├── rfq/              # RFQ landing + creation
+└── settings/         # Profile + account settings
+lib/
+├── supabase/         # Browser + server Supabase clients
+└── stripe/           # Stripe helpers
+supabase/             # SQL migrations
+docs/                 # Extended documentation
 ```
 
-## 📝 Environment Variables
+---
 
-Required environment variables:
-- `NEXT_PUBLIC_SUPABASE_URL` - Your Supabase project URL
-- `NEXT_PUBLIC_SUPABASE_ANON_KEY` - Your Supabase anonymous key
-- `NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY` - Stripe publishable key
-- `STRIPE_SECRET_KEY` - Stripe secret key
+## 📚 Documentation
+
+| File | Contents |
+|------|---------|
+| `docs/DATABASE.md` | Schema, tables, RLS, RPCs |
+| `docs/SETUP.md` | Supabase + Stripe setup guides |
+| `docs/DESIGN.md` | Brand colors, component conventions |
+| `docs/FEATURES.md` | Feature list + required API keys |
+| `docs/ROADMAP.md` | Next steps + integration plans |
+| `docs/MOBILE.md` | Mobile app plan |
+| `docs/MANIFESTO.md` | Product vision |
+| `session.md` | Current session progress tracker |
+
+---
 
 ## 🚢 Deployment
 
-The app is optimized for deployment on Vercel:
+Optimized for [Vercel](https://vercel.com). Add all environment variables in your Vercel project settings before deploying.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/aMarketology/PPF---PrecisionProjectFlow)
-
-Make sure to add all environment variables in your deployment settings.
+---
 
 ## 📄 License
 
-This project is proprietary and confidential.
-
-## 🤝 Support
-
-For support, email support@precisionprojectflow.com
+Proprietary and confidential. © Precision Project Flow.
