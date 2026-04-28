@@ -4,6 +4,9 @@ import { useState } from 'react'
 import { motion } from 'framer-motion'
 import Navigation from '../../components/Navigation'
 import Footer from '../../components/Footer'
+import { toast } from 'react-hot-toast'
+import { createClient } from '@/lib/supabase/client'
+import { useRouter } from 'next/navigation'
 import { 
   FileText, 
   Upload, 
@@ -15,7 +18,8 @@ import {
   MapPin,
   AlertCircle,
   CheckCircle2,
-  Send
+  Send,
+  Loader2,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -34,6 +38,7 @@ const engineeringCategories = [
 ]
 
 export default function CreateRFQPage() {
+  const router = useRouter()
   const [step, setStep] = useState(1)
   const [formData, setFormData] = useState({
     title: '',
@@ -47,6 +52,8 @@ export default function CreateRFQPage() {
     selectedSuppliers: [] as string[],
   })
   const [submitted, setSubmitted] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [rfqId, setRfqId] = useState<string | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -67,10 +74,47 @@ export default function CreateRFQPage() {
     }))
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // TODO: Implement RFQ submission to Supabase
-    setSubmitted(true)
+    setIsSubmitting(true)
+
+    try {
+      const supabase = createClient()
+      const { data: { user }, error: authError } = await supabase.auth.getUser()
+
+      if (authError || !user) {
+        toast.error('You must be signed in to submit an RFQ')
+        router.push('/login?next=/rfq/create')
+        return
+      }
+
+      const { data, error } = await supabase
+        .from('rfqs')
+        .insert({
+          client_id: user.id,
+          title: formData.title,
+          category: formData.category,
+          description: formData.description,
+          quantity: formData.quantity || null,
+          budget: formData.budget || null,
+          timeline: formData.timeline || null,
+          location: formData.location || null,
+          status: 'open',
+        })
+        .select('id')
+        .single()
+
+      if (error) throw error
+
+      setRfqId(data.id)
+      setSubmitted(true)
+      toast.success('RFQ submitted successfully!')
+    } catch (err: any) {
+      console.error('RFQ submit error:', err)
+      toast.error('Failed to submit RFQ. Please try again.')
+    } finally {
+      setIsSubmitting(false)
+    }
   }
 
   const nextStep = () => {
@@ -83,56 +127,49 @@ export default function CreateRFQPage() {
 
   if (submitted) {
     return (
-      <div className="min-h-screen bg-gray-50">
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
         <Navigation />
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="max-w-3xl mx-auto px-4 py-24">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl shadow-lg p-12 text-center"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center"
           >
-            <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10 text-green-600" />
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
             </div>
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">
-              RFQ Submitted Successfully!
-            </h1>
-            <p className="text-lg text-gray-600 mb-8">
-              Your request for quote has been sent to selected suppliers. You'll receive responses within 24-48 hours.
+            <h1 className="text-3xl font-extrabold text-gray-900 mb-3">RFQ Submitted!</h1>
+            <p className="text-gray-500 mb-8 max-w-md mx-auto">
+              Your request has been posted. Verified engineering vendors can now view and respond to it.
             </p>
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6 mb-8">
-              <h3 className="font-bold text-gray-900 mb-2">What's Next?</h3>
-              <ul className="text-left text-gray-700 space-y-2">
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Suppliers will review your requirements</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>You'll receive quotes via email and dashboard</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Compare quotes and select the best supplier</span>
-                </li>
-                <li className="flex items-start">
-                  <CheckCircle2 className="w-5 h-5 text-green-600 mr-2 mt-0.5 flex-shrink-0" />
-                  <span>Complete your order securely through our platform</span>
-                </li>
+            <div className="bg-[#F8FAFC] border border-gray-100 rounded-xl p-5 mb-8 text-left">
+              <h3 className="font-bold text-gray-900 mb-3">What happens next?</h3>
+              <ul className="space-y-2 text-sm text-gray-600">
+                {[
+                  'Vendors browse open RFQs and contact you directly',
+                  'You\'ll receive messages through your dashboard',
+                  'Compare responses and select the best fit',
+                  'Complete your order securely through PPF',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span>{item}</span>
+                  </li>
+                ))}
               </ul>
             </div>
-            <div className="flex gap-4 justify-center">
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/dashboard"
-                className="px-6 py-3 bg-[#003D82] hover:bg-[#0052A3] text-white rounded-lg font-semibold transition-colors"
+                href="/dashboard/client"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all"
               >
-                View My RFQs
+                Go to My Dashboard
               </Link>
               <Link
-                href="/marketplace"
-                className="px-6 py-3 border-2 border-gray-300 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] rounded-lg font-semibold transition-colors"
+                href="/profiles"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl transition-all"
               >
-                Browse Marketplace
+                Browse Engineers
               </Link>
             </div>
           </motion.div>
@@ -525,10 +562,14 @@ export default function CreateRFQPage() {
               ) : (
                 <button
                   type="submit"
-                  className="px-8 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white rounded-lg font-bold transition-colors flex items-center"
+                  disabled={isSubmitting}
+                  className="px-8 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:opacity-60 disabled:cursor-not-allowed text-white rounded-xl font-bold transition-colors flex items-center gap-2"
                 >
-                  <Send className="w-5 h-5 mr-2" />
-                  Submit RFQ
+                  {isSubmitting ? (
+                    <><Loader2 className="w-5 h-5 animate-spin" /> Submitting…</>
+                  ) : (
+                    <><Send className="w-5 h-5" /> Submit RFQ</>
+                  )}
                 </button>
               )}
             </div>

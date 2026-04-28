@@ -12,12 +12,13 @@ import {
   Package, Wrench, TrendingUp, Plus, ExternalLink,
   DollarSign, Clock, CheckCircle2, XCircle, Building2,
   Coins, MessageSquare, Settings, Eye, EyeOff, BarChart3,
-  ChevronRight, AlertCircle,
+  ChevronRight, AlertCircle, FileText,
 } from 'lucide-react'
 
 interface Profile { id: string; full_name: string; company_name: string | null; email: string; user_type: string; token_balance: number; avatar_url: string | null; location: string | null }
 interface Order { id: string; status: string; total_amount: number; created_at: string; client: any; service: any }
 interface Service { id: string; title: string; description: string; price: number; category: string; active: boolean; created_at: string }
+interface RFQ { id: string; title: string; category: string; description: string; budget: string | null; timeline: string | null; location: string | null; status: string; created_at: string; client: { id: string; full_name: string; company_name: string | null } }
 
 const STATUS_CFG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
   pending:     { label: 'Pending',     cls: 'bg-amber-50 text-amber-700 border border-amber-200',   icon: <Clock className="w-3 h-3" /> },
@@ -55,8 +56,9 @@ export default function EngineerDashboard() {
   const [profile, setProfile] = useState<Profile | null>(null)
   const [orders, setOrders] = useState<Order[]>([])
   const [services, setServices] = useState<Service[]>([])
+  const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [loading, setLoading] = useState(true)
-  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'earnings'>('overview')
+  const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'earnings' | 'rfqs'>('overview')
 
   useEffect(() => { loadDashboard() }, [])
 
@@ -79,6 +81,14 @@ export default function EngineerDashboard() {
 
     const { data: servicesData } = await supabase.from('services').select('*').eq('provider_id', user.id).order('created_at', { ascending: false })
     setServices(servicesData || [])
+
+    const { data: rfqsData } = await supabase
+      .from('rfqs')
+      .select('id, title, category, description, budget, timeline, location, status, created_at, client:profiles!rfqs_client_id_fkey(id, full_name, company_name)')
+      .eq('status', 'open')
+      .order('created_at', { ascending: false })
+      .limit(20)
+    setRfqs((rfqsData as any) || [])
 
     setLoading(false)
   }
@@ -105,6 +115,7 @@ export default function EngineerDashboard() {
     { key: 'overview',  label: 'Overview',  icon: <BarChart3 className="w-4 h-4" /> },
     { key: 'orders',    label: `Orders (${orders.length})`, icon: <Package className="w-4 h-4" /> },
     { key: 'services',  label: `Services (${services.length})`, icon: <Wrench className="w-4 h-4" /> },
+    { key: 'rfqs',      label: `Open RFQs (${rfqs.length})`, icon: <FileText className="w-4 h-4" /> },
     { key: 'earnings',  label: 'Earnings',  icon: <TrendingUp className="w-4 h-4" /> },
   ] as const
 
@@ -405,6 +416,63 @@ export default function EngineerDashboard() {
                 </div>
               )}
             </div>
+          </motion.div>
+        )}
+
+        {/* ── Open RFQs Tab ── */}
+        {activeTab === 'rfqs' && (
+          <motion.div key="rfqs" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <h2 className="text-lg font-bold text-gray-900">Open RFQs</h2>
+                <p className="text-sm text-gray-500">Client requests actively looking for engineering vendors</p>
+              </div>
+            </div>
+            {rfqs.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
+                <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                <p className="text-gray-500 text-sm font-semibold">No open RFQs right now</p>
+                <p className="text-gray-400 text-xs mt-1">Check back soon — new requests are posted regularly</p>
+              </div>
+            ) : (
+              rfqs.map(rfq => (
+                <div key={rfq.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-[#003D82] border border-blue-100">
+                          {rfq.category}
+                        </span>
+                        <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-100">
+                          Open
+                        </span>
+                      </div>
+                      <h3 className="font-bold text-gray-900 text-base mt-1 mb-1">{rfq.title}</h3>
+                      <p className="text-sm text-gray-500 line-clamp-2">{rfq.description}</p>
+                      <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-400">
+                        {rfq.budget   && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{rfq.budget}</span>}
+                        {rfq.timeline && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{rfq.timeline}</span>}
+                        {rfq.location && <span className="flex items-center gap-1"><Building2 className="w-3 h-3" />{rfq.location}</span>}
+                        <span className="flex items-center gap-1">
+                          <Clock className="w-3 h-3" />
+                          {format(new Date(rfq.created_at), 'MMM d, yyyy')}
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-400 mt-1">
+                        Posted by <span className="font-semibold text-gray-600">{rfq.client?.company_name || rfq.client?.full_name || 'Client'}</span>
+                      </p>
+                    </div>
+                    <Link
+                      href={`/messages?with=${rfq.client?.id}`}
+                      className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-xl transition-all"
+                    >
+                      <MessageSquare className="w-4 h-4" />
+                      Respond
+                    </Link>
+                  </div>
+                </div>
+              ))
+            )}
           </motion.div>
         )}
         </AnimatePresence>
