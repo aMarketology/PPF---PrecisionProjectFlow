@@ -1,281 +1,162 @@
-// Email notification service
-// Uses Resend for email delivery (https://resend.com)
+// PPF Email via Resend — server-side only, never import in 'use client' files.
+import { Resend } from 'resend'
 
-export interface EmailTemplate {
-  to: string
-  subject: string
-  html: string
+const resend = new Resend(process.env.RESEND_API_KEY!)
+const APP_URL   = process.env.NEXT_PUBLIC_APP_URL || 'https://precisionprojectflow.com'
+const FROM_NAME = 'Precision Project Flow'
+const FROM_ADDR = 'no-reply@precisionprojectflow.com'
+
+// ── Layout helpers ────────────────────────────────────────────────────────────
+
+function emailBase(body: string): string {
+  return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1.0"/><title>PPF</title></head>
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:'Segoe UI',Arial,sans-serif;">
+<table width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:32px 16px;">
+<tr><td align="center">
+<table width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;">
+<tr><td style="background:linear-gradient(135deg,#001f4d 0%,#003D82 60%,#005BB5 100%);border-radius:16px 16px 0 0;padding:32px 36px 28px;">
+  <p style="margin:0;color:#93c5fd;font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;">Precision Project Flow</p>
+  <p style="margin:6px 0 0;color:#ffffff;font-size:22px;font-weight:800;">Engineering Marketplace</p>
+</td></tr>
+<tr><td style="background:#ffffff;padding:32px 36px;border-left:1px solid #e5e7eb;border-right:1px solid #e5e7eb;">${body}</td></tr>
+<tr><td style="background:#f1f5f9;border-radius:0 0 16px 16px;border:1px solid #e5e7eb;padding:20px 36px;text-align:center;">
+  <p style="margin:0;color:#94a3b8;font-size:12px;">&copy; ${new Date().getFullYear()} Precision Project Flow &mdash; All rights reserved.<br/>
+  <a href="${APP_URL}" style="color:#003D82;text-decoration:none;">precisionprojectflow.com</a> &middot;
+  <a href="${APP_URL}/settings" style="color:#003D82;text-decoration:none;">Manage Notifications</a></p>
+</td></tr>
+</table></td></tr></table></body></html>`
 }
 
-export type NotificationType = 
-  | 'welcome'
-  | 'order_placed'
-  | 'order_accepted'
-  | 'order_completed'
-  | 'order_cancelled'
-  | 'proposal_received'
-  | 'proposal_accepted'
-  | 'proposal_rejected'
-  | 'payment_received'
-  | 'new_message'
-  | 'profile_claimed'
+function h1(t: string) { return `<h1 style="margin:0 0 8px;font-size:24px;font-weight:800;color:#0f172a;">${t}</h1>` }
+function sub(t: string) { return `<p style="margin:0 0 24px;font-size:15px;color:#64748b;">${t}</p>` }
+function pp(t: string) { return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:#334155;">${t}</p>` }
+function btn(label: string, href: string, accent = false) {
+  const bg = accent ? '#FF6B35' : '#003D82'
+  return `<a href="${href}" style="display:inline-block;margin:8px 0 24px;background:${bg};color:#fff;font-size:15px;font-weight:700;padding:13px 28px;border-radius:12px;text-decoration:none;">${label} &rarr;</a>`
+}
+function infoBox(lines: { label: string; value: string }[]) {
+  const rows = lines.map(l =>
+    `<tr><td style="padding:8px 12px;font-size:13px;font-weight:600;color:#64748b;white-space:nowrap;">${l.label}</td>` +
+    `<td style="padding:8px 12px;font-size:13px;color:#0f172a;font-weight:500;">${l.value}</td></tr>`
+  ).join('')
+  return `<table width="100%" style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;margin:0 0 24px;border-collapse:collapse;">${rows}</table>`
+}
+function divider() { return `<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0;"/>` }
 
-interface NotificationData {
-  userName?: string
-  orderId?: string
-  orderTitle?: string
-  amount?: number
-  proposalId?: string
-  projectTitle?: string
-  engineerName?: string
-  clientName?: string
-  message?: string
+// ── 1. Welcome ────────────────────────────────────────────────────────────────
+
+export async function sendWelcomeEmail({ to, name, userType }: {
+  to: string; name: string; userType: 'engineer' | 'client'
+}) {
+  const isEng = userType === 'engineer'
+  const dashUrl = isEng ? `${APP_URL}/dashboard/engineer` : `${APP_URL}/dashboard/client`
+  const list = isEng
+    ? `<li>Complete your public profile (avatar, bio, location)</li><li>Add your first service listing</li><li>Connect your Stripe account to receive payouts</li><li>Browse open RFQs and respond to relevant ones</li>`
+    : `<li>Browse the marketplace and discover engineering services</li><li>Message a vendor about your project</li><li>Post an RFQ to get multiple quotes at once</li>`
+  const body =
+    h1(`Welcome to PPF, ${name}!`) +
+    sub("Your account is live — here's how to get started.") +
+    pp(isEng
+      ? "You've joined as an <strong>engineer / vendor</strong>. List your services, respond to RFQs, and get paid directly."
+      : "You've joined as a <strong>client</strong>. Browse services, post RFQs, and message vendors directly.") +
+    btn('Go to your Dashboard', dashUrl) +
+    divider() +
+    `<p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#0f172a;">Quick-start checklist</p>` +
+    `<ul style="margin:0 0 24px;padding-left:20px;color:#334155;font-size:14px;line-height:2;">${list}</ul>` +
+    pp(`Questions? Reply to this email or visit <a href="${APP_URL}/contact" style="color:#003D82;">our contact page</a>.`)
+  return resend.emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`, to,
+    subject: `Welcome to Precision Project Flow, ${name}!`,
+    html: emailBase(body),
+  })
 }
 
-// Email templates
-export function getEmailTemplate(type: NotificationType, data: NotificationData): { subject: string; html: string } {
-  const templates: Record<NotificationType, { subject: string; html: string }> = {
-    welcome: {
-      subject: 'Welcome to Precision Project Flow!',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">Welcome to Precision Project Flow!</h1>
-          <p>Hi ${data.userName || 'there'},</p>
-          <p>Thank you for joining Precision Project Flow - the premier marketplace connecting clients with skilled engineering professionals.</p>
-          <p>Here's what you can do now:</p>
-          <ul>
-            <li>Complete your profile to stand out</li>
-            <li>Browse available services and projects</li>
-            <li>Start connecting with clients or engineers</li>
-          </ul>
-          <a href="https://precisionprojectflow.com/dashboard" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Go to Dashboard</a>
-          <p style="margin-top: 32px; color: #666;">Best regards,<br>The Precision Project Flow Team</p>
-        </div>
-      `,
-    },
-    
-    order_placed: {
-      subject: `New Order Received: ${data.orderTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">New Order Received!</h1>
-          <p>Hi ${data.engineerName},</p>
-          <p>Great news! You've received a new order:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Order:</strong> ${data.orderTitle}</p>
-            <p style="margin: 8px 0 0;"><strong>Client:</strong> ${data.clientName}</p>
-            <p style="margin: 8px 0 0;"><strong>Amount:</strong> $${data.amount?.toLocaleString()}</p>
-          </div>
-          <p>Please review and accept the order within 24 hours.</p>
-          <a href="https://precisionprojectflow.com/orders/${data.orderId}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">View Order</a>
-        </div>
-      `,
-    },
+// ── 2. New message notification ───────────────────────────────────────────────
 
-    order_accepted: {
-      subject: `Order Accepted: ${data.orderTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">Order Accepted!</h1>
-          <p>Hi ${data.clientName},</p>
-          <p>Your order has been accepted by ${data.engineerName}!</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Order:</strong> ${data.orderTitle}</p>
-            <p style="margin: 8px 0 0;"><strong>Engineer:</strong> ${data.engineerName}</p>
-          </div>
-          <p>Work will begin shortly. You can track progress in your dashboard.</p>
-          <a href="https://precisionprojectflow.com/orders/${data.orderId}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Track Order</a>
-        </div>
-      `,
-    },
-
-    order_completed: {
-      subject: `Order Completed: ${data.orderTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">Order Completed!</h1>
-          <p>Hi ${data.clientName},</p>
-          <p>Great news! Your order has been completed:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Order:</strong> ${data.orderTitle}</p>
-            <p style="margin: 8px 0 0;"><strong>Engineer:</strong> ${data.engineerName}</p>
-          </div>
-          <p>Please review the deliverables and leave a review if satisfied.</p>
-          <a href="https://precisionprojectflow.com/orders/${data.orderId}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Review Deliverables</a>
-        </div>
-      `,
-    },
-
-    order_cancelled: {
-      subject: `Order Cancelled: ${data.orderTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #dc2626;">Order Cancelled</h1>
-          <p>Hi ${data.userName},</p>
-          <p>Your order has been cancelled:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Order:</strong> ${data.orderTitle}</p>
-          </div>
-          <p>If you have any questions, please contact our support team.</p>
-          <a href="https://precisionprojectflow.com/support" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Contact Support</a>
-        </div>
-      `,
-    },
-
-    proposal_received: {
-      subject: `New Proposal: ${data.projectTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">New Proposal Received!</h1>
-          <p>Hi ${data.clientName},</p>
-          <p>You've received a new proposal for your project:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Project:</strong> ${data.projectTitle}</p>
-            <p style="margin: 8px 0 0;"><strong>From:</strong> ${data.engineerName}</p>
-            <p style="margin: 8px 0 0;"><strong>Bid:</strong> $${data.amount?.toLocaleString()}</p>
-          </div>
-          <a href="https://precisionprojectflow.com/projects/${data.proposalId}/proposals" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Review Proposal</a>
-        </div>
-      `,
-    },
-
-    proposal_accepted: {
-      subject: `Proposal Accepted: ${data.projectTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">Congratulations! Your Proposal Was Accepted!</h1>
-          <p>Hi ${data.engineerName},</p>
-          <p>Great news! Your proposal has been accepted:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Project:</strong> ${data.projectTitle}</p>
-            <p style="margin: 8px 0 0;"><strong>Client:</strong> ${data.clientName}</p>
-            <p style="margin: 8px 0 0;"><strong>Amount:</strong> $${data.amount?.toLocaleString()}</p>
-          </div>
-          <p>Please review the project details and begin work.</p>
-          <a href="https://precisionprojectflow.com/orders/${data.orderId}" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">View Project</a>
-        </div>
-      `,
-    },
-
-    proposal_rejected: {
-      subject: `Proposal Update: ${data.projectTitle}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #666;">Proposal Not Selected</h1>
-          <p>Hi ${data.engineerName},</p>
-          <p>Thank you for your proposal. Unfortunately, the client has selected another engineer for this project:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Project:</strong> ${data.projectTitle}</p>
-          </div>
-          <p>Don't be discouraged! Keep submitting proposals to find the right match.</p>
-          <a href="https://precisionprojectflow.com/projects" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Browse Projects</a>
-        </div>
-      `,
-    },
-
-    payment_received: {
-      subject: `Payment Received: $${data.amount?.toLocaleString()}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">Payment Received!</h1>
-          <p>Hi ${data.engineerName},</p>
-          <p>Great news! You've received a payment:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;"><strong>Amount:</strong> $${data.amount?.toLocaleString()}</p>
-            <p style="margin: 8px 0 0;"><strong>From:</strong> ${data.clientName}</p>
-            <p style="margin: 8px 0 0;"><strong>For:</strong> ${data.orderTitle}</p>
-          </div>
-          <p>Funds will be available for withdrawal in 7-14 days.</p>
-          <a href="https://precisionprojectflow.com/dashboard/engineer?tab=earnings" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">View Earnings</a>
-        </div>
-      `,
-    },
-
-    new_message: {
-      subject: `New Message from ${data.userName}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #2563eb;">New Message</h1>
-          <p>You have a new message from ${data.userName}:</p>
-          <div style="background: #f3f4f6; padding: 16px; border-radius: 8px; margin: 16px 0;">
-            <p style="margin: 0;">${data.message}</p>
-          </div>
-          <a href="https://precisionprojectflow.com/messages" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Reply Now</a>
-        </div>
-      `,
-    },
-
-    profile_claimed: {
-      subject: 'Your Company Profile Has Been Claimed',
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-          <h1 style="color: #16a34a;">Profile Claimed Successfully!</h1>
-          <p>Hi ${data.userName},</p>
-          <p>Congratulations! You've successfully claimed your company profile on Precision Project Flow.</p>
-          <p>You can now:</p>
-          <ul>
-            <li>Update your company information</li>
-            <li>Add services and portfolio items</li>
-            <li>Respond to client inquiries</li>
-            <li>Receive orders and proposals</li>
-          </ul>
-          <a href="https://precisionprojectflow.com/dashboard/engineer" style="display: inline-block; background: #2563eb; color: white; padding: 12px 24px; text-decoration: none; border-radius: 8px; margin-top: 16px;">Go to Dashboard</a>
-        </div>
-      `,
-    },
-  }
-
-  return templates[type]
+export async function sendNewMessageEmail({ to, recipientName, senderName, preview, conversationId }: {
+  to: string; recipientName: string; senderName: string; preview: string; conversationId: string
+}) {
+  const truncated = preview.length > 120 ? preview.slice(0, 120) + '...' : preview
+  const body =
+    h1(`New message from ${senderName}`) +
+    sub(`Hi ${recipientName}, you have a new message on PPF.`) +
+    `<div style="background:#f8fafc;border-left:4px solid #003D82;padding:16px 20px;border-radius:0 10px 10px 0;margin:0 0 24px;">` +
+    `<p style="margin:0;font-size:14px;color:#334155;font-style:italic;">"${truncated}"</p></div>` +
+    btn('Reply in Messenger', `${APP_URL}/messages?conv=${conversationId}`) +
+    pp('Replying within 24 hours keeps your response rate high and boosts your profile ranking.')
+  return resend.emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`, to,
+    subject: `New message from ${senderName}`,
+    html: emailBase(body),
+  })
 }
 
-// Send email function (to be implemented with Resend)
-export async function sendEmail(template: EmailTemplate): Promise<{ success: boolean; error?: string }> {
-  // Check if Resend API key is configured
-  const RESEND_API_KEY = process.env.RESEND_API_KEY
+// ── 3a. New order — vendor ────────────────────────────────────────────────────
 
-  if (!RESEND_API_KEY) {
-    console.log('[Email] Resend API key not configured. Email not sent:', template.subject)
-    return { success: true } // Return success in development
-  }
-
-  try {
-    const response = await fetch('https://api.resend.com/emails', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${RESEND_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        from: process.env.RESEND_FROM_EMAIL || 'Precision Project Flow <onboarding@resend.dev>',
-        to: template.to,
-        subject: template.subject,
-        html: template.html,
-      }),
-    })
-
-    if (!response.ok) {
-      const error = await response.text()
-      console.error('[Email] Failed to send:', error)
-      return { success: false, error }
-    }
-
-    return { success: true }
-  } catch (error) {
-    console.error('[Email] Error:', error)
-    return { success: false, error: String(error) }
-  }
+export async function sendNewOrderEmailVendor({ to, vendorName, clientName, serviceTitle, orderAmount, orderId }: {
+  to: string; vendorName: string; clientName: string; serviceTitle: string; orderAmount: number; orderId: string
+}) {
+  const body =
+    h1('You have a new order!') +
+    sub(`${clientName} just purchased one of your services on PPF.`) +
+    infoBox([
+      { label: 'Service', value: serviceTitle },
+      { label: 'Client',  value: clientName },
+      { label: 'Amount',  value: `$${(orderAmount / 100).toFixed(2)}` },
+      { label: 'Order',   value: orderId.slice(0, 8).toUpperCase() },
+    ]) +
+    btn('View Order Details', `${APP_URL}/orders/sales/${orderId}`) +
+    pp('Please confirm the order and reach out to the client if you need any clarification.')
+  return resend.emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`, to,
+    subject: `New order: ${serviceTitle}`,
+    html: emailBase(body),
+  })
 }
 
-// Helper function to send notifications
-export async function sendNotification(
-  type: NotificationType,
-  to: string,
-  data: NotificationData
-): Promise<{ success: boolean; error?: string }> {
-  const template = getEmailTemplate(type, data)
-  return sendEmail({
-    to,
-    subject: template.subject,
-    html: template.html,
+// ── 3b. Order confirmation — client ──────────────────────────────────────────
+
+export async function sendOrderConfirmationEmail({ to, clientName, vendorName, serviceTitle, orderAmount, orderId }: {
+  to: string; clientName: string; vendorName: string; serviceTitle: string; orderAmount: number; orderId: string
+}) {
+  const body =
+    h1('Order confirmed!') +
+    sub(`Hi ${clientName}, your order is confirmed and the vendor has been notified.`) +
+    infoBox([
+      { label: 'Service', value: serviceTitle },
+      { label: 'Vendor',  value: vendorName },
+      { label: 'Amount',  value: `$${(orderAmount / 100).toFixed(2)}` },
+      { label: 'Order',   value: orderId.slice(0, 8).toUpperCase() },
+    ]) +
+    btn('Track Your Order', `${APP_URL}/orders/${orderId}`) +
+    pp('The vendor will typically confirm within 24 hours. You can message them directly if you have questions.') +
+    pp('If anything goes wrong, reply to this email and our team will help.')
+  return resend.emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`, to,
+    subject: `Order confirmed: ${serviceTitle}`,
+    html: emailBase(body),
+  })
+}
+
+// ── 4. RFQ alert — engineer ───────────────────────────────────────────────────
+
+export async function sendRFQAlertEmail({ to, engineerName, rfqTitle, rfqCategory, budget, clientName }: {
+  to: string; engineerName: string; rfqTitle: string; rfqCategory: string; budget: string | null; clientName: string
+}) {
+  const body =
+    h1('New RFQ matching your expertise') +
+    sub(`Hi ${engineerName}, a client just posted a request that fits your profile.`) +
+    infoBox([
+      { label: 'Title',     value: rfqTitle },
+      { label: 'Category',  value: rfqCategory },
+      { label: 'Budget',    value: budget || 'Not specified' },
+      { label: 'Posted by', value: clientName },
+    ]) +
+    btn('View & Respond to RFQ', `${APP_URL}/dashboard/engineer`, true) +
+    pp('Be one of the first to respond — early replies are 2x more likely to convert to a paid order.')
+  return resend.emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`, to,
+    subject: `New RFQ: ${rfqTitle}`,
+    html: emailBase(body),
   })
 }

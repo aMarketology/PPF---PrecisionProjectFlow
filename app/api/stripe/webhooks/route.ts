@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
 import { createClient } from '@/lib/supabase/server';
+import { sendNewOrderEmailVendor, sendOrderConfirmationEmail } from '@/lib/email';
 
 // Mark this route as dynamic
 export const dynamic = 'force-dynamic';
@@ -126,6 +127,61 @@ async function handlePaymentSuccess(
       console.error('Error creating order:', orderError);
     } else {
       console.log('Order created successfully');
+
+      // Fire-and-forget order emails — fetch product + buyer + vendor info
+      try {
+        const { data: product } = await supabase
+          .from('products')
+          .select('name, company_id')
+          .eq('id', paymentIntentData.product_id)
+          .single();
+
+        const { data: buyer } = await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', paymentIntentData.customer_id)
+          .single();
+
+        const { data: company } = await supabase
+          .from('company_profiles')
+          .select('owner_id, name')
+          .eq('id', paymentIntentData.company_id)
+          .single();
+
+        const { data: vendor } = company?.owner_id ? await supabase
+          .from('profiles')
+          .select('full_name, email')
+          .eq('id', company.owner_id)
+          .single() : { data: null };
+
+        const orderId      = paymentIntentData.id;
+        const serviceTitle = product?.name || 'Engineering Service';
+        const orderAmount  = paymentIntentData.amount;
+
+        if (vendor?.email) {
+          sendNewOrderEmailVendor({
+            to:           vendor.email,
+            vendorName:   vendor.full_name,
+            clientName:   buyer?.full_name || 'A client',
+            serviceTitle,
+            orderAmount,
+            orderId,
+          }).catch(e => console.error('[email] vendor-order failed:', e));
+        }
+
+        if (buyer?.email) {
+          sendOrderConfirmationEmail({
+            to:           buyer.email,
+            clientName:   buyer.full_name,
+            vendorName:   company?.name || vendor?.full_name || 'Vendor',
+            serviceTitle,
+            orderAmount,
+            orderId,
+          }).catch(e => console.error('[email] client-order failed:', e));
+        }
+      } catch (emailErr) {
+        console.error('[email] order email lookup failed:', emailErr);
+      }
     }
 
   } catch (error) {

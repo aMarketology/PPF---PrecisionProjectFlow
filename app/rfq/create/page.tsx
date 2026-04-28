@@ -109,6 +109,13 @@ export default function CreateRFQPage() {
       setRfqId(data.id)
       setSubmitted(true)
       toast.success('RFQ submitted successfully!')
+
+      // Fire-and-forget: notify matching engineers (non-blocking)
+      fetch('/api/rfq/notify', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rfqId: data.id }),
+      }).catch(e => console.error('[rfq notify]', e))
     } catch (err: any) {
       console.error('RFQ submit error:', err)
       toast.error('Failed to submit RFQ. Please try again.')

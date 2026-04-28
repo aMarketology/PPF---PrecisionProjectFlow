@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { sendNewMessageEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
 
@@ -103,6 +104,27 @@ export async function POST(request: NextRequest) {
       .from('user_conversations')
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
+
+    // Fire-and-forget: notify the recipient by email
+    // Fetch sender + recipient profiles in one query
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, email')
+      .in('id', [user.id, otherUserId]);
+
+    if (profiles && profiles.length === 2) {
+      const sender    = profiles.find((p: any) => p.id === user.id);
+      const recipient = profiles.find((p: any) => p.id === otherUserId);
+      if (sender && recipient) {
+        sendNewMessageEmail({
+          to:            recipient.email,
+          recipientName: recipient.full_name,
+          senderName:    sender.full_name,
+          preview:       content.trim(),
+          conversationId,
+        }).catch(err => console.error('[email] new-message failed:', err));
+      }
+    }
 
     return NextResponse.json({
       message,

@@ -5,6 +5,8 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { useParams, useRouter } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
+import BadgeList from '@/app/components/BadgeList'
+import { computeBadges } from '@/lib/badges'
 import { createClient } from '@/lib/supabase/client'
 import {
   MapPin, CheckCircle2, Building2, Globe, Mail,
@@ -29,6 +31,7 @@ interface CompanyProfile {
   location: string | null
   user_type: string
   created_at: string
+  is_admin: boolean | null
 }
 
 interface Service {
@@ -88,7 +91,7 @@ export default function CompanyProfilePage() {
     // Load the engineer/vendor profile
     const { data: profileData, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, avatar_url, company_name, bio, location, user_type, created_at')
+      .select('id, full_name, email, avatar_url, company_name, bio, location, user_type, created_at, is_admin')
       .eq('id', profileId)
       .eq('user_type', 'engineer')
       .single()
@@ -211,6 +214,17 @@ export default function CompanyProfilePage() {
               {company.bio && (
                 <p className="text-gray-600 text-sm leading-relaxed line-clamp-2">{company.bio}</p>
               )}
+
+              {/* Badges */}
+              <BadgeList
+                badges={computeBadges({
+                  profile: company,
+                  emailVerified: !!company.email,
+                  serviceCount: services.length,
+                })}
+                size="sm"
+                className="mt-3"
+              />
             </div>
 
             {/* CTA buttons */}

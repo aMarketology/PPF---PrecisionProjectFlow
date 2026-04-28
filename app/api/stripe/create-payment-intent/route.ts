@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
-import { sendNotification } from '@/lib/email';
+import { sendNewOrderEmailVendor, sendOrderConfirmationEmail } from '@/lib/email';
 
 // Mark this route as dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -105,19 +105,24 @@ export async function POST(request: NextRequest) {
 
     // Email vendor: new order notification
     if (vendorEmail) {
-      sendNotification('order_placed', vendorEmail, {
-        engineerName: vendorName,
+      sendNewOrderEmailVendor({
+        to: vendorEmail,
+        vendorName,
         clientName: buyerName,
-        orderTitle: service.title,
-        amount: Number(service.price),
+        serviceTitle: service.title,
+        orderAmount: Math.round(Number(service.price) * 100),
+        orderId: paymentIntent.id,
       }).catch(e => console.error('[Email] vendor notification failed:', e));
     }
 
     // Email buyer: order confirmation
-    sendNotification('order_accepted', buyerEmail, {
+    sendOrderConfirmationEmail({
+      to: buyerEmail,
       clientName: buyerName,
-      engineerName: vendorName,
-      orderTitle: service.title,
+      vendorName,
+      serviceTitle: service.title,
+      orderAmount: Math.round(Number(service.price) * 100),
+      orderId: paymentIntent.id,
     }).catch(e => console.error('[Email] buyer confirmation failed:', e));
 
     // Auto-post transaction milestone to feed (fire and forget)

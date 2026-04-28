@@ -6,6 +6,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
+import BadgeList from '@/app/components/BadgeList'
+import { computeBadges } from '@/lib/badges'
 import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import {
@@ -23,6 +25,9 @@ interface Profile {
   token_balance: number
   avatar_url: string | null
   location: string | null
+  bio: string | null
+  created_at: string
+  is_admin: boolean | null
 }
 
 interface Order {
@@ -160,6 +165,16 @@ export default function ClientDashboard() {
               <p className="text-blue-200 text-sm font-medium mb-0.5">Client Dashboard</p>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{profile?.full_name || 'Welcome back!'}</h1>
               {profile?.location && <p className="text-blue-300 text-sm mt-0.5">{profile.location}</p>}
+              <BadgeList
+                badges={computeBadges({
+                  profile,
+                  emailVerified: !!profile?.email,
+                  placedOrderCount: orders.length,
+                  rfqCount: rfqs.length,
+                })}
+                size="sm"
+                className="mt-2"
+              />
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">

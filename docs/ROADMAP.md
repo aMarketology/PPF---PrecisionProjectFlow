@@ -1,6 +1,30 @@
-# 🚀 PRECISION PROJECT FLOW - NEXT STEPS
+# 🚀 PRECISION PROJECT FLOW — ROADMAP
 
-## 🎯 SUPPLY-FIRST EXECUTION STRATEGY
+> **🟢 CURRENT STATE — April 28, 2026**
+>
+> The platform is **feature-complete for an MVP launch** and **deployed to production**.
+> Build is green (44/44 routes). Auth, profiles, marketplace, messaging w/ token paywall,
+> RFQs, dashboards, Stripe Connect + token purchases, and admin shell are all live.
+>
+> **🔴 We are now in: PHASE 1B — REAL VENDOR/SUPPLIER ONBOARDING**
+>
+> The bottleneck is no longer code — it's the **last UX gaps** that prevent a brand-new
+> vendor from listing a service and a brand-new buyer from completing a purchase
+> without admin help.
+>
+> **Immediate priorities (see `/session.md` for the live checklist):**
+> 1. Build "Add Service" + "Edit Service" UI in the engineer dashboard (today only seed scripts can create listings)
+> 2. Surface Stripe Connect onboarding banner in vendor dashboard
+> 3. Wire Resend transactional emails (welcome, new message, new order, new RFQ response)
+> 4. Run a full end-to-end dry-run: signup → list → DM → tokens → quote → Stripe → fulfilled
+> 5. Recruit & invite the first 5 real vendors
+>
+> Everything below this banner is **historical context** from earlier planning phases —
+> kept for reference but no longer the active plan. Use `/session.md` as the source of truth.
+
+---
+
+## 🎯 SUPPLY-FIRST EXECUTION STRATEGY *(historical — Feb 2026 plan)*
 
 **Created:** January 12, 2026  
 **Last Updated**: February 11, 2026  

@@ -3,6 +3,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
 import { redirect } from 'next/navigation'
+import { sendWelcomeEmail } from '@/lib/email'
 
 // Sign up function matching simplified profiles table
 export async function signUp(formData: {
@@ -52,6 +53,13 @@ export async function signUp(formData: {
   if (profileError) {
     return { error: profileError.message }
   }
+
+  // Fire-and-forget welcome email — never block signup on email failure
+  sendWelcomeEmail({
+    to: formData.email,
+    name: formData.fullName,
+    userType: formData.userType,
+  }).catch(err => console.error('[email] welcome failed:', err))
 
   revalidatePath('/', 'layout')
   return { success: true, userId: authData.user.id }

@@ -6,16 +6,19 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
+import BadgeList from '@/app/components/BadgeList'
+import StripeConnectBanner from '@/app/components/StripeConnectBanner'
+import { computeBadges } from '@/lib/badges'
 import { createClient } from '@/lib/supabase/client'
 import { format } from 'date-fns'
 import {
   Package, Wrench, TrendingUp, Plus, ExternalLink,
   DollarSign, Clock, CheckCircle2, XCircle, Building2,
   Coins, MessageSquare, Settings, Eye, EyeOff, BarChart3,
-  ChevronRight, AlertCircle, FileText,
+  ChevronRight, AlertCircle, FileText, Pencil,
 } from 'lucide-react'
 
-interface Profile { id: string; full_name: string; company_name: string | null; email: string; user_type: string; token_balance: number; avatar_url: string | null; location: string | null }
+interface Profile { id: string; full_name: string; company_name: string | null; email: string; user_type: string; token_balance: number; avatar_url: string | null; location: string | null; bio: string | null; created_at: string; is_admin: boolean | null }
 interface Order { id: string; status: string; total_amount: number; created_at: string; client: any; service: any }
 interface Service { id: string; title: string; description: string; price: number; category: string; active: boolean; created_at: string }
 interface RFQ { id: string; title: string; category: string; description: string; budget: string | null; timeline: string | null; location: string | null; status: string; created_at: string; client: { id: string; full_name: string; company_name: string | null } }
@@ -59,6 +62,7 @@ export default function EngineerDashboard() {
   const [rfqs, setRfqs] = useState<RFQ[]>([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState<'overview' | 'orders' | 'services' | 'earnings' | 'rfqs'>('overview')
+  const [stripeConnected, setStripeConnected] = useState(false)
 
   useEffect(() => { loadDashboard() }, [])
 
@@ -90,6 +94,21 @@ export default function EngineerDashboard() {
       .limit(20)
     setRfqs((rfqsData as any) || [])
 
+    // Stripe Connect status — drives the "Payouts Ready" badge
+    const { data: company } = await supabase
+      .from('company_profiles')
+      .select('id')
+      .eq('owner_id', user.id)
+      .maybeSingle()
+    if (company) {
+      const { data: stripe } = await supabase
+        .from('stripe_connect_accounts')
+        .select('charges_enabled, payouts_enabled')
+        .eq('company_id', company.id)
+        .maybeSingle()
+      setStripeConnected(!!(stripe?.charges_enabled && stripe?.payouts_enabled))
+    }
+
     setLoading(false)
   }
 
@@ -110,6 +129,14 @@ export default function EngineerDashboard() {
   const totalEarnings   = completedOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
   const pendingAmount   = activeOrders.reduce((sum, o) => sum + (o.total_amount || 0), 0)
   const displayName     = profile?.company_name ?? profile?.full_name ?? ''
+
+  const badges = computeBadges({
+    profile: profile,
+    emailVerified: !!profile?.email,
+    serviceCount: services.length,
+    completedOrderCount: completedOrders.length,
+    stripeConnected,
+  })
 
   const TABS = [
     { key: 'overview',  label: 'Overview',  icon: <BarChart3 className="w-4 h-4" /> },
@@ -141,6 +168,7 @@ export default function EngineerDashboard() {
               <p className="text-blue-200 text-sm font-medium mb-0.5">Engineer Dashboard</p>
               <h1 className="text-2xl sm:text-3xl font-extrabold text-white">{displayName}</h1>
               {profile?.location && <p className="text-blue-300 text-sm mt-0.5">{profile.location}</p>}
+              {badges.length > 0 && <BadgeList badges={badges} size="sm" className="mt-2" />}
             </div>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
@@ -187,6 +215,9 @@ export default function EngineerDashboard() {
         <AnimatePresence mode="wait">
         {activeTab === 'overview' && (
           <motion.div key="overview" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-8">
+            {/* Stripe Connect onboarding banner — auto-hides when fully connected */}
+            <StripeConnectBanner userId={profile?.id} />
+
             {/* Stat grid */}
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               <StatCard icon={<DollarSign className="w-5 h-5" />} label="Total Earned" value={`$${totalEarnings.toLocaleString()}`} sub={`${completedOrders.length} completed orders`} accent />
@@ -355,8 +386,12 @@ export default function EngineerDashboard() {
                       <span className="text-xl font-extrabold text-gray-900">${s.price.toLocaleString()}</span>
                       <div className="flex items-center gap-2">
                         <Link href={`/marketplace/service/${s.id}`}
-                          className="p-2 border border-gray-200 rounded-xl hover:border-[#003D82] hover:text-[#003D82] text-gray-400 transition-all">
+                          className="p-2 border border-gray-200 rounded-xl hover:border-[#003D82] hover:text-[#003D82] text-gray-400 transition-all" title="View public listing">
                           <ExternalLink className="w-4 h-4" />
+                        </Link>
+                        <Link href={`/services/edit/${s.id}`}
+                          className="p-2 border border-gray-200 rounded-xl hover:border-[#003D82] hover:text-[#003D82] text-gray-400 transition-all" title="Edit">
+                          <Pencil className="w-4 h-4" />
                         </Link>
                         <button onClick={() => toggleService(s.id, s.active)}
                           className={`flex items-center gap-1.5 px-3 py-2 rounded-xl border text-xs font-semibold transition-all ${
