@@ -7,7 +7,11 @@ import Link from 'next/link'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import { createClient } from '@/lib/supabase/client'
-import { CheckCircle, Shield, Award, MessageCircle, Heart, Share2, ArrowLeft, ChevronRight, DollarSign, Tag, Clock, Wifi, HardHat, ChevronLeft } from 'lucide-react'
+import {
+  CheckCircle2, Shield, Award, MessageCircle, Heart, ArrowLeft,
+  ChevronRight, DollarSign, Tag, Clock, Wifi, HardHat, ChevronLeft,
+  MapPin, Loader2, Star, BadgeCheck, ExternalLink, Share2,
+} from 'lucide-react'
 
 interface Service {
   id: string
@@ -33,34 +37,44 @@ interface Service {
 }
 
 const categoryFallbacks: Record<string, string> = {
-  'Structural Engineering': 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&h=600&fit=crop',
-  'Mechanical Engineering': 'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&h=600&fit=crop',
-  'Electrical Engineering': 'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=800&h=600&fit=crop',
-  'Civil Engineering': 'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=800&h=600&fit=crop',
-  'Software Engineering': 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=800&h=600&fit=crop',
-  'Consulting Services': 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=800&h=600&fit=crop',
-  'Design Services': 'https://images.unsplash.com/photo-1559028006-448665bd7c7f?w=800&h=600&fit=crop',
-  'Analysis & Testing': 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&h=600&fit=crop',
-  'Project Management': 'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=800&h=600&fit=crop',
-  'Other Services': 'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=800&h=600&fit=crop',
+  'Structural Engineering':  'https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=900&h=600&fit=crop',
+  'Mechanical Engineering':  'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=900&h=600&fit=crop',
+  'Electrical Engineering':  'https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=900&h=600&fit=crop',
+  'Civil Engineering':       'https://images.unsplash.com/photo-1486325212027-8081e485255e?w=900&h=600&fit=crop',
+  'Software Engineering':    'https://images.unsplash.com/photo-1555066931-4365d14bab8c?w=900&h=600&fit=crop',
+  'Consulting Services':     'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?w=900&h=600&fit=crop',
+  'Design Services':         'https://images.unsplash.com/photo-1559028006-448665bd7c7f?w=900&h=600&fit=crop',
+  'Analysis & Testing':      'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=900&h=600&fit=crop',
+  'Project Management':      'https://images.unsplash.com/photo-1507925921958-8a62f3d1a50d?w=900&h=600&fit=crop',
+  'Other Services':          'https://images.unsplash.com/photo-1586281380349-632531db7ed4?w=900&h=600&fit=crop',
 }
 
-const serviceAreaLabel: Record<string, { label: string; icon: 'wifi' | 'hardhat' }> = {
-  remote: { label: 'Remote', icon: 'wifi' },
-  'on-site': { label: 'On-Site', icon: 'hardhat' },
-  both: { label: 'Remote & On-Site', icon: 'wifi' },
+function getServiceImage(service: Service): string {
+  if (service.images && service.images.length > 0) return service.images[0]
+  return categoryFallbacks[service.category] || categoryFallbacks['Other Services']
+}
+
+function isRemote(area: string | null): boolean {
+  if (!area) return false
+  return area.toLowerCase().includes('remote') || area.toLowerCase().includes('nationwide')
+}
+
+function isOnSite(area: string | null): boolean {
+  if (!area) return false
+  return area.toLowerCase().includes('on-site') || area.toLowerCase().includes('onsite')
 }
 
 export default function ServiceDetailPage() {
-  const params = useParams()
-  const router = useRouter()
+  const params    = useParams()
+  const router    = useRouter()
   const serviceId = params.id as string
 
-  const [service, setService] = useState<Service | null>(null)
-  const [currentUser, setCurrentUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const [isFavorite, setIsFavorite] = useState(false)
+  const [service, setService]             = useState<Service | null>(null)
+  const [currentUser, setCurrentUser]     = useState<any>(null)
+  const [isLoading, setIsLoading]         = useState(true)
+  const [isFavorite, setIsFavorite]       = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
+  const [copied, setCopied]               = useState(false)
 
   useEffect(() => {
     loadService()
@@ -79,7 +93,8 @@ export default function ServiceDetailPage() {
       const { data, error } = await supabase
         .from('services')
         .select(`
-          id, title, description, category, price, tags, images, delivery_time, service_area, certifications, active, created_at,
+          id, title, description, category, price, tags, images,
+          delivery_time, service_area, certifications, active, created_at,
           provider:profiles!services_provider_id_fkey(id, full_name, email, location, avatar_url, bio)
         `)
         .eq('id', serviceId)
@@ -96,307 +111,388 @@ export default function ServiceDetailPage() {
   }
 
   function handleOrderNow() {
-    if (!currentUser) {
-      router.push(`/login?redirect=/marketplace/service/${serviceId}`)
-      return
-    }
+    if (!currentUser) { router.push(`/login?redirect=/marketplace/service/${serviceId}`); return }
     router.push(`/checkout/service/${serviceId}`)
   }
 
   function handleContactProvider() {
-    if (!currentUser) {
-      router.push(`/login?redirect=/marketplace/service/${serviceId}`)
-      return
-    }
-    if (service?.provider?.id) {
-      router.push(`/messages?with=${service.provider.id}`)
-    }
+    if (!currentUser) { router.push(`/login?redirect=/marketplace/service/${serviceId}`); return }
+    if (service?.provider?.id) router.push(`/messages?with=${service.provider.id}`)
   }
 
+  function handleShare() {
+    navigator.clipboard.writeText(window.location.href)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 2000)
+  }
+
+  // ── Loading ────────────────────────────────────────────────────────────────
   if (isLoading) {
     return (
-      <>
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
         <Navigation />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 pt-24 flex items-center justify-center">
+        <div className="flex items-center justify-center min-h-[80vh]">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4" />
-            <p className="text-gray-600">Loading service...</p>
+            <Loader2 className="w-10 h-10 animate-spin text-[#003D82] mx-auto mb-3" />
+            <p className="text-gray-500 text-sm">Loading service…</p>
           </div>
         </div>
         <Footer />
-      </>
+      </div>
     )
   }
 
+  // ── Not found ──────────────────────────────────────────────────────────────
   if (!service) {
     return (
-      <>
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
         <Navigation />
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-slate-50 pt-24 flex items-center justify-center">
-          <div className="text-center">
-            <h1 className="text-3xl font-bold text-gray-900 mb-4">Service Not Found</h1>
-            <p className="text-gray-600 mb-6">This service may no longer be active.</p>
-            <Link href="/marketplace" className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-medium rounded-lg hover:bg-blue-700 transition">
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <div className="text-center max-w-sm mx-auto px-4">
+            <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <ArrowLeft className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Service Not Found</h1>
+            <p className="text-gray-500 text-sm mb-6">This listing may have been removed or deactivated.</p>
+            <Link href="/marketplace"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all">
               <ArrowLeft className="w-4 h-4" /> Back to Marketplace
             </Link>
           </div>
         </div>
         <Footer />
-      </>
+      </div>
     )
   }
 
-  const isOwnService = currentUser?.id === service.provider?.id
+  const isOwnService  = currentUser?.id === service.provider?.id
+  const galleryImages = (service.images && service.images.length > 0)
+    ? service.images
+    : [getServiceImage(service)]
+
+  const providerInitial = service.provider?.full_name?.charAt(0).toUpperCase() ?? 'V'
 
   return (
-    <>
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
       <Navigation />
-      <div className="bg-gradient-to-br from-blue-50 via-white to-slate-50 min-h-screen pt-24 pb-12">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
 
+      {/* Hero banner */}
+      <div className="bg-gradient-to-r from-[#001f4d] via-[#003D82] to-[#005BB5] pt-24 pb-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6">
           {/* Breadcrumb */}
-          <motion.div className="flex items-center gap-2 text-sm text-gray-600 mb-6" initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}>
-            <Link href="/" className="hover:text-blue-600 transition">Home</Link>
-            <ChevronRight className="h-4 w-4" />
-            <Link href="/marketplace" className="hover:text-blue-600 transition">Marketplace</Link>
-            <ChevronRight className="h-4 w-4" />
-            <span className="text-gray-900 font-medium truncate max-w-xs">{service.title}</span>
-          </motion.div>
+          <div className="flex items-center gap-1.5 text-xs text-blue-200 mb-4">
+            <Link href="/" className="hover:text-white transition">Home</Link>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <Link href="/marketplace" className="hover:text-white transition">Marketplace</Link>
+            <ChevronRight className="w-3.5 h-3.5" />
+            <span className="text-white font-medium truncate max-w-xs">{service.title}</span>
+          </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-
-            {/* LEFT — Images + Details */}
-            <div className="lg:col-span-2 space-y-6">
-
-              {/* Image gallery */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="bg-white rounded-2xl shadow-lg overflow-hidden">
-                <div className="relative h-96 bg-gray-900">
-                  {(() => {
-                    const galleryImages = (service.images && service.images.length > 0)
-                      ? service.images
-                      : [categoryFallbacks[service.category] || categoryFallbacks['Other Services']]
-                    return (
-                      <>
-                        <img
-                          src={galleryImages[currentImageIndex] || galleryImages[0]}
-                          alt={service.title}
-                          className="w-full h-full object-cover"
-                          onError={e => { (e.target as HTMLImageElement).src = categoryFallbacks['Other Services'] }}
-                        />
-                        {galleryImages.length > 1 && (
-                          <>
-                            <button
-                              onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))}
-                              className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all"
-                              disabled={currentImageIndex === 0}
-                            >
-                              <ChevronLeft className="w-5 h-5" />
-                            </button>
-                            <button
-                              onClick={() => setCurrentImageIndex(i => Math.min(galleryImages.length - 1, i + 1))}
-                              className="absolute right-12 top-1/2 -translate-y-1/2 p-2 bg-black/40 hover:bg-black/60 text-white rounded-full transition-all"
-                              disabled={currentImageIndex === galleryImages.length - 1}
-                            >
-                              <ChevronRight className="w-5 h-5" />
-                            </button>
-                          </>
-                        )}
-                      </>
-                    )
-                  })()}
-                  <div className="absolute top-4 right-4 flex gap-2">
-                    <motion.button onClick={() => setIsFavorite(!isFavorite)} className="p-3 bg-white/90 backdrop-blur-sm rounded-full hover:bg-white transition-all shadow-lg" whileHover={{ scale: 1.1 }} whileTap={{ scale: 0.9 }}>
-                      <Heart className={`h-5 w-5 ${isFavorite ? 'text-red-500 fill-current' : 'text-gray-600'}`} />
-                    </motion.button>
-                  </div>
-                </div>
-                {service.images && service.images.length > 1 && (
-                  <div className="flex gap-2 p-4 overflow-x-auto">
-                    {service.images.map((img: string, idx: number) => (
-                      <button key={idx} onClick={() => setCurrentImageIndex(idx)} className={`flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border-2 transition-all ${currentImageIndex === idx ? 'border-blue-600' : 'border-gray-200 hover:border-gray-300'}`}>
-                        <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
-                      </button>
-                    ))}
-                  </div>
+          <div className="flex items-start justify-between gap-4 flex-wrap">
+            <div>
+              <span className="inline-block px-3 py-1 bg-[#FF6B35] text-white text-xs font-bold rounded-full uppercase tracking-wide mb-3">
+                {service.category}
+              </span>
+              <h1 className="text-2xl sm:text-3xl font-extrabold text-white leading-tight max-w-3xl">
+                {service.title}
+              </h1>
+              <div className="flex items-center gap-4 mt-3 flex-wrap">
+                {service.delivery_time && (
+                  <span className="flex items-center gap-1.5 text-xs text-blue-100 font-medium">
+                    <Clock className="w-3.5 h-3.5" /> {service.delivery_time}
+                  </span>
                 )}
-              </motion.div>
-
-              {/* Service Info */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }} className="bg-white rounded-2xl shadow-lg p-6">
-                <span className="text-sm font-semibold text-blue-600 bg-blue-50 px-3 py-1 rounded-full uppercase">
-                  {service.category}
-                </span>
-                <h1 className="text-3xl font-bold text-gray-900 mt-3 mb-4">{service.title}</h1>
-
-                {/* Delivery / Area / Certs badges */}
-                <div className="flex flex-wrap gap-2 mb-4">
-                  {service.delivery_time && (
-                    <span className="inline-flex items-center gap-1.5 text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 px-3 py-1.5 rounded-lg font-medium">
-                      <Clock className="w-4 h-4" />
-                      {service.delivery_time}
-                    </span>
-                  )}
-                  {service.service_area && serviceAreaLabel[service.service_area] && (
-                    <span className="inline-flex items-center gap-1.5 text-sm text-slate-700 bg-slate-50 border border-slate-200 px-3 py-1.5 rounded-lg font-medium">
-                      {serviceAreaLabel[service.service_area].icon === 'wifi'
-                        ? <Wifi className="w-4 h-4" />
-                        : <HardHat className="w-4 h-4" />
-                      }
-                      {serviceAreaLabel[service.service_area].label}
-                    </span>
-                  )}
-                  {service.certifications && service.certifications.map((cert: string) => (
-                    <span key={cert} className="inline-flex items-center gap-1.5 text-sm text-amber-700 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-lg font-medium">
-                      <Award className="w-4 h-4" />
-                      {cert}
-                    </span>
-                  ))}
-                </div>
-
-                {/* Tags */}
-                {service.tags && service.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mb-4">
-                    {service.tags.map(tag => (
-                      <span key={tag} className="inline-flex items-center gap-1 text-xs text-gray-600 bg-gray-100 rounded-full px-2 py-1">
-                        <Tag className="w-3 h-3" />{tag}
-                      </span>
-                    ))}
-                  </div>
+                {service.service_area && (
+                  <span className="flex items-center gap-1.5 text-xs text-blue-100 font-medium">
+                    {isRemote(service.service_area) ? <Wifi className="w-3.5 h-3.5" /> : <HardHat className="w-3.5 h-3.5" />}
+                    {service.service_area}
+                  </span>
                 )}
-
-                {/* Provider card */}
-                {service.provider && (
-                  <div className="flex items-center justify-between p-4 bg-gradient-to-br from-blue-50 to-slate-50 rounded-xl mt-4">
-                    <div className="flex items-center gap-4">
-                      <div className="w-14 h-14 rounded-full bg-gradient-to-br from-blue-500 to-blue-700 flex items-center justify-center text-white text-xl font-bold flex-shrink-0">
-                        {service.provider.full_name.charAt(0).toUpperCase()}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-bold text-gray-900">{service.provider.full_name}</h3>
-                          <CheckCircle className="h-4 w-4 text-blue-600" />
-                        </div>
-                        {service.provider.location && (
-                          <p className="text-sm text-gray-500 mt-0.5">{service.provider.location}</p>
-                        )}
-                        {service.provider.bio && (
-                          <p className="text-sm text-gray-600 mt-1 line-clamp-1">{service.provider.bio}</p>
-                        )}
-                      </div>
-                    </div>
-                    {!isOwnService && (
-                      <button onClick={handleContactProvider} className="px-5 py-2.5 bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-semibold rounded-lg transition-all text-sm flex-shrink-0">
-                        Contact
-                      </button>
-                    )}
-                  </div>
+                {service.provider?.location && (
+                  <span className="flex items-center gap-1.5 text-xs text-blue-100 font-medium">
+                    <MapPin className="w-3.5 h-3.5" /> {service.provider.location}
+                  </span>
                 )}
-
-                {/* Price info row */}
-                <div className="grid grid-cols-2 gap-4 mt-6">
-                  <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <DollarSign className="h-6 w-6 text-green-600 mx-auto mb-2" />
-                    <div className="text-sm text-gray-600">Price</div>
-                    <div className="text-2xl font-bold text-gray-900">${Number(service.price).toLocaleString()}</div>
-                  </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-xl">
-                    <CheckCircle className="h-6 w-6 text-blue-600 mx-auto mb-2" />
-                    <div className="text-sm text-gray-600">Status</div>
-                    <div className="text-lg font-bold text-green-600">Active Listing</div>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Full Description */}
-              <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }} className="bg-white rounded-2xl shadow-lg p-6">
-                <h3 className="text-xl font-bold text-gray-900 mb-4">About This Service</h3>
-                <p className="text-gray-700 leading-relaxed whitespace-pre-line">{service.description}</p>
-              </motion.div>
+              </div>
             </div>
-
-            {/* RIGHT — Purchase Card */}
-            <div className="lg:col-span-1">
-              <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className="sticky top-24 bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden">
-                <div className="p-6 border-b border-gray-200">
-                  <h3 className="text-lg font-bold text-gray-900 mb-4">
-                    {isOwnService ? 'Your Service' : 'Order This Service'}
-                  </h3>
-
-                  <div className="flex items-baseline gap-2 mb-6">
-                    <span className="text-4xl font-bold text-gray-900">${Number(service.price).toLocaleString()}</span>
-                    <span className="text-gray-500 text-sm">USD</span>
-                  </div>
-
-                  <div className="space-y-3 mb-6">
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm">Professional engineering service</span>
-                    </div>
-                    {service.delivery_time && (
-                      <div className="flex items-start gap-3">
-                        <Clock className="h-5 w-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                        <span className="text-gray-700 text-sm">Delivery: {service.delivery_time}</span>
-                      </div>
-                    )}
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm">Secure payment via Stripe</span>
-                    </div>
-                    <div className="flex items-start gap-3">
-                      <CheckCircle className="h-5 w-5 text-green-600 flex-shrink-0 mt-0.5" />
-                      <span className="text-gray-700 text-sm">Direct communication with vendor</span>
-                    </div>
-                  </div>
-
-                  {isOwnService ? (
-                    <Link href="/dashboard/engineer" className="block w-full text-center bg-gray-100 text-gray-700 font-bold py-4 rounded-xl transition-all hover:bg-gray-200">
-                      Manage in Dashboard
-                    </Link>
-                  ) : (
-                    <div className="space-y-3">
-                      <motion.button
-                        onClick={handleOrderNow}
-                        className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 rounded-xl transition-all shadow-md hover:shadow-lg"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        {currentUser ? 'Order Now' : 'Sign In to Order'}
-                      </motion.button>
-                      <motion.button
-                        onClick={handleContactProvider}
-                        className="w-full bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-bold py-4 rounded-xl transition-all flex items-center justify-center gap-2"
-                        whileHover={{ scale: 1.02 }}
-                        whileTap={{ scale: 0.98 }}
-                      >
-                        <MessageCircle className="h-5 w-5" />
-                        Message Vendor
-                      </motion.button>
-                    </div>
-                  )}
-                </div>
-
-                <div className="p-6 bg-gradient-to-br from-blue-50 to-slate-50">
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <Shield className="h-5 w-5 text-blue-600" />
-                      <span className="text-sm">Secure payments via Stripe</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <Award className="h-5 w-5 text-blue-600" />
-                      <span className="text-sm">Verified professional vendor</span>
-                    </div>
-                    <div className="flex items-center gap-3 text-gray-700">
-                      <CheckCircle className="h-5 w-5 text-blue-600" />
-                      <span className="text-sm">10% platform fee included</span>
-                    </div>
-                  </div>
-                </div>
-              </motion.div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <button
+                onClick={() => setIsFavorite(f => !f)}
+                className={`p-2.5 rounded-xl border-2 transition-all ${isFavorite ? 'bg-red-50 border-red-300 text-red-500' : 'bg-white/10 border-white/20 text-white hover:bg-white/20'}`}>
+                <Heart className={`w-5 h-5 ${isFavorite ? 'fill-current' : ''}`} />
+              </button>
+              <button onClick={handleShare}
+                className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/10 border-2 border-white/20 text-white hover:bg-white/20 transition-all text-xs font-semibold">
+                <Share2 className="w-4 h-4" />
+                {copied ? 'Copied!' : 'Share'}
+              </button>
             </div>
           </div>
         </div>
       </div>
+
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+
+          {/* ── LEFT — Main content ──────────────────────────────────────── */}
+          <div className="lg:col-span-2 space-y-6">
+
+            {/* Image Gallery */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+              <div className="relative h-80 sm:h-96 bg-gray-900">
+                <img
+                  src={galleryImages[currentImageIndex]}
+                  alt={service.title}
+                  className="w-full h-full object-cover"
+                  onError={e => { (e.target as HTMLImageElement).src = categoryFallbacks['Other Services'] }}
+                />
+                {galleryImages.length > 1 && (
+                  <>
+                    <button onClick={() => setCurrentImageIndex(i => Math.max(0, i - 1))}
+                      disabled={currentImageIndex === 0}
+                      className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all disabled:opacity-30">
+                      <ChevronLeft className="w-5 h-5" />
+                    </button>
+                    <button onClick={() => setCurrentImageIndex(i => Math.min(galleryImages.length - 1, i + 1))}
+                      disabled={currentImageIndex === galleryImages.length - 1}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 p-2 bg-black/50 hover:bg-black/70 text-white rounded-full transition-all disabled:opacity-30">
+                      <ChevronRight className="w-5 h-5" />
+                    </button>
+                    <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
+                      {galleryImages.map((_, i) => (
+                        <button key={i} onClick={() => setCurrentImageIndex(i)}
+                          className={`w-2 h-2 rounded-full transition-all ${i === currentImageIndex ? 'bg-white scale-125' : 'bg-white/50'}`} />
+                      ))}
+                    </div>
+                  </>
+                )}
+              </div>
+              {galleryImages.length > 1 && (
+                <div className="flex gap-2 p-4 overflow-x-auto">
+                  {galleryImages.map((img, idx) => (
+                    <button key={idx} onClick={() => setCurrentImageIndex(idx)}
+                      className={`flex-shrink-0 w-20 h-20 rounded-xl overflow-hidden border-2 transition-all ${currentImageIndex === idx ? 'border-[#003D82]' : 'border-gray-200 hover:border-gray-400'}`}>
+                      <img src={img} alt={`Preview ${idx + 1}`} className="w-full h-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+              )}
+            </motion.div>
+
+            {/* About This Service */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-xl font-extrabold text-gray-900 mb-4">About This Service</h2>
+              <p className="text-gray-600 leading-relaxed whitespace-pre-line text-sm">{service.description}</p>
+
+              {/* Certifications */}
+              {service.certifications && service.certifications.length > 0 && (
+                <div className="mt-6 pt-5 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Certifications & Credentials</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {service.certifications.map(cert => (
+                      <span key={cert}
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 text-xs font-semibold rounded-full">
+                        <Award className="w-3.5 h-3.5" /> {cert}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tags */}
+              {service.tags && service.tags.length > 0 && (
+                <div className="mt-5 pt-5 border-t border-gray-100">
+                  <h3 className="text-sm font-bold text-gray-700 uppercase tracking-wide mb-3">Expertise Tags</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {service.tags.map(tag => (
+                      <span key={tag}
+                        className="inline-flex items-center gap-1 px-2.5 py-1 bg-[#F8FAFC] border border-gray-200 text-gray-600 text-xs font-semibold rounded-full">
+                        <Tag className="w-3 h-3" /> {tag}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </motion.div>
+
+            {/* What's Included */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <h2 className="text-xl font-extrabold text-gray-900 mb-4">What's Included</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {[
+                  'Professional PE/specialist execution',
+                  'Detailed deliverable documentation',
+                  'Code & standards compliance',
+                  service.delivery_time ? `Delivery within ${service.delivery_time}` : 'Clear project timeline',
+                  'Direct vendor communication',
+                  'Revision support after delivery',
+                ].map(item => (
+                  <div key={item} className="flex items-start gap-2.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                    <span className="text-sm text-gray-700">{item}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+
+            {/* Provider Card */}
+            {service.provider && (
+              <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+                <h2 className="text-xl font-extrabold text-gray-900 mb-4">About the Vendor</h2>
+                <div className="flex items-start gap-4">
+                  {service.provider.avatar_url ? (
+                    <img src={service.provider.avatar_url} alt={service.provider.full_name}
+                      className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 border-2 border-gray-100" />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white text-2xl font-extrabold flex-shrink-0">
+                      {providerInitial}
+                    </div>
+                  )}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-extrabold text-gray-900 text-lg">{service.provider.full_name}</h3>
+                      <BadgeCheck className="w-5 h-5 text-[#003D82] flex-shrink-0" />
+                    </div>
+                    {service.provider.location && (
+                      <p className="flex items-center gap-1 text-xs text-gray-500 mt-0.5">
+                        <MapPin className="w-3 h-3" /> {service.provider.location}
+                      </p>
+                    )}
+                    {service.provider.bio && (
+                      <p className="text-sm text-gray-600 mt-2 leading-relaxed line-clamp-3">{service.provider.bio}</p>
+                    )}
+                    <div className="flex items-center gap-3 mt-3 flex-wrap">
+                      <div className="flex items-center gap-1">
+                        {[1,2,3,4,5].map(s => (
+                          <Star key={s} className={`w-3.5 h-3.5 ${s <= 5 ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
+                        ))}
+                        <span className="text-xs text-gray-500 ml-1">5.0</span>
+                      </div>
+                      <span className="text-xs text-gray-400">·</span>
+                      <span className="text-xs text-gray-500">Verified Vendor</span>
+                    </div>
+                  </div>
+                </div>
+                {!isOwnService && (
+                  <div className="flex gap-3 mt-5 pt-5 border-t border-gray-100">
+                    <Link href={`/profiles/${service.provider.id}`}
+                      className="flex items-center gap-2 px-4 py-2.5 border-2 border-gray-200 hover:border-[#003D82] text-gray-700 font-semibold rounded-xl transition-all text-sm">
+                      <ExternalLink className="w-4 h-4" /> View Profile
+                    </Link>
+                    <button onClick={handleContactProvider}
+                      className="flex items-center gap-2 px-4 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all text-sm">
+                      <MessageCircle className="w-4 h-4" /> Message Vendor
+                    </button>
+                  </div>
+                )}
+              </motion.div>
+            )}
+          </div>
+
+          {/* ── RIGHT — Purchase sticky card ─────────────────────────────── */}
+          <div className="lg:col-span-1">
+            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
+              className="sticky top-24 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
+
+              {/* Price header */}
+              <div className="bg-gradient-to-r from-[#001f4d] to-[#003D82] px-6 py-5">
+                <p className="text-blue-200 text-xs font-semibold uppercase tracking-wide mb-1">Service Price</p>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-4xl font-extrabold text-white">
+                    ${Number(service.price).toLocaleString()}
+                  </span>
+                  <span className="text-blue-300 text-sm">USD</span>
+                </div>
+                {service.delivery_time && (
+                  <p className="text-blue-200 text-xs mt-2 flex items-center gap-1">
+                    <Clock className="w-3.5 h-3.5" /> Delivered in {service.delivery_time}
+                  </p>
+                )}
+              </div>
+
+              <div className="p-6">
+                {/* Included items */}
+                <div className="space-y-2.5 mb-6">
+                  {[
+                    'Professional engineering execution',
+                    service.delivery_time ? `Delivery: ${service.delivery_time}` : 'Defined delivery timeline',
+                    'Secure payment via Stripe',
+                    'Direct vendor messaging',
+                    ...(service.certifications?.slice(0, 1).map(c => `Credential: ${c}`) ?? []),
+                  ].map(item => (
+                    <div key={item} className="flex items-start gap-2.5">
+                      <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+                      <span className="text-sm text-gray-700">{item}</span>
+                    </div>
+                  ))}
+                </div>
+
+                {/* CTAs */}
+                {isOwnService ? (
+                  <Link href="/dashboard/engineer"
+                    className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all text-sm">
+                    Manage in Dashboard
+                  </Link>
+                ) : (
+                  <div className="space-y-3">
+                    <motion.button onClick={handleOrderNow} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      className="w-full bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold py-3.5 rounded-xl transition-all shadow-md text-sm">
+                      {currentUser ? 'Order Now' : 'Sign In to Order'}
+                    </motion.button>
+                    <motion.button onClick={handleContactProvider} whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
+                      className="w-full bg-white border-2 border-[#003D82] hover:bg-blue-50 text-[#003D82] font-bold py-3.5 rounded-xl transition-all flex items-center justify-center gap-2 text-sm">
+                      <MessageCircle className="w-4 h-4" /> Message Vendor
+                    </motion.button>
+                  </div>
+                )}
+
+                {/* Trust signals */}
+                <div className="mt-5 pt-5 border-t border-gray-100 space-y-2.5">
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <Shield className="w-4 h-4 text-[#003D82] flex-shrink-0" />
+                    <span className="text-xs">Secure payments via Stripe</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <BadgeCheck className="w-4 h-4 text-[#003D82] flex-shrink-0" />
+                    <span className="text-xs">Verified professional vendor</span>
+                  </div>
+                  <div className="flex items-center gap-3 text-gray-600">
+                    <CheckCircle2 className="w-4 h-4 text-[#003D82] flex-shrink-0" />
+                    <span className="text-xs">PPF Buyer Protection applies</span>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Related info card */}
+            {service.service_area && (
+              <div className="mt-4 bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <h3 className="text-sm font-bold text-gray-700 mb-3">Service Area</h3>
+                <div className="flex items-start gap-2.5">
+                  {isRemote(service.service_area)
+                    ? <Wifi className="w-4 h-4 text-[#003D82] flex-shrink-0 mt-0.5" />
+                    : <HardHat className="w-4 h-4 text-[#003D82] flex-shrink-0 mt-0.5" />}
+                  <p className="text-sm text-gray-600">{service.service_area}</p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Back link */}
+        <div className="mt-8">
+          <Link href="/marketplace"
+            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-[#003D82] font-semibold transition-all">
+            <ArrowLeft className="w-4 h-4" /> Back to Marketplace
+          </Link>
+        </div>
+      </div>
+
       <Footer />
-    </>
+    </div>
   )
 }
