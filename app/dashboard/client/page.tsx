@@ -34,6 +34,18 @@ interface Order {
   service: { title: string } | null
 }
 
+interface RFQ {
+  id: string
+  title: string
+  category: string
+  description: string
+  budget: string | null
+  timeline: string | null
+  location: string | null
+  status: string
+  created_at: string
+}
+
 const STATUS_CFG: Record<string, { label: string; cls: string; icon: React.ReactNode }> = {
   pending:     { label: 'Pending',     cls: 'bg-amber-50 text-amber-700 border border-amber-200',       icon: <Clock className="w-3 h-3" /> },
   in_progress: { label: 'In Progress', cls: 'bg-blue-50 text-blue-700 border border-blue-200',          icon: <AlertCircle className="w-3 h-3" /> },
@@ -69,9 +81,10 @@ export default function ClientDashboard() {
   const router = useRouter()
   const [profile, setProfile]         = useState<Profile | null>(null)
   const [orders, setOrders]           = useState<Order[]>([])
+  const [rfqs, setRfqs]               = useState<RFQ[]>([])
   const [unreadCount, setUnreadCount] = useState(0)
   const [loading, setLoading]         = useState(true)
-  const [activeTab, setActiveTab]     = useState<'overview' | 'orders'>('overview')
+  const [activeTab, setActiveTab]     = useState<'overview' | 'orders' | 'rfqs'>('overview')
 
   useEffect(() => { loadDashboard() }, [])
 
@@ -99,6 +112,13 @@ export default function ClientDashboard() {
       setUnreadCount(data || 0)
     } catch { /* optional */ }
 
+    const { data: rfqsData } = await supabase
+      .from('rfqs')
+      .select('id, title, category, description, budget, timeline, location, status, created_at')
+      .eq('client_id', user.id)
+      .order('created_at', { ascending: false })
+    setRfqs(rfqsData || [])
+
     setLoading(false)
   }
 
@@ -115,6 +135,7 @@ export default function ClientDashboard() {
   const TABS = [
     { key: 'overview', label: 'Overview',                  icon: <BarChart3 className="w-4 h-4" /> },
     { key: 'orders',   label: `Orders (${orders.length})`, icon: <Package className="w-4 h-4" /> },
+    { key: 'rfqs',     label: `My RFQs (${rfqs.length})`,  icon: <FileText className="w-4 h-4" /> },
   ] as const
 
   return (
@@ -288,6 +309,66 @@ export default function ClientDashboard() {
                   </div>
                 )}
               </div>
+            </motion.div>
+          )}
+
+          {/* ── MY RFQs ── */}
+          {activeTab === 'rfqs' && (
+            <motion.div key="rfqs" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-4">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">My RFQs</h2>
+                  <p className="text-sm text-gray-500">Requests for quote you have submitted</p>
+                </div>
+                <Link href="/rfq/create"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-xl transition-all">
+                  <FileText className="w-4 h-4" /> New RFQ
+                </Link>
+              </div>
+
+              {rfqs.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
+                  <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
+                  <p className="font-semibold text-gray-500 mb-5">No RFQs submitted yet</p>
+                  <Link href="/rfq/create"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold rounded-xl text-sm transition-all">
+                    Submit Your First RFQ
+                  </Link>
+                </div>
+              ) : (
+                rfqs.map(rfq => {
+                  const statusCfg: Record<string, { cls: string; label: string }> = {
+                    open:      { cls: 'bg-emerald-50 text-emerald-700 border border-emerald-100', label: 'Open' },
+                    in_review: { cls: 'bg-blue-50 text-blue-700 border border-blue-100',          label: 'In Review' },
+                    awarded:   { cls: 'bg-purple-50 text-purple-700 border border-purple-100',    label: 'Awarded' },
+                    closed:    { cls: 'bg-gray-100 text-gray-500 border border-gray-200',         label: 'Closed' },
+                  }
+                  const sc = statusCfg[rfq.status] ?? statusCfg.open
+                  return (
+                    <div key={rfq.id} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-blue-50 text-[#003D82] border border-blue-100">{rfq.category}</span>
+                            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${sc.cls}`}>{sc.label}</span>
+                          </div>
+                          <h3 className="font-bold text-gray-900 mt-1 mb-1">{rfq.title}</h3>
+                          <p className="text-sm text-gray-500 line-clamp-2">{rfq.description}</p>
+                          <div className="flex flex-wrap gap-4 mt-3 text-xs text-gray-400">
+                            {rfq.budget   && <span className="flex items-center gap-1"><DollarSign className="w-3 h-3" />{rfq.budget}</span>}
+                            {rfq.timeline && <span className="flex items-center gap-1"><Clock className="w-3 h-3" />{rfq.timeline}</span>}
+                            <span>{format(new Date(rfq.created_at), 'MMM d, yyyy')}</span>
+                          </div>
+                        </div>
+                        <Link href="/messages"
+                          className="flex-shrink-0 inline-flex items-center gap-1.5 px-4 py-2 border border-gray-200 hover:border-[#003D82] text-gray-600 hover:text-[#003D82] text-sm font-semibold rounded-xl transition-all">
+                          <MessageSquare className="w-4 h-4" /> Replies
+                        </Link>
+                      </div>
+                    </div>
+                  )
+                })
+              )}
             </motion.div>
           )}
 
