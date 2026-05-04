@@ -1,13 +1,26 @@
 # 🛠️ Precision Project Flow — Session Tracker
 
-**Last updated:** May 3, 2026  
-**Status:** ✅ Build passing (47 routes) · 🚀 Deploying to production
+**Last updated:** May 4, 2026  
+**Status:** ✅ Build passing · ✅ LIVE at https://www.precisionprojectflow.com · 🚀 Ready to onboard users
 
 ---
 
 ## 📍 Current Focus
-Onboarding the first cohort of real vendors & suppliers. Validating the end-to-end loop:
-**Sign up → List service/product → Get DM → Pay tokens → Quote → Stripe checkout → Order fulfilled.**
+**PRODUCTION IS LIVE.** All infrastructure is wired. Time to onboard real users.
+First goal: 5 real vendors listed + 1 real client completes a purchase end-to-end.
+
+## ✅ Production Infrastructure — COMPLETE
+| Item | Status |
+|------|--------|
+| Railway deployment | ✅ Live |
+| All 8 env vars in Railway | ✅ Done |
+| Stripe webhook (`charming-voyage`) | ✅ Live → `https://www.precisionprojectflow.com/api/stripe/webhooks` |
+| `STRIPE_WEBHOOK_SECRET` updated to prod secret | ✅ `whsec_0rmVM7aRsUMQo8fY8E8ZHyZbKhZ37IQz` |
+| `RESEND_API_KEY` in Railway | ✅ Done |
+| `NEXT_PUBLIC_APP_URL` in Railway | ✅ `https://www.precisionprojectflow.com` |
+| Stripe Connect return URLs | ✅ Will use real domain |
+| Order status emails wired | ✅ Done |
+| Mobile app scaffold (`/mobile`) | ✅ Committed |
 
 ---
 
@@ -59,10 +72,11 @@ Onboarding the first cohort of real vendors & suppliers. Validating the end-to-e
 
 ---
 
-## 🔴 Action Required (YOU — manual Supabase steps)
-1. **Run `supabase/ADD_ADMIN_COLUMN.sql`** in the Supabase SQL Editor → adds `is_admin` to `profiles` and stamps Max as admin.  
-   URL: https://supabase.com/dashboard/project/ifrxzmemiihxfdimwvcw/sql/new
-2. Confirm `avatars` storage bucket exists (public) for avatar upload.
+## 🔴 Action Required (YOU — manual steps)
+1. **Run end-to-end dry-run on prod** using Stripe test card `4242 4242 4242 4242`:
+   - Sign up as a new engineer → list a service → sign up as a new client → buy tokens → DM engineer → checkout → confirm order appears + emails fire
+2. **Resend domain DNS** — go to [resend.com/domains](https://resend.com/domains) and add `precisionprojectflow.com` so branded emails work
+3. **Recruit first 5 real vendors** — share `https://www.precisionprojectflow.com/get-started/vendors`
 
 ---
 
@@ -82,18 +96,28 @@ Onboarding the first cohort of real vendors & suppliers. Validating the end-to-e
 ### Phase B — End-to-End Sale Validation
 | # | Task | Status |
 |---|------|--------|
-| 1 | Buy tokens → DM vendor → vendor replies → request quote → Stripe checkout → vendor sees order | 🟡 Each piece works, never run as a single dry-run |
+| 1 | Buy tokens → DM vendor → vendor replies → request quote → Stripe checkout → vendor sees order | � Never run as full dry-run — DO THIS FIRST |
 | 2 | Smoke-test refund flow | 🔴 Not built |
-| 3 | Order status updates wired to email | 🔴 Not built |
+| 3 | Order status updates wired to email | ✅ Done |
 
-### Phase C — Polish
+### Phase C — Polish (Post First User)
 | # | Task |
 |---|------|
-| 1 | Marketplace card design audit (match service detail page) |
-| 2 | Email notifications: new message / new order / new RFQ response (Resend — key in `.env.local`) |
-| 3 | Engineer profile portfolio gallery (`/dashboard/engineer/portfolio` exists — wire uploads) |
+| 1 | Resend domain verification — add DNS records for `precisionprojectflow.com` so emails come from branded address instead of `onboarding@resend.dev` |
+| 2 | Marketplace card design audit (match service detail page) |
+| 3 | Engineer profile portfolio gallery (`/dashboard/engineer/portfolio` — wire uploads) |
 | 4 | Search bar in top nav (Upwork-style) |
 | 5 | Notification bell + unread badge in nav (FB-style) |
+| 6 | Vendor onboarding email sequence (welcome → "complete your profile" → "list your first service") |
+
+### 🚀 Phase D — Growth (Next Sprint)
+| # | Task |
+|---|------|
+| 1 | Public launch announcement (LinkedIn, email list, engineering communities) |
+| 2 | Mobile app (Expo) — TestFlight beta for iOS |
+| 3 | RFQ matching algorithm — auto-notify relevant vendors when a matching RFQ is posted |
+| 4 | Reviews & ratings system post-order completion |
+| 5 | Referral program — vendor invites another vendor, both get bonus tokens |
 
 ---
 
