@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
       .from('services')
       .select(`
         id, title, description, price, category, provider_id,
-        provider:profiles!services_provider_id_fkey(id, full_name, email)
+        provider:profiles(id, full_name, email)
       `)
       .eq('id', productId)
       .eq('active', true)

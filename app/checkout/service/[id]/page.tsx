@@ -56,7 +56,7 @@ export default function ServiceCheckoutPage() {
         .from('services')
         .select(`
           id, title, description, price, category,
-          provider:profiles!services_provider_id_fkey(full_name)
+          provider:profiles(full_name)
         `)
         .eq('id', serviceId)
         .eq('active', true)

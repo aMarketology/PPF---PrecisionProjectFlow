@@ -95,7 +95,7 @@ export default function ServiceDetailPage() {
         .select(`
           id, title, description, category, price, tags, images,
           delivery_time, service_area, certifications, active, created_at,
-          provider:profiles!services_provider_id_fkey(id, full_name, email, location, avatar_url, bio)
+          provider:profiles(id, full_name, email, location, avatar_url, bio)
         `)
         .eq('id', serviceId)
         .eq('active', true)

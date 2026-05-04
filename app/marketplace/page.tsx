@@ -86,7 +86,7 @@ export default function MarketplacePage() {
         .from('services')
         .select(`
           id, title, description, price, category, tags, images, delivery_time, service_area, certifications, active, created_at,
-          provider:profiles!services_provider_id_fkey(id, full_name, location, avatar_url)
+          provider:profiles(id, full_name, location, avatar_url)
         `)
         .eq('active', true)
         .order('created_at', { ascending: false })
