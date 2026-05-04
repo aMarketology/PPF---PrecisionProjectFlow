@@ -1,7 +1,7 @@
 {
-  "name": "concrete-coatings-website",
+  "name": "precision-project-flow",
   "version": "1.0.0",
-  "description": "Tampa Bay Concrete Coatings - Professional concrete coating services",
+  "description": "Precision Project Flow — B2B Engineering Marketplace",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
