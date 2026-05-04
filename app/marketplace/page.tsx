@@ -82,17 +82,33 @@ export default function MarketplacePage() {
   async function fetchServices() {
     try {
       const supabase = createClient()
-      const { data, error } = await supabase
+
+      // Step 1: fetch services without join
+      const { data: servicesData, error: servicesError } = await supabase
         .from('services')
-        .select(`
-          id, title, description, price, category, tags, images, delivery_time, service_area, certifications, active, created_at,
-          provider:profiles(id, full_name, location, avatar_url)
-        `)
+        .select('id, title, description, price, category, tags, images, delivery_time, service_area, certifications, active, created_at, provider_id')
         .eq('active', true)
         .order('created_at', { ascending: false })
 
-      if (error) { console.error('Error fetching services:', error); return }
-      setServices((data as any) || [])
+      if (servicesError) { console.error('Services error:', servicesError); setLoading(false); return }
+      if (!servicesData || servicesData.length === 0) { setLoading(false); return }
+
+      // Step 2: fetch profiles for those providers
+      const providerIds = Array.from(new Set(servicesData.map((s: any) => s.provider_id).filter(Boolean)))
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, full_name, location, avatar_url')
+        .in('id', providerIds)
+
+      const profileMap: Record<string, any> = {}
+      for (const p of (profilesData || [])) profileMap[p.id] = p
+
+      const enriched = servicesData.map((s: any) => ({
+        ...s,
+        provider: profileMap[s.provider_id] || null,
+      }))
+
+      setServices(enriched as any)
     } catch (error) {
       console.error('Error:', error)
     } finally {
