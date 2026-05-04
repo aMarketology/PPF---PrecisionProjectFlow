@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { NextRequest, NextResponse } from 'next/server';
+import { sendOrderConfirmationEmail, sendNewOrderEmailVendor } from '@/lib/email';
 
 // Mark this route as dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -140,17 +141,36 @@ export async function POST(
       );
     }
 
-    // TODO: Send email notification to customer
-    // await sendStatusUpdateEmail(order.buyer_id, updatedOrder);
-
     // TODO: Create activity log entry
-    // await createActivityLog({
-    //   order_id: orderId,
-    //   action: 'status_changed',
-    //   from: currentStatus,
-    //   to: newStatus,
-    //   user_id: user.id
-    // });
+    // await createActivityLog({ ... });
+
+    // Send email notification on key status transitions
+    if (newStatus === 'in_progress' || newStatus === 'delivered' || newStatus === 'completed') {
+      try {
+        const { data: buyer } = await supabase
+          .from('profiles')
+          .select('email, full_name')
+          .eq('id', updatedOrder.buyer_id)
+          .single();
+        const { data: vendor } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', user.id)
+          .single();
+        if (buyer?.email) {
+          sendOrderConfirmationEmail({
+            to: buyer.email,
+            clientName: buyer.full_name || 'Customer',
+            vendorName: vendor?.full_name || 'Vendor',
+            serviceTitle: updatedOrder.title || `Order #${orderId.slice(0, 8)}`,
+            orderAmount: updatedOrder.amount_cents || 0,
+            orderId,
+          }).catch(e => console.error('[email] order-status update failed:', e));
+        }
+      } catch (e) {
+        console.error('[email] failed to fetch profiles for status email:', e);
+      }
+    }
 
     return NextResponse.json({
       success: true,
