@@ -82,6 +82,32 @@ async function handlePaymentSuccess(
 ) {
   console.log('Payment succeeded:', paymentIntent.id);
 
+  // ── Token purchase safety net ───────────────────────────────────
+  // If the buyer closed their browser before the client-side credit
+  // call fired, this guarantees tokens are still credited. add_tokens
+  // is idempotent on stripe_payment_id, so this can never double-credit.
+  if (paymentIntent.metadata?.type === 'token_purchase') {
+    try {
+      const userId = paymentIntent.metadata.user_id;
+      const tokens = parseInt(paymentIntent.metadata.tokens || '0', 10);
+      const packId = paymentIntent.metadata.pack_id || 'unknown';
+
+      if (userId && tokens > 0) {
+        const { error: creditErr } = await supabase.rpc('add_tokens', {
+          p_user_id:           userId,
+          p_amount:            tokens,
+          p_description:       `Purchased ${tokens} tokens (pack: ${packId}) [webhook]`,
+          p_stripe_payment_id: paymentIntent.id,
+        });
+        if (creditErr) console.error('[webhook] token credit failed:', creditErr);
+        else console.log(`[webhook] credited ${tokens} tokens to ${userId}`);
+      }
+    } catch (e) {
+      console.error('[webhook] token purchase handling error:', e);
+    }
+    return; // token purchases don't create product orders
+  }
+
   try {
     // Update payment intent status
     const { error: updateError } = await supabase

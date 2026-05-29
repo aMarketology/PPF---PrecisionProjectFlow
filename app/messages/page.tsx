@@ -736,12 +736,13 @@ function MessagesPageInner() {
 
                     {/* Reply Form */}
                     <form onSubmit={handleSendMessage} className="p-4 border-t border-gray-200 bg-gray-50">
-                      {/* Paywall notice — show when next message will cost $10 */}
+                      {/* Paywall notice — show when next message will cost tokens */}
                       {userMessageCount >= 1 && !(selectedConversation as any).is_contracted && (
                         <div className="flex items-center gap-2 mb-3 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
                           <DollarSign className="w-4 h-4 text-amber-600 flex-shrink-0" />
                           <span>
-                            Your first message was free. Each additional message costs <strong>$10</strong> until you're under contract.
+                            Your first message was free. Each additional message costs <strong>2 tokens</strong> until you're under contract.
+                            {tokenBalance !== null && <> You have <strong>{tokenBalance}</strong> tokens.</>}
                           </span>
                         </div>
                       )}
@@ -749,7 +750,7 @@ function MessagesPageInner() {
                         <textarea
                           value={replyMessage}
                           onChange={(e) => setReplyMessage(e.target.value)}
-                          placeholder={userMessageCount === 0 ? "Send your first message free..." : "Type your message... ($10)"}
+                          placeholder={userMessageCount === 0 ? "Send your first message free..." : "Type your message... (2 tokens)"}
                           className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                           rows={2}
                           disabled={isSending}
@@ -764,7 +765,7 @@ function MessagesPageInner() {
                           ) : userMessageCount >= 1 && !(selectedConversation as any).is_contracted ? (
                             <>
                               <Lock className="w-4 h-4" />
-                              Send $10
+                              Send · 2 tokens
                             </>
                           ) : (
                             <>

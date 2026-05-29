@@ -1,23 +1,28 @@
 # 🚀 PRECISION PROJECT FLOW — ROADMAP
 
-> **🟢 CURRENT STATE — April 28, 2026**
+> **🟢 CURRENT STATE — May 29, 2026**
 >
-> The platform is **feature-complete for an MVP launch** and **deployed to production**.
-> Build is green (44/44 routes). Auth, profiles, marketplace, messaging w/ token paywall,
-> RFQs, dashboards, Stripe Connect + token purchases, and admin shell are all live.
+> The platform is **live in production** at https://www.precisionprojectflow.com.
+> Web app (54 routes), **mobile app (published 🎉)**, SEO foundation (sitemap, robots,
+> 6 category landing pages), and the blog are all shipped. Auth, marketplace,
+> messaging w/ token paywall, RFQs, dashboards, and Stripe are all live.
 >
-> **🔴 We are now in: PHASE 1B — REAL VENDOR/SUPPLIER ONBOARDING**
+> **🔴 We are now in: PHASE 2 — MESSAGING & TOKEN HARDENING + FULL SYSTEM TEST**
 >
-> The bottleneck is no longer code — it's the **last UX gaps** that prevent a brand-new
-> vendor from listing a service and a brand-new buyer from completing a purchase
-> without admin help.
+> The mobile app is out. The next priority is making the **messaging + $ProjectFlow
+> token economy bulletproof**, then running a complete end-to-end test of the system.
 >
-> **Immediate priorities (see `/session.md` for the live checklist):**
-> 1. Build "Add Service" + "Edit Service" UI in the engineer dashboard (today only seed scripts can create listings)
-> 2. Surface Stripe Connect onboarding banner in vendor dashboard
-> 3. Wire Resend transactional emails (welcome, new message, new order, new RFQ response)
-> 4. Run a full end-to-end dry-run: signup → list → DM → tokens → quote → Stripe → fulfilled
-> 5. Recruit & invite the first 5 real vendors
+> **Active workstream (May 29):**
+> 1. ✅ Unified **$ProjectFlow Token Ledger** (`supabase/PROJECTFLOW_TOKENS.sql`) —
+>    single `token_transactions` audit table behind the wallet, with idempotent
+>    `add_tokens`, race-safe `spend_tokens`, and new `refund_tokens`.
+> 2. ✅ Fixed code↔SQL drift: `credit-tokens` + webhook now match the real function
+>    signatures (was silently broken — referenced a non-existent table).
+> 3. ✅ Send route now **auto-refunds** tokens if a message fails to save.
+> 4. ✅ Webhook now credits token purchases server-side (safety net if browser closes).
+> 5. ✅ UI now shows consistent **"2 tokens"** pricing (was mixing "$10" and "2 tokens").
+> 6. 🔴 **YOU:** run `supabase/PROJECTFLOW_TOKENS.sql` in Supabase SQL Editor.
+> 7. 🔴 Run the **full system test** (see `docs/SYSTEM_TEST.md`).
 >
 > Everything below this banner is **historical context** from earlier planning phases —
 > kept for reference but no longer the active plan. Use `/session.md` as the source of truth.

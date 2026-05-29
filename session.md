@@ -1,13 +1,32 @@
 # 🛠️ Precision Project Flow — Session Tracker
 
-**Last updated:** May 4, 2026  
-**Status:** ✅ Build passing · ✅ LIVE at https://www.precisionprojectflow.com · 🚀 Ready to onboard users
+**Last updated:** May 29, 2026
+**Status:** ✅ LIVE · 📱 Mobile app published · 🔐 Hardening messaging + $ProjectFlow tokens
 
 ---
 
 ## 📍 Current Focus
-**PRODUCTION IS LIVE.** All infrastructure is wired. Time to onboard real users.
-First goal: 5 real vendors listed + 1 real client completes a purchase end-to-end.
+**PHASE 2 — Messaging & Token Hardening + Full System Test.**
+Mobile app is published. Now making the token economy bulletproof, then running
+the full end-to-end test in `docs/SYSTEM_TEST.md`.
+
+## 🔴 Action Required (YOU)
+1. **Run `supabase/PROJECTFLOW_TOKENS.sql`** in the Supabase SQL Editor — creates the
+   unified `token_transactions` ledger + fixed `add_tokens` / `spend_tokens` / `refund_tokens`.
+   URL: https://supabase.com/dashboard/project/ifrxzmemiihxfdimwvcw/sql/new
+2. **Run the full system test** — follow `docs/SYSTEM_TEST.md` top to bottom.
+
+## ✅ Just Shipped (May 29)
+| Item | Detail |
+|------|--------|
+| $ProjectFlow Token Ledger | `supabase/PROJECTFLOW_TOKENS.sql` — append-only `token_transactions` audit table |
+| Fixed code↔SQL drift | `credit-tokens` referenced a non-existent `token_transactions` table + wrong `add_tokens` signature — now both exist & match |
+| Idempotent `add_tokens` | Unique index on `stripe_payment_id` — webhook + client can't double-credit |
+| Race-safe `spend_tokens` | `SELECT … FOR UPDATE` lock prevents concurrent over-spend |
+| New `refund_tokens` | Auto-refund if a message fails to save after charging |
+| Webhook safety net | Token purchases now credited server-side too (survives browser close) |
+| UI consistency | Messages UI now shows "2 tokens" everywhere (was mixing "$10") |
+| `token_account_summary` view | Per-user lifetime credited/spent reconciliation |
 
 ## ✅ Production Infrastructure — COMPLETE
 | Item | Status |

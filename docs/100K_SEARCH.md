@@ -43,10 +43,12 @@ Internal linking between all posts in a cluster = topical authority signal.
 | Supporting Post | Target Keyword | Est. Monthly Impressions |
 |-----------------|---------------|--------------------------|
 | How to Hire a Structural Engineer Online | `hire structural engineer online` | 2,400 |
-| How to Hire a Mechanical Engineer | `find mechanical engineer for project` | 1,800 |
+| Ho    ngineer | `find mechanical engineer for project` | 1,800 |
 | How to Hire a Civil Engineering Consultant | `civil engineering consultant` | 3,200 |
 | Freelance Engineer vs Engineering Firm | `freelance engineer for hire` | 2,200 |
 | How Much Does an Engineer Cost? | `structural engineering cost` | 2,400 |
+
+
 
 ---
 

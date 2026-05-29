@@ -56,14 +56,16 @@ PPF should feel like a professional social marketplace — the trust, credibilit
 | `rfqs` | `id, client_id, title, category, description, budget, timeline, location, status, created_at` |
 | `user_conversations` | `id, participant_one_id, participant_two_id, is_contracted, last_message_at` |
 | `user_messages` | `id, conversation_id, sender_id, content, is_read, read_at, is_paid, is_system_message, payment_id, created_at` |
-| `token_purchases` | Receipt log for Stripe token purchases |
+| `token_purchases` | Legacy receipt log (superseded by `token_transactions`) |
+| `token_transactions` | **$ProjectFlow Token Ledger** — append-only audit of every credit/debit |
 
 ## 🔑 Key RPCs
 | Function | Purpose |
 |----------|---------|
 | `get_or_create_conversation(user_one_id, user_two_id)` | Returns conversation UUID |
-| `spend_tokens(p_user_id, p_amount, p_description)` | Returns `NULL` or `'insufficient_tokens'` |
-| `add_tokens(p_user_id, p_amount, p_stripe_payment_id)` | Credits balance |
+| `spend_tokens(p_user_id, p_amount, p_description, p_reference_id)` | Debits wallet + logs ledger. Returns `NULL` or `'insufficient_tokens'` |
+| `add_tokens(p_user_id, p_amount, p_description, p_stripe_payment_id)` | Credits wallet + logs ledger. Idempotent on `stripe_payment_id` |
+| `refund_tokens(p_user_id, p_amount, p_description, p_reference_id)` | Credits back on failed/cancelled spend |
 | `are_friends(user_a, user_b)` | Returns boolean (stub = false) |
 
 ## 🎨 Design Conventions

@@ -68,9 +68,10 @@ export async function POST(request: NextRequest) {
     if (!isFree) {
       const { data: spendResult, error: spendError } = await supabase
         .rpc('spend_tokens', {
-          p_user_id:     user.id,
-          p_amount:      MESSAGE_COST,
-          p_description: 'Cold outreach message',
+          p_user_id:      user.id,
+          p_amount:       MESSAGE_COST,
+          p_description:  'Cold outreach message',
+          p_reference_id: conversationId,
         });
 
       if (spendError) throw spendError;
@@ -97,7 +98,23 @@ export async function POST(request: NextRequest) {
       .select()
       .single();
 
-    if (msgError) throw msgError;
+    // If the message failed to save AFTER we charged tokens, refund them
+    // so the user is never charged for a message that didn't send.
+    if (msgError) {
+      if (tokensSpent > 0) {
+        try {
+          await supabase.rpc('refund_tokens', {
+            p_user_id:      user.id,
+            p_amount:       tokensSpent,
+            p_description:  'Refund — message failed to send',
+            p_reference_id: conversationId,
+          });
+        } catch (e: any) {
+          console.error('[tokens] refund failed:', e);
+        }
+      }
+      throw msgError;
+    }
 
     // Update last_message_at on the conversation
     await supabase
