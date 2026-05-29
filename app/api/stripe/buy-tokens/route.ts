@@ -4,11 +4,12 @@ import Stripe from 'stripe';
 
 export const dynamic = 'force-dynamic';
 
-// Hardcoded token packs — no DB table needed
-const TOKEN_PACKS: Record<string, { id: string; name: string; tokens: number; price_cents: number }> = {
-  starter:  { id: 'starter',  name: 'Starter',  tokens: 10,  price_cents: 1000 },
-  pro:      { id: 'pro',      name: 'Pro',       tokens: 50,  price_cents: 4500 },
-  business: { id: 'business', name: 'Business',  tokens: 120, price_cents: 9900 },
+// Token packs — calibrated so 100 tokens (1 conversation unlock) ≈ $10.
+// Bulk packs give progressively better value.
+const TOKEN_PACKS: Record<string, { id: string; name: string; tokens: number; price_cents: number; unlocks: number }> = {
+  starter:  { id: 'starter',  name: 'Starter',  tokens: 100,  price_cents: 1000, unlocks: 1  },
+  pro:      { id: 'pro',      name: 'Pro',       tokens: 500,  price_cents: 4500, unlocks: 5  },
+  business: { id: 'business', name: 'Business',  tokens: 1200, price_cents: 9900, unlocks: 12 },
 };
 
 // POST /api/stripe/buy-tokens
