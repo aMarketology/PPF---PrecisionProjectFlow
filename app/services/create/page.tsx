@@ -1,13 +1,13 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import toast, { Toaster } from 'react-hot-toast'
 import {
   ArrowLeft, Wrench, DollarSign, MapPin, Clock, Tag, Award, Image as ImageIcon,
-  Plus, X, CheckCircle2, Sparkles,
+  Plus, X, CheckCircle2, Sparkles, Upload, Loader2, Trash2,
 } from 'lucide-react'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
@@ -115,7 +115,33 @@ export default function CreateServicePage() {
   const [tags, setTags] = useState<string[]>([])
   const [certifications, setCertifications] = useState<string[]>([])
   const [imageUrl, setImageUrl] = useState('')
+  const [uploadingImage, setUploadingImage] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const [active, setActive] = useState(true)
+  const imageInputRef = useRef<HTMLInputElement>(null)
+
+  async function handleImageUpload(file: File) {
+    if (!file) return
+    if (file.size > 5 * 1024 * 1024) { toast.error('Image must be under 5 MB'); return }
+    if (!file.type.startsWith('image/')) { toast.error('Only image files allowed'); return }
+    setUploadingImage(true)
+    try {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) throw new Error('Not authenticated')
+      const ext = file.name.split('.').pop()
+      const path = `${user.id}/${Date.now()}.${ext}`
+      const { error } = await supabase.storage.from('service-images').upload(path, file, { upsert: true })
+      if (error) throw error
+      const { data: { publicUrl } } = supabase.storage.from('service-images').getPublicUrl(path)
+      setImageUrl(publicUrl)
+      toast.success('Image uploaded!')
+    } catch (err: any) {
+      toast.error(err.message || 'Upload failed')
+    } finally {
+      setUploadingImage(false)
+    }
+  }
 
   function validate(): string | null {
     if (!title.trim() || title.trim().length < 8) return 'Title must be at least 8 characters'
@@ -316,23 +342,39 @@ export default function CreateServicePage() {
             max={6}
           />
 
-          {/* Image URL */}
+          {/* Cover Image Upload */}
           <div>
             <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
-              <ImageIcon className="w-4 h-4 text-[#003D82]" />Cover Image URL <span className="text-xs text-gray-400 font-normal">(optional)</span>
+              <ImageIcon className="w-4 h-4 text-[#003D82]" />Cover Image <span className="text-xs text-gray-400 font-normal">(optional · max 5 MB)</span>
             </label>
-            <input
-              value={imageUrl}
-              onChange={e => setImageUrl(e.target.value)}
-              placeholder="https://images.unsplash.com/..."
-              className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-[#003D82] focus:ring-2 focus:ring-[#003D82]/10 outline-none text-sm"
-            />
-            <p className="text-xs text-gray-400 mt-1">A square or 16:9 image works best. Image upload coming soon.</p>
-            {imageUrl && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageUrl} alt="preview" className="mt-3 w-full max-h-56 object-cover rounded-xl border border-gray-100"
-                onError={e => { (e.target as HTMLImageElement).style.display = 'none' }} />
+            {imageUrl ? (
+              <div className="relative group">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageUrl} alt="Service cover" className="w-full max-h-56 object-cover rounded-xl border border-gray-100" />
+                <button type="button" onClick={() => setImageUrl('')}
+                  className="absolute top-2 right-2 p-1.5 bg-red-600 hover:bg-red-700 text-white rounded-lg shadow opacity-0 group-hover:opacity-100 transition-opacity">
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+                <p className="text-xs text-gray-400 mt-1.5">Hover image and click 🗑 to replace</p>
+              </div>
+            ) : (
+              <div
+                onClick={() => imageInputRef.current?.click()}
+                onDragOver={e => { e.preventDefault(); setDragOver(true) }}
+                onDragLeave={() => setDragOver(false)}
+                onDrop={e => { e.preventDefault(); setDragOver(false); const f = e.dataTransfer.files[0]; if (f) handleImageUpload(f) }}
+                className={`w-full border-2 border-dashed rounded-xl p-8 flex flex-col items-center justify-center gap-3 cursor-pointer transition-all ${dragOver ? 'border-[#003D82] bg-blue-50' : 'border-gray-200 hover:border-[#003D82] hover:bg-blue-50/40'}`}>
+                {uploadingImage ? (
+                  <><Loader2 className="w-8 h-8 text-[#003D82] animate-spin" /><p className="text-sm text-gray-500">Uploading…</p></>
+                ) : (
+                  <><Upload className="w-8 h-8 text-gray-300" />
+                  <p className="text-sm font-semibold text-gray-600">Click or drag & drop to upload</p>
+                  <p className="text-xs text-gray-400">JPG, PNG, WEBP · max 5 MB · 16:9 or square works best</p></>
+                )}
+              </div>
             )}
+            <input ref={imageInputRef} type="file" className="hidden" accept="image/jpeg,image/png,image/gif,image/webp"
+              onChange={e => { const f = e.target.files?.[0]; if (f) handleImageUpload(f) }} />
           </div>
 
           {/* Active toggle */}
