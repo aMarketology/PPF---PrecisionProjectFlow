@@ -120,12 +120,14 @@ function MarketplaceInner() {
       }
 
       // Fetch company directory entries (limit 500 for perf)
-      const { data: companies } = await supabase
+      const { data: companies, error: compError } = await supabase
         .from('company_profiles')
         .select('id, company_name, description, industry, city, state, website, specialties, is_claimed, slug')
-        .not('website', 'is', null)
         .order('company_name', { ascending: true })
         .limit(500)
+
+      if (compError) console.error('company_profiles error:', compError)
+      console.log('directory companies fetched:', companies?.length ?? 0)
 
       const directoryCards: DirectoryCard[] = (companies || []).map((c: any) => ({
         _type: 'directory' as const,
