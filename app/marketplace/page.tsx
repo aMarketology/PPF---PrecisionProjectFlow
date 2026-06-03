@@ -119,12 +119,12 @@ function MarketplaceInner() {
         }))
       }
 
-      // Fetch company directory entries (limit 500 for perf)
+      // Fetch company directory entries (limit 300)
       const { data: companies, error: compError } = await supabase
         .from('company_profiles')
         .select('id, company_name, description, industry, city, state, website, specialties, is_claimed, slug')
         .order('company_name', { ascending: true })
-        .limit(500)
+        .limit(300)
 
       if (compError) console.error('company_profiles error:', compError)
       console.log('directory companies fetched:', companies?.length ?? 0)
@@ -413,23 +413,10 @@ function MarketplaceInner() {
 
                       {/* CTAs */}
                       <div className="flex gap-2 pt-3 border-t border-gray-100">
-                        {card.slug ? (
-                          <Link href={`/companies/${card.slug}`}
-                            className="flex-1 text-center text-xs font-semibold bg-[#003D82] hover:bg-[#002960] text-white rounded-xl py-2 transition-colors flex items-center justify-center gap-1">
-                            View Profile <ArrowRight className="w-3 h-3" />
-                          </Link>
-                        ) : (
-                          <Link href={`/companies?q=${encodeURIComponent(card.company_name)}`}
-                            className="flex-1 text-center text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-2 transition-colors">
-                            View Profile
-                          </Link>
-                        )}
-                        {!card.is_claimed && (
-                          <Link href={`/claim-company?id=${card.id}&name=${encodeURIComponent(card.company_name)}`}
-                            className="px-3 text-xs font-semibold bg-[#FF6B35] hover:bg-[#E55A2B] text-white rounded-xl py-2 transition-colors flex items-center gap-1 whitespace-nowrap">
-                            Claim
-                          </Link>
-                        )}
+                        <Link href={card.slug ? `/companies/${card.slug}` : `/companies?q=${encodeURIComponent(card.company_name)}`}
+                          className="flex-1 text-center text-xs font-semibold bg-[#003D82] hover:bg-[#002960] text-white rounded-xl py-2 transition-colors flex items-center justify-center gap-1">
+                          View Profile <ArrowRight className="w-3 h-3" />
+                        </Link>
                       </div>
                     </div>
                   </motion.div>
