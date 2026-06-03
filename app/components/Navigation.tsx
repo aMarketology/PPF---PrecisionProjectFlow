@@ -4,8 +4,9 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare } from 'lucide-react'
+import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell } from 'lucide-react'
 import { getUser, signOut } from '@/app/actions/auth'
+import { createClient } from '@/lib/supabase/client'
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -13,6 +14,7 @@ export default function Navigation() {
   const [userMenuOpen, setUserMenuOpen] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [unreadCount, setUnreadCount] = useState(0)
   const userMenuRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -20,6 +22,10 @@ export default function Navigation() {
       try {
         const userData = await getUser()
         setUser(userData)
+        if (userData?.id) {
+          loadUnreadCount(userData.id)
+          subscribeToUnread(userData.id)
+        }
       } catch (error) {
         console.error('Error loading user:', error)
       } finally {
@@ -28,6 +34,42 @@ export default function Navigation() {
     }
     loadUser()
   }, [])
+
+  async function loadUnreadCount(userId: string) {
+    try {
+      const supabase = createClient()
+      // Get all conversation IDs this user is part of
+      const { data: convs } = await supabase
+        .from('user_conversations')
+        .select('id')
+        .or(`participant_one_id.eq.${userId},participant_two_id.eq.${userId}`)
+      if (!convs || convs.length === 0) { setUnreadCount(0); return }
+      const convIds = convs.map(c => c.id)
+      const { count } = await supabase
+        .from('user_messages')
+        .select('*', { count: 'exact', head: true })
+        .in('conversation_id', convIds)
+        .eq('is_read', false)
+        .neq('sender_id', userId)
+      setUnreadCount(count ?? 0)
+    } catch (e) {
+      console.error('loadUnreadCount:', e)
+    }
+  }
+
+  function subscribeToUnread(userId: string) {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('nav-unread')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'user_messages' }, () => {
+        loadUnreadCount(userId)
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'user_messages' }, () => {
+        loadUnreadCount(userId)
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }
 
   useEffect(() => {
     const handleScroll = () => {
@@ -110,6 +152,24 @@ export default function Navigation() {
               {user ? (
                 // Signed In - User Menu
                 <>
+                  {/* Notification Bell */}
+                  <Link href="/messages" className="relative p-2 rounded-lg hover:bg-white/20 transition-colors mr-1" title="Messages">
+                    <Bell className={`w-5 h-5 ${scrolled ? 'text-gray-700' : 'text-white'}`} />
+                    <AnimatePresence>
+                      {unreadCount > 0 && (
+                        <motion.span
+                          key="badge"
+                          initial={{ scale: 0 }}
+                          animate={{ scale: 1 }}
+                          exit={{ scale: 0 }}
+                          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md"
+                        >
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </Link>
+
                   <motion.button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-semibold px-4 py-2 rounded-lg transition-all"
@@ -172,6 +232,11 @@ export default function Navigation() {
                           >
                             <MessageSquare className="h-4 w-4" />
                             <span>Messages</span>
+                            {unreadCount > 0 && (
+                              <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </span>
+                            )}
                           </Link>
                           <div className="border-t border-gray-200 my-2"></div>
                           <button
@@ -305,6 +370,11 @@ export default function Navigation() {
                     >
                       <MessageSquare className="h-4 w-4" />
                       <span>Messages</span>
+                      {unreadCount > 0 && (
+                        <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
                     </Link>
                     <div className="border-t border-gray-200 my-2"></div>
                     <button

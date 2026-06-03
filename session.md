@@ -151,7 +151,7 @@ the full end-to-end test in `docs/SYSTEM_TEST.md`.
 | `user_conversations` | ✅ Live |
 | `user_messages` | ✅ Live |
 | `token_purchases` | ✅ Live |
-| `stripe_connect_accounts` | ✅ Live |
+| `SERVICE_IMAGES_BUCKET.sql` | ✅ Live |
 | `company_profiles` | ✅ Live |
 | `company_claims` | ✅ Live |
 
