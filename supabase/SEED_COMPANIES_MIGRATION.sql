@@ -10,7 +10,7 @@ CREATE TABLE IF NOT EXISTS company_profiles (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 
   -- Ownership (NULL = unclaimed directory entry)
-  owner_id        uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  owner_id        uuid,
 
   -- Core company info (used by app/settings/company + seed-vendor.js)
   company_name    text NOT NULL,
@@ -33,7 +33,7 @@ CREATE TABLE IF NOT EXISTS company_profiles (
   slug            text UNIQUE,
   industry        text,
   is_claimed      boolean NOT NULL DEFAULT false,
-  claimed_by      uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  claimed_by      uuid,
   claimed_at      timestamptz,
   source          text,                          -- 'tsv_import' | 'signup' | 'manual'
 
@@ -54,7 +54,7 @@ ALTER TABLE company_profiles
   ADD COLUMN IF NOT EXISTS slug             text,
   ADD COLUMN IF NOT EXISTS industry         text,
   ADD COLUMN IF NOT EXISTS is_claimed       boolean NOT NULL DEFAULT false,
-  ADD COLUMN IF NOT EXISTS claimed_by       uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  ADD COLUMN IF NOT EXISTS claimed_by       uuid,
   ADD COLUMN IF NOT EXISTS claimed_at       timestamptz,
   ADD COLUMN IF NOT EXISTS source           text,
   ADD COLUMN IF NOT EXISTS contact_name     text,
@@ -67,9 +67,6 @@ ALTER TABLE company_profiles
   ADD COLUMN IF NOT EXISTS address          text,
   ADD COLUMN IF NOT EXISTS street_address   text,
   ADD COLUMN IF NOT EXISTS certifications   text[] DEFAULT '{}';
-
--- Make owner_id nullable (for unclaimed directory entries)
-ALTER TABLE company_profiles ALTER COLUMN owner_id DROP NOT NULL;
 
 -- ── 3. Unique constraint on slug (idempotent) ─────────────────────────────────
 DO $$
@@ -86,10 +83,10 @@ END $$;
 CREATE TABLE IF NOT EXISTS company_claims (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
   company_id      uuid NOT NULL REFERENCES company_profiles(id) ON DELETE CASCADE,
-  user_id         uuid NOT NULL REFERENCES profiles(id) ON DELETE CASCADE,
+  user_id         uuid NOT NULL,
   reason          text,
   status          text NOT NULL DEFAULT 'pending',  -- pending | approved | rejected
-  reviewed_by     uuid REFERENCES profiles(id) ON DELETE SET NULL,
+  reviewed_by     uuid,
   reviewed_at     timestamptz,
   created_at      timestamptz NOT NULL DEFAULT now()
 );
