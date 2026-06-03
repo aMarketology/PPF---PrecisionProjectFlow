@@ -1,7 +1,7 @@
 # 🛠️ Precision Project Flow — Session Tracker
 
-**Last updated:** May 29, 2026
-**Status:** ✅ LIVE · 📱 Mobile app published · 🔐 Hardening messaging + $ProjectFlow tokens
+**Last updated:** June 2, 2026
+**Status:** ✅ LIVE · 📱 Mobile app published · �️ Image uploads live · 🔐 Messaging + tokens hardened
 
 ---
 
