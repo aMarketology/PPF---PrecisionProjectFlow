@@ -349,7 +349,8 @@ function MarketplaceInner() {
                     className="group bg-white border border-gray-100 hover:border-[#FF6B35]/30 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-300 h-full flex flex-col"
                     whileHover={{ y: -4 }}
                   >
-                    {/* Image */}
+                    {/* Image — clickable to company page */}
+                    <Link href={card.slug ? `/companies/${card.slug}` : `/companies?q=${encodeURIComponent(card.company_name)}`} className="block">
                     <div className="relative h-44 overflow-hidden bg-gray-100 flex-shrink-0">
                       <img src={categoryFallbacks[card.category] || categoryFallbacks['Other Services']}
                         alt={card.company_name}
@@ -375,6 +376,7 @@ function MarketplaceInner() {
                         </div>
                       )}
                     </div>
+                    </Link>
 
                     <div className="p-4 flex flex-col flex-1">
                       {/* Company name */}
@@ -411,11 +413,11 @@ function MarketplaceInner() {
 
                       {/* CTAs */}
                       <div className="flex gap-2 pt-3 border-t border-gray-100">
-                        {card.website ? (
-                          <a href={card.website} target="_blank" rel="noopener noreferrer"
+                        {card.slug ? (
+                          <Link href={`/companies/${card.slug}`}
                             className="flex-1 text-center text-xs font-semibold bg-[#003D82] hover:bg-[#002960] text-white rounded-xl py-2 transition-colors flex items-center justify-center gap-1">
-                            Visit Website <ExternalLink className="w-3 h-3" />
-                          </a>
+                            View Profile <ArrowRight className="w-3 h-3" />
+                          </Link>
                         ) : (
                           <Link href={`/companies?q=${encodeURIComponent(card.company_name)}`}
                             className="flex-1 text-center text-xs font-semibold bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-xl py-2 transition-colors">
