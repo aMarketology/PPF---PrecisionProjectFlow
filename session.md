@@ -1,4 +1,5 @@
-# 🛠️ Precision Project Flow — Session Tracker
+# **Last updated:** June 2, 2026
+**Status:** ✅ LIVE · 📱 Mobile app published · �️ Image uploads live · 🔐 Messaging + tokens hardened · 🔔 Notification bell live️ Precision Project Flow — Session Tracker
 
 **Last updated:** June 2, 2026
 **Status:** ✅ LIVE · 📱 Mobile app published · �️ Image uploads live · 🔐 Messaging + tokens hardened
@@ -126,7 +127,7 @@ the full end-to-end test in `docs/SYSTEM_TEST.md`.
 | 2 | Marketplace card design audit (match service detail page) |
 | 3 | Engineer profile portfolio gallery (`/dashboard/engineer/portfolio` — wire uploads) |
 | 4 | Search bar in top nav (Upwork-style) |
-| 5 | Notification bell + unread badge in nav (FB-style) |
+| 5 | Notification bell + unread badge in nav (FB-style) | ✅ Done — realtime bell + badge in desktop nav, dropdown, mobile menu |
 | 6 | Vendor onboarding email sequence (welcome → "complete your profile" → "list your first service") |
 
 ### 🚀 Phase D — Growth (Next Sprint)
