@@ -156,13 +156,16 @@ function MarketplaceInner() {
   const filtered = useMemo(() => {
     let result = cards.filter(c => {
       const q = searchQuery.toLowerCase()
+      const tags = c._type === 'service' ? (c.tags || []) : (c.specialties || [])
+      const name = c._type === 'service' ? (c.provider?.full_name || '') : c.company_name
       const matchesSearch = !q ||
         c.title.toLowerCase().includes(q) ||
         (c.description || '').toLowerCase().includes(q) ||
-        (c._type === 'service' ? (c.provider?.full_name || '') : c.company_name).toLowerCase().includes(q) ||
-        (c._type === 'service' ? (c.tags || []) : (c.specialties || [])).some((t: string) => t.toLowerCase().includes(q))
+        name.toLowerCase().includes(q) ||
+        tags.some((t: string) => t.toLowerCase().includes(q))
       const matchesCategory = selectedCategory === 'all' || c.category === selectedCategory
-      const matchesPrice = c._type === 'directory' || (c.price >= priceRange[0] && c.price <= priceRange[1])
+      const price = c._type === 'service' ? c.price : null
+      const matchesPrice = price === null || (price >= priceRange[0] && price <= priceRange[1])
       return matchesSearch && matchesCategory && matchesPrice
     })
     if (sortBy === 'price-low') result.sort((a, b) => (a._type === 'service' ? a.price : 0) - (b._type === 'service' ? b.price : 0))
