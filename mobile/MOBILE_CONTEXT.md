@@ -1,433 +1,604 @@
-# 📱 PPF Mobile App — Full Context Document
-> Copy this file into the mobile Copilot session so it has full context.
+# 📱 PPF Mobile — App Store & Play Store Launch Context
+> Last updated: June 2, 2026  
+> Paste this file at the start of every mobile Copilot session.
 
 ---
 
-## 🏗️ What Is PPF?
-**Precision Project Flow (PPF)** — a B2B marketplace connecting engineers/vendors with clients for precision manufacturing and engineering services. Think **Upwork × LinkedIn for Engineering**.
-
-- **Web app**: Next.js 14 (App Router), live at `https://www.precisionprojectflow.com`
-- **Backend**: Supabase (Auth, Postgres, Realtime, Storage) — project `ifrxzmemiihxfdimwvcw`
-- **Payments**: Stripe (Connect for vendors, token packs for messaging)
-- **Mobile**: Expo (React Native) with Expo Router, located in `/mobile`
-
----
-
-## 🎨 Brand & Design System
-
-| Token | Value |
-|---|---|
-| Primary blue | `#003D82` |
-| Primary hover | `#002960` |
-| Accent orange | `#FF6B35` |
-| Background | `#F8FAFC` |
-| Hero gradient | `from-[#001f4d] via-[#003D82] to-[#005BB5]` |
-| Font | Plus Jakarta Sans (`@expo-google-fonts/plus-jakarta-sans`) |
-
-**Mobile design rules:**
-- Cards: white bg, rounded-2xl (16px), subtle shadow
-- Primary buttons: `#003D82` bg, white text, semibold, 14px border-radius
-- Accent CTA: `#FF6B35` bg, white text
-- Status badges: amber=pending, blue=active, emerald=complete, red=cancelled
-- Bottom tab bar with 5 tabs: Home, Marketplace, Post RFQ, Messages, Profile
-- Safe area insets always respected
+## 🚀 Launch Status
+- **Platform**: Expo SDK 54 + Expo Router 6 (file-based routing, typed routes)
+- **Target**: iOS App Store + Google Play Store — **actively launching**
+- **React Native**: 0.81.5 · React 19.1.0 · TypeScript 5.9
+- **Architecture**: New Architecture enabled (`newArchEnabled: true`)
+- **App scheme**: `ppf` (deep links: `ppf://`)
+- **Bundle ID (iOS)**: needs to be set in app.json `ios.bundleIdentifier`
+- **Package name (Android)**: needs to be set in app.json `android.package`
 
 ---
 
-## 👤 User Types
+## 🏗️ Project Overview
+**Precision Project Flow (PPF)** — B2B marketplace connecting engineers/vendors with clients for precision manufacturing and engineering services.  
+**Upwork × Facebook for Engineering**: engineers have rich profiles, clients post RFQs, social feed surfaces activity across the network.
 
-| Type | Access |
-|---|---|
-| `engineer` | Has `company_name`, `bio`, `location`, `avatar_url`. Lists services. Receives RFQs & DMs. |
-| `client` | Browses marketplace, sends RFQs, messages engineers, buys services. |
+### Web companion
+- **URL**: `https://www.precisionprojectflow.com`
+- **Framework**: Next.js 14, Railway-deployed, auto-deploys from `main`
+- **Repo**: `aMarketology/PPF---PrecisionProjectFlow`
 
 ---
 
-## 🗄️ Supabase Database Schema
+## 📁 Mobile File Structure
 
-### Core Tables
-
-```sql
-profiles (
-  id UUID PK → auth.users.id
-  full_name TEXT
-  email TEXT
-  avatar_url TEXT
-  company_name TEXT
-  bio TEXT
-  location TEXT
-  user_type TEXT  -- 'engineer' | 'client'
-  token_balance INT DEFAULT 0  -- $ProjectFlow token wallet
-  company_id UUID  -- for same-company free messaging
-  is_admin BOOLEAN DEFAULT FALSE
-  created_at TIMESTAMPTZ
-)
-
-services (
-  id UUID PK
-  provider_id UUID → profiles.id
-  title TEXT
-  description TEXT
-  price NUMERIC
-  category TEXT
-  tags TEXT[]
-  images TEXT[]  -- array of public storage URLs
-  delivery_time TEXT
-  service_area TEXT
-  certifications TEXT[]
-  active BOOLEAN DEFAULT TRUE
-  created_at TIMESTAMPTZ
-)
-
-rfqs (
-  id UUID PK
-  client_id UUID → profiles.id
-  title TEXT
-  category TEXT
-  description TEXT
-  budget TEXT
-  timeline TEXT
-  location TEXT
-  status TEXT  -- 'open' | 'closed' | 'awarded'
-  created_at TIMESTAMPTZ
-)
-
-user_conversations (
-  id UUID PK
-  participant_one_id UUID → profiles.id
-  participant_two_id UUID → profiles.id
-  is_unlocked BOOLEAN DEFAULT FALSE  -- 100 tokens to unlock
-  last_message_at TIMESTAMPTZ
-  created_at TIMESTAMPTZ
-)
-
-user_messages (
-  id UUID PK
-  conversation_id UUID → user_conversations.id
-  sender_id UUID → profiles.id
-  content TEXT
-  is_read BOOLEAN DEFAULT FALSE
-  read_at TIMESTAMPTZ
-  is_system_message BOOLEAN DEFAULT FALSE
-  attachment_url TEXT   -- Supabase Storage path in 'message-attachments' bucket
-  attachment_name TEXT
-  attachment_type TEXT  -- 'image' | 'pdf' | 'file'
-  created_at TIMESTAMPTZ
-)
-
-token_transactions (
-  id UUID PK
-  user_id UUID → profiles.id
-  amount INT  -- positive = credit, negative = debit
-  balance_after INT
-  type TEXT  -- 'purchase' | 'spend' | 'bonus' | 'refund'
-  description TEXT
-  stripe_payment_id TEXT  -- unique index for idempotency
-  reference_id UUID
-  created_at TIMESTAMPTZ
-)
-
-product_orders (
-  id UUID PK
-  buyer_id UUID → profiles.id
-  product_id UUID
-  company_id UUID
-  total_amount NUMERIC
-  status TEXT  -- 'paid' | 'in_progress' | 'completed' | 'cancelled'
-  created_at TIMESTAMPTZ
-)
+```
+mobile/
+├── app.json                      # Expo config — name, version, icons, splash
+├── package.json                  # Dependencies (see full list below)
+├── App.tsx                       # Legacy entry (not used — expo-router takes over via index.ts)
+├── index.ts                      # expo-router/entry
+├── app/
+│   ├── _layout.tsx               # Root layout — GestureHandlerRootView + SafeAreaProvider + Stack
+│   ├── index.tsx                 # Redirects unauthenticated → /(auth)/welcome
+│   ├── (auth)/
+│   │   ├── _layout.tsx           # Auth stack (no header)
+│   │   ├── welcome.tsx           # Onboarding/landing screen
+│   │   ├── login.tsx             # Email + password login
+│   │   └── signup.tsx            # Signup — collects name, email, password, user_type
+│   ├── (tabs)/
+│   │   ├── _layout.tsx           # Bottom tab bar (Feed, Marketplace, RFQ, Messages, Profile)
+│   │   ├── index.tsx             # Feed tab — recent services + activity
+│   │   ├── marketplace.tsx       # Browse all services — search, filter, sort
+│   │   ├── rfq.tsx               # Post an RFQ form
+│   │   ├── messages.tsx          # Conversations list (inbox)
+│   │   └── profile.tsx           # User profile + dashboard (Overview/Services/Orders/RFQs tabs)
+│   ├── engineer/
+│   │   └── [id].tsx              # Public engineer profile (tappable from any card)
+│   └── service/
+│       └── [id].tsx              # Service detail + "Contact Engineer" CTA
+├── components/
+│   ├── Button.tsx                # Branded button (primary/accent/outline variants)
+│   ├── EngineerCard.tsx          # Avatar + name + company + rating + location + DM button
+│   └── ServiceCard.tsx           # Service listing card with price, category, delivery time
+└── lib/
+    ├── supabase.ts               # Supabase client (AsyncStorage session persistence)
+    └── theme.ts                  # Design tokens (colors, spacing, radius, typography, shadows)
 ```
 
-### Key RPCs (Supabase Functions)
+---
 
-| Function | Signature | Purpose |
-|---|---|---|
-| `get_or_create_conversation` | `(user_one_id UUID, user_two_id UUID) → UUID` | Returns conversation ID, creates if needed |
-| `unlock_conversation` | `(p_conversation_id UUID, p_user_id UUID) → TEXT` | Charges 100 tokens, unlocks thread. Returns NULL \| 'not_participant' \| 'insufficient_tokens' |
-| `spend_tokens` | `(p_user_id, p_amount, p_description, p_reference_id) → TEXT` | Deducts tokens. Returns NULL or 'insufficient_tokens' |
-| `add_tokens` | `(p_user_id, p_amount, p_description, p_stripe_payment_id) → INT` | Credits tokens. Idempotent on stripe_payment_id. Returns new balance |
-| `refund_tokens` | `(p_user_id, p_amount, p_description, p_reference_id) → INT` | Refunds tokens |
-| `are_friends` | `(user_a UUID, user_b UUID) → BOOLEAN` | Stub — returns FALSE |
-| `same_company` | `(user_a UUID, user_b UUID) → BOOLEAN` | TRUE if both share same non-null company_id |
+## 🎨 Design System (`lib/theme.ts`)
 
-### Storage Buckets
+> ⚠️ Mobile uses a **green** palette — NOT the web's blue. This is intentional.
 
-| Bucket | Access | Max Size | Used For |
-|---|---|---|---|
-| `avatars` | Public | 2 MB | Profile photos |
-| `service-images` | Public | 5 MB | Service cover images |
-| `message-attachments` | Private (signed URLs) | 25 MB | Files shared in DMs |
+```ts
+colors.primary        = '#16A34A'  // green-600 — tabs, buttons, pills
+colors.primaryDark    = '#14532D'  // green-900
+colors.gradientStart  = '#052e16'  // green-950 — hero gradient top
+colors.gradientMid    = '#14532D'  // green-900
+colors.gradientEnd    = '#166534'  // green-800
+colors.accent         = '#F59E0B'  // amber-500 — accent buttons, stars
+colors.background     = '#F0FDF4'  // green-50
+colors.surface        = '#FFFFFF'
+colors.text           = '#0F172A'  // slate-900
+colors.textSecondary  = '#475569'  // slate-600
+colors.textMuted      = '#94A3B8'  // slate-400
+colors.border         = '#D1FAE5'  // green-100
+colors.error          = '#EF4444'
+```
+
+Font: `@expo-google-fonts/plus-jakarta-sans` (Plus Jakarta Sans) — same as web
 
 ---
 
-## 💰 Token Economy ($ProjectFlow Tokens)
+## 📦 Dependencies
 
-- **100 tokens** = unlock a cold conversation thread (one-time, both parties free forever after)
-- **FREE messaging**: when `is_unlocked=true`, or same company (`same_company()=true`)
-- **No per-message cost** — only the one-time unlock fee
+```json
+"expo": "~54.0.33"
+"expo-router": "~6.0.23"
+"react-native": "0.81.5"
+"react": "19.1.0"
+"@supabase/supabase-js": "^2.105.1"
+"@react-native-async-storage/async-storage": "2.2.0"
+"expo-image": "~3.0.11"              // Fast image with blurhash support
+"expo-linear-gradient": "~15.0.8"
+"expo-font": "~14.0.11"
+"expo-linking": "~8.0.12"           // Deep linking
+"expo-constants": "~18.0.13"
+"lucide-react-native": "^1.12.0"    // Icons
+"react-native-gesture-handler": "~2.28.0"
+"react-native-reanimated": "~4.1.1"
+"react-native-safe-area-context": "~5.6.0"
+"react-native-screens": "~4.16.0"
+"react-native-svg": "15.12.1"
+```
 
-### Token Packs (via Stripe)
-| Pack | Tokens | Price | Unlocks |
-|---|---|---|---|
-| Starter | 100 | $10 | 1 |
-| Pro | 500 | $45 | 5 |
-| Business | 1,200 | $99 | 12 |
-
-### Stripe Flow
-1. `POST /api/stripe/buy-tokens` — creates PaymentIntent with metadata `{type: 'token_purchase', user_id, tokens, pack_id}`
-2. Client confirms payment with `stripe.confirmPayment()`
-3. `POST /api/messages/credit-tokens` — verifies PI with Stripe, calls `add_tokens()` RPC
-4. Stripe webhook `payment_intent.succeeded` → safety net, also calls `add_tokens()` (idempotent)
-
----
-
-## 🌐 Web API Endpoints (used by mobile too)
-
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `/api/messages/send` | POST | Send a message (checks is_unlocked) |
-| `/api/messages/unlock` | POST | Spend 100 tokens to unlock conversation |
-| `/api/messages/upload` | POST | Upload file to message-attachments bucket |
-| `/api/messages/credit-tokens` | POST | Credit tokens after Stripe payment |
-| `/api/stripe/buy-tokens` | POST | Create Stripe PaymentIntent for token pack |
-| `/api/stripe/webhooks` | POST | Stripe webhook handler |
-| `/api/stripe/connect` | POST | Stripe Connect onboarding for engineers |
+**NOT YET installed (needed for launch):**
+- `expo-notifications` — push notifications
+- `expo-image-picker` — avatar/portfolio photo upload
+- `expo-secure-store` — secure token storage (upgrade from AsyncStorage)
+- `@stripe/stripe-react-native` — in-app token purchases
+- `date-fns` — already used in messages.tsx (confirm installed)
 
 ---
 
-## 📱 Mobile App — Current State
+## 🔐 Authentication Flow
 
-### Tech Stack
+### Supabase client (`lib/supabase.ts`)
+```ts
+createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    storage: AsyncStorage,       // Sessions persist across app restarts
+    autoRefreshToken: true,
+    persistSession: true,
+    detectSessionInUrl: false,   // MUST be false in React Native
+  }
+})
+```
+
+### Supabase project
+- **URL**: `https://ifrxzmemiihxfdimwvcw.supabase.co`
+- **Anon key**: hardcoded in `lib/supabase.ts` (safe — anon key is public)
+- **Service role key**: NEVER use in mobile client
+
+### Auth screens
+| Screen | Route | Notes |
+|--------|-------|-------|
+| Welcome/Onboarding | `/(auth)/welcome` | Feature cards, stats strip, Get Started + Log In CTAs |
+| Sign Up | `/(auth)/signup` | name, email, password, user_type (engineer/client) |
+| Login | `/(auth)/login` | Email + password, forgot password link |
+
+### Auth guard pattern
+`app/index.tsx` — checks `supabase.auth.getUser()` on mount, redirects:
+- No user → `router.replace('/(auth)/welcome')`
+- Has user → `router.replace('/(tabs)')`
+
+---
+
+## 🗄️ Database (Supabase Postgres)
+
+### Key tables used by mobile
+
+#### `profiles`
+```
+id              uuid PK (= auth.users.id)
+full_name       text
+email           text
+avatar_url      text
+company_name    text
+bio             text
+location        text
+user_type       text  -- 'engineer' | 'client'
+token_balance   integer (default 0)
+created_at      timestamptz
+```
+
+#### `services`
+```
+id              uuid PK
+provider_id     uuid FK → profiles.id
+title           text
+description     text
+price           numeric
+category        text
+tags            text[]
+images          text[]  -- array of public storage URLs
+delivery_time   text
+service_area    text
+certifications  text[]
+active          boolean
+created_at      timestamptz
+```
+
+#### `rfqs`
+```
+id              uuid PK
+client_id       uuid FK → profiles.id
+title           text
+description     text
+category        text
+budget          numeric
+timeline        text
+location        text
+status          text  -- 'open' | 'in_progress' | 'closed'
+created_at      timestamptz
+```
+
+#### `user_conversations`
+```
+id                  uuid PK
+participant_one_id  uuid FK → profiles.id
+participant_two_id  uuid FK → profiles.id
+last_message_at     timestamptz
+is_contracted       boolean  (may not exist — check before using)
+```
+
+#### `user_messages`
+```
+id                uuid PK
+conversation_id   uuid FK → user_conversations.id
+sender_id         uuid FK → profiles.id
+content           text
+is_read           boolean
+read_at           timestamptz
+is_paid           boolean
+is_system_message boolean
+created_at        timestamptz
+```
+
+#### `token_transactions` (ledger)
+```
+id              uuid PK
+user_id         uuid FK → profiles.id
+amount          integer  (positive = credit, negative = debit)
+description     text
+reference_id    uuid
+stripe_payment_id text
+created_at      timestamptz
+```
+
+#### `product_orders`
+```
+id          uuid PK
+buyer_id    uuid
+vendor_id   uuid
+created_at  timestamptz
+(+ other order fields)
+```
+
+---
+
+## 🔑 Supabase RPCs
+
+| RPC | Signature | Purpose |
+|-----|-----------|---------|
+| `get_or_create_conversation` | `(user_one_id uuid, user_two_id uuid) → uuid` | Returns conversation ID |
+| `spend_tokens` | `(p_user_id, p_amount, p_description, p_reference_id) → text\|null` | Debit wallet. Returns `'insufficient_tokens'` or `null` (success) |
+| `add_tokens` | `(p_user_id, p_amount, p_description, p_stripe_payment_id) → void` | Credit wallet. Idempotent on stripe_payment_id |
+| `refund_tokens` | `(p_user_id, p_amount, p_description, p_reference_id) → void` | Refund on failed spend |
+| `are_friends` | `(user_a uuid, user_b uuid) → boolean` | Stub — always returns false |
+
+### RPC call pattern
+```ts
+const { data, error } = await supabase.rpc('spend_tokens', {
+  p_user_id: userId,
+  p_amount: 5,
+  p_description: 'Unlock conversation',
+  p_reference_id: conversationId,
+});
+if (data === 'insufficient_tokens') { /* show paywall */ }
+```
+
+---
+
+## 💬 Messaging (Token-Gated)
+
+### Rules
+- First message in a conversation costs **5 tokens**
+- Subsequent messages in the same conversation are **free**
+- Token balance is on `profiles.token_balance`
+- Every spend/credit is logged to `token_transactions`
+
+### Conversation flow
+1. User taps "Message" on a service or engineer card
+2. Call `get_or_create_conversation(myId, engineerId)` → get `conversationId`
+3. Navigate to chat screen: `router.push(\`/messages/\${conversationId}\`)`
+4. On send: call `spend_tokens` if first message → if insufficient, show paywall
+5. Insert into `user_messages`
+
+### Unread badge (web already done)
+- Query `user_messages` where `conversation_id IN [my_convos]` AND `is_read = false` AND `sender_id != me`
+- Display count on Messages tab icon
+
+---
+
+## 💰 Token Economy
+
+| Action | Cost |
+|--------|------|
+| Unlock a new conversation (first message) | 5 tokens |
+| Buy token pack (Stripe) | varies — see web `/buy-tokens` |
+
+Token packs (web reference):
+- Starter: 20 tokens — ~$4.99
+- Pro: 50 tokens — ~$9.99  
+- Business: 150 tokens — ~$24.99
+
+---
+
+## 📱 Screens — Current State
+
+### ✅ Built & functional
+| Screen | Route | Status |
+|--------|-------|--------|
+| Welcome/Onboarding | `/(auth)/welcome` | ✅ Full UI, feature cards, stats |
+| Login | `/(auth)/login` | ✅ Supabase auth |
+| Sign Up | `/(auth)/signup` | ✅ Creates profile row |
+| Feed | `/(tabs)/index` | ✅ Recent services grid + category chips |
+| Marketplace | `/(tabs)/marketplace` | ✅ Search + filter + sort + FlatList |
+| Post RFQ | `/(tabs)/rfq` | ✅ Full form, inserts to `rfqs` table |
+| Messages (inbox) | `/(tabs)/messages` | ✅ Conversations list + unread count |
+| Profile / Dashboard | `/(tabs)/profile` | ✅ Overview/Services/Orders/RFQs tabs |
+| Engineer profile | `/engineer/[id]` | ✅ Public profile page |
+| Service detail | `/service/[id]` | ✅ Detail + Contact CTA |
+
+### 🔴 Not yet built — needed for launch
+| Screen | Route | Priority |
+|--------|-------|----------|
+| Chat / Conversation | `/messages/[id]` | 🔴 P0 — messages inbox links nowhere |
+| Buy Tokens (in-app) | `/buy-tokens` | 🔴 P0 — needed for paywall |
+| Settings / Edit Profile | `/settings` | 🔴 P1 |
+| Create Service (engineer) | `/services/create` | 🔴 P1 |
+| Push notification opt-in | (in root layout) | 🔴 P1 |
+| Order detail | `/orders/[id]` | 🔴 P2 |
+| Forgot Password | `/(auth)/forgot-password` | 🔴 P2 |
+
+---
+
+## 🏪 App Store Submission Checklist
+
+### `app.json` — needs before building
 ```json
 {
-  "expo": "~54.0.33",
-  "expo-router": "~6.0.23",
-  "react-native": "0.81.5",
-  "@supabase/supabase-js": "^2.105.1",
-  "expo-linear-gradient": "~15.0.8",
-  "lucide-react-native": "^1.12.0",
-  "react-native-reanimated": "~4.1.1",
-  "@expo-google-fonts/plus-jakarta-sans": "^0.4.2"
+  "expo": {
+    "name": "Precision Project Flow",
+    "slug": "precision-project-flow",
+    "version": "1.0.0",
+    "ios": {
+      "bundleIdentifier": "com.precisionprojectflow.app",   // ← SET THIS
+      "supportsTablet": true,
+      "infoPlist": {
+        "NSCameraUsageDescription": "Upload profile photos and project images",
+        "NSPhotoLibraryUsageDescription": "Select images for your profile and services"
+      }
+    },
+    "android": {
+      "package": "com.precisionprojectflow.app",            // ← SET THIS
+      "adaptiveIcon": { ... },
+      "permissions": ["CAMERA", "READ_EXTERNAL_STORAGE", "WRITE_EXTERNAL_STORAGE"]
+    },
+    "extra": {
+      "eas": { "projectId": "YOUR_EAS_PROJECT_ID" }         // ← SET THIS after eas init
+    }
+  }
 }
 ```
 
-### File Structure
-```
-mobile/
-├── app.json                    # Expo config (scheme: "ppf", slug: "mobile")
-├── App.tsx                     # Root (placeholder — expo-router takes over)
-├── app/
-│   ├── _layout.tsx             # Root layout + auth gate
-│   ├── index.tsx               # Entry redirect
-│   ├── (auth)/
-│   │   ├── _layout.tsx
-│   │   ├── welcome.tsx         # Splash/landing screen
-│   │   ├── login.tsx           # Email + password login
-│   │   └── signup.tsx          # User type selection + registration
-│   ├── (tabs)/
-│   │   ├── _layout.tsx         # Bottom tab navigator (5 tabs)
-│   │   ├── index.tsx           # Home feed / dashboard
-│   │   ├── marketplace.tsx     # Browse services
-│   │   ├── rfq.tsx             # Post / browse RFQs
-│   │   ├── messages.tsx        # Conversations list + chat
-│   │   └── profile.tsx         # My profile + settings
-│   ├── engineer/               # Engineer detail screen
-│   └── service/                # Service detail screen
-├── components/
-│   ├── Button.tsx              # Primary/accent/outline button component
-│   ├── EngineerCard.tsx        # Engineer listing card
-│   └── ServiceCard.tsx         # Service listing card
-└── lib/
-    ├── supabase.ts             # Supabase client (uses AsyncStorage for sessions)
-    └── theme.ts                # Colors, typography, spacing constants
-```
+### Assets needed
+| Asset | Size | Current state |
+|-------|------|---------------|
+| `assets/icon.png` | 1024×1024 | ✅ exists |
+| `assets/splash-icon.png` | 1284×2778 (or contain) | ✅ exists |
+| `assets/adaptive-icon.png` | 1024×1024 | ✅ exists |
+| App Store screenshots | 6.7" + 6.1" + iPad | 🔴 needed |
+| Google Play screenshots | phone + tablet | 🔴 needed |
+| App Store description | 4000 chars | 🔴 needed |
+| Privacy policy URL | public URL | ✅ `precisionprojectflow.com/privacy-policy` |
 
-### Supabase Client (mobile/lib/supabase.ts)
-Uses `@react-native-async-storage/async-storage` for session persistence.
-```typescript
-import 'react-native-url-polyfill/auto'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { createClient } from '@supabase/supabase-js'
-
-export const supabase = createClient(
-  process.env.EXPO_PUBLIC_SUPABASE_URL!,
-  process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY!,
-  {
-    auth: {
-      storage: AsyncStorage,
-      autoRefreshToken: true,
-      persistSession: true,
-      detectSessionInUrl: false,
-    },
-  }
-)
-```
-
-### Environment Variables (mobile)
-Create `mobile/.env.local`:
-```
-EXPO_PUBLIC_SUPABASE_URL=https://ifrxzmemiihxfdimwvcw.supabase.co
-EXPO_PUBLIC_SUPABASE_ANON_KEY=<anon key from Supabase dashboard>
-EXPO_PUBLIC_STRIPE_PUBLISHABLE_KEY=<Stripe publishable key>
-EXPO_PUBLIC_APP_URL=https://www.precisionprojectflow.com
-```
-
----
-
-## 🗺️ Screens To Build (Priority Order)
-
-### ✅ Scaffolded (exist but need full implementation)
-| Screen | File | Status |
-|---|---|---|
-| Welcome/splash | `(auth)/welcome.tsx` | Scaffold |
-| Login | `(auth)/login.tsx` | Scaffold |
-| Signup | `(auth)/signup.tsx` | Scaffold |
-| Home feed | `(tabs)/index.tsx` | Scaffold |
-| Marketplace | `(tabs)/marketplace.tsx` | Scaffold |
-| RFQ | `(tabs)/rfq.tsx` | Scaffold |
-| Messages | `(tabs)/messages.tsx` | Scaffold |
-| Profile | `(tabs)/profile.tsx` | Scaffold |
-| Engineer detail | `engineer/` | Scaffold |
-| Service detail | `service/` | Scaffold |
-
-### 🔴 Not yet built
-| Screen | Priority | Notes |
-|---|---|---|
-| Chat thread | High | Full message thread with realtime + lock/unlock UI |
-| Token purchase | High | Stripe token pack purchase flow |
-| Service checkout | Medium | Buy a service directly |
-| Order history | Medium | See past orders |
-| Settings | Low | Edit profile, avatar upload |
-| Notifications | Low | Push notifications |
-
----
-
-## 🔐 Auth Flow
-
-```
-App launch
-  → check supabase.auth.getSession()
-  → if session: redirect to (tabs)/
-  → if no session: redirect to (auth)/welcome
-  
-Login
-  → supabase.auth.signInWithPassword({ email, password })
-  → on success: router.replace('/(tabs)/')
-  
-Signup
-  → supabase.auth.signUp({ email, password })
-  → insert into profiles (id, full_name, email, user_type)
-  → on success: router.replace('/(tabs)/')
-
-Logout
-  → supabase.auth.signOut()
-  → router.replace('/(auth)/welcome')
-```
-
----
-
-## 🔄 Realtime Subscriptions
-
-For the messages screen, subscribe to new messages:
-```typescript
-const channel = supabase
-  .channel(`messages:${conversationId}`)
-  .on('postgres_changes', {
-    event: 'INSERT',
-    schema: 'public',
-    table: 'user_messages',
-    filter: `conversation_id=eq.${conversationId}`,
-  }, (payload) => {
-    setMessages(prev => [...prev, payload.new as Message])
-  })
-  .subscribe()
-
-// Cleanup on unmount
-return () => { supabase.removeChannel(channel) }
-```
-
----
-
-## 📦 SQL Migration Status (what's been run in Supabase)
-
-| File | Status | Purpose |
-|---|---|---|
-| `schema.sql` | ✅ Run | Base schema |
-| `COMPLETE_SETUP.sql` | ✅ Run | Full initial setup |
-| `PATCH_EXISTING_DB.sql` | ✅ Run | Column patches |
-| `ADD_PROFILE_COLUMNS.sql` | ✅ Run | Extra profile fields |
-| `FIX_PROFILES_COLUMNS_AND_TRIGGER.sql` | ✅ Run | Profile trigger fix |
-| `FIX_TRIGGER.sql` | ✅ Run | Trigger fix |
-| `FIX_RLS_PROFILES.sql` | ✅ Run | RLS policies |
-| `ADD_ADMIN_COLUMN.sql` | ✅ Run | is_admin on profiles |
-| `FEED_AND_STORAGE.sql` | ✅ Run | Feed tables + avatars bucket |
-| `RFQ_TABLE.sql` | ✅ Run | RFQ table + RLS |
-| `MESSAGING_TABLES.sql` | ✅ Run | user_conversations + user_messages |
-| `MESSAGING_PAYWALL.sql` | ✅ Run | Old paywall (superseded) |
-| `PROJECTFLOW_TOKENS.sql` | ✅ Run | Token ledger + RPCs |
-| `MESSAGING_ENHANCEMENTS.sql` | ✅ Run | is_unlocked, attachments, Realtime, unlock_conversation() |
-| `SERVICE_IMAGES_BUCKET.sql` | 🔴 **NOT YET RUN** | service-images storage bucket |
-
----
-
-## 🚀 Running the Mobile App Locally
-
+### EAS Build commands
 ```bash
-cd mobile
-npm install
-npx expo start        # opens Expo DevTools
-# Press i for iOS simulator, a for Android emulator
-# Scan QR code with Expo Go app on physical device
-```
-
-**EAS Build (production):**
-```bash
+# Install EAS CLI
 npm install -g eas-cli
+
+# Login
 eas login
-eas build --platform ios --profile production
-eas build --platform android --profile production
+
+# Initialize (first time)
+eas init
+
+# Build for iOS (TestFlight)
+eas build --platform ios --profile preview
+
+# Build for Android (APK test)
+eas build --platform android --profile preview
+
+# Production build
+eas build --platform all --profile production
+
+# Submit to stores
+eas submit --platform ios
+eas submit --platform android
+```
+
+### `eas.json` (create this)
+```json
+{
+  "cli": { "version": ">= 7.0.0" },
+  "build": {
+    "development": {
+      "developmentClient": true,
+      "distribution": "internal"
+    },
+    "preview": {
+      "distribution": "internal",
+      "ios": { "simulator": false }
+    },
+    "production": {
+      "autoIncrement": true
+    }
+  },
+  "submit": {
+    "production": {
+      "ios": {
+        "appleId": "YOUR_APPLE_ID",
+        "ascAppId": "YOUR_APP_STORE_CONNECT_APP_ID",
+        "appleTeamId": "YOUR_TEAM_ID"
+      },
+      "android": {
+        "serviceAccountKeyPath": "./play-store-key.json",
+        "track": "production"
+      }
+    }
+  }
+}
 ```
 
 ---
 
-## 🔗 Web App Key Pages (for reference/parity)
+## 🔔 Push Notifications (not yet implemented)
 
-| Web URL | Mobile Equivalent |
-|---|---|
-| `/` | Welcome screen |
-| `/login` | `(auth)/login` |
-| `/signup` | `(auth)/signup` |
-| `/marketplace` | `(tabs)/marketplace` |
-| `/messages` | `(tabs)/messages` |
-| `/rfq/create` | `(tabs)/rfq` |
-| `/profiles/[id]` | `engineer/[id]` |
-| `/marketplace/service/[id]` | `service/[id]` |
-| `/dashboard/engineer` | `(tabs)/profile` (engineer view) |
-| `/dashboard/client` | `(tabs)/profile` (client view) |
+```bash
+npx expo install expo-notifications expo-device
+```
 
----
+### Setup pattern
+```ts
+// In root _layout.tsx
+import * as Notifications from 'expo-notifications';
+import * as Device from 'expo-device';
 
-## ⚠️ Known Gotchas
+async function registerForPushNotifications(userId: string) {
+  if (!Device.isDevice) return;
+  const { status } = await Notifications.requestPermissionsAsync();
+  if (status !== 'granted') return;
+  const token = (await Notifications.getExpoPushTokenAsync()).data;
+  // Save to profiles table: update profiles set push_token = token where id = userId
+  await supabase.from('profiles').update({ push_token: token }).eq('id', userId);
+}
+```
 
-1. **Supabase client on mobile**: Must use `detectSessionInUrl: false` (no URL in RN)
-2. **AsyncStorage**: Required for session persistence — already in `lib/supabase.ts`
-3. **Expo Router file-based routing**: `(auth)` and `(tabs)` are route groups, not URL segments
-4. **Token balance**: Read from `profiles.token_balance` — NOT from `token_transactions` (that's the audit log)
-5. **Conversation unlock**: Call `supabase.rpc('unlock_conversation', { p_conversation_id, p_user_id })` — it's atomic
-6. **File uploads in RN**: Use `expo-file-system` + `supabase.storage.from('message-attachments').upload()` with `ArrayBuffer`
-7. **Stripe in RN**: Use `@stripe/stripe-react-native` package — NOT `@stripe/stripe-js` (that's web-only)
-8. **Lucide icons**: Use `lucide-react-native` — NOT `lucide-react`
-9. **Image component**: Use `expo-image` (`<Image>` from `expo-image`) for better caching, NOT `react-native`'s built-in
-10. **Fonts**: `useFonts` from `@expo-google-fonts/plus-jakarta-sans` must be loaded in root `_layout.tsx`
+> ⚠️ Add `push_token text` column to `profiles` table in Supabase before implementing.
 
 ---
 
-## 🔑 Admin Info (DO NOT COMMIT)
+## 📸 Image Upload (not yet implemented in mobile)
 
-- Admin email: `max@amarketology.com`
-- Admin user ID: `7d23d34b-4ef8-40da-924d-658776f44047`
-- Supabase project: `ifrxzmemiihxfdimwvcw`
-- Supabase URL: `https://ifrxzmemiihxfdimwvcw.supabase.co`
-- Production URL: `https://www.precisionprojectflow.com`
-- Railway deployment: auto-deploys on push to `main`
-- GitHub repo: `aMarketology/PPF---PrecisionProjectFlow`
+Web uses `service-images` Supabase Storage bucket. Mobile needs `expo-image-picker`:
+
+```bash
+npx expo install expo-image-picker
+```
+
+```ts
+import * as ImagePicker from 'expo-image-picker';
+
+async function pickAndUploadAvatar(userId: string) {
+  const result = await ImagePicker.launchImageLibraryAsync({
+    mediaTypes: ImagePicker.MediaTypeOptions.Images,
+    allowsEditing: true,
+    aspect: [1, 1],
+    quality: 0.8,
+  });
+  if (result.canceled) return;
+  const file = result.assets[0];
+  const ext = file.uri.split('.').pop();
+  const path = `avatars/${userId}.${ext}`;
+  const blob = await fetch(file.uri).then(r => r.blob());
+  const { error } = await supabase.storage.from('service-images').upload(path, blob, { upsert: true });
+  if (!error) {
+    const { data: { publicUrl } } = supabase.storage.from('service-images').getPublicUrl(path);
+    await supabase.from('profiles').update({ avatar_url: publicUrl }).eq('id', userId);
+  }
+}
+```
+
+---
+
+## ⚡ Realtime (Supabase)
+
+`user_messages` table has REPLICA IDENTITY FULL and is in `supabase_realtime` publication.
+
+### Pattern for chat screen
+```ts
+useEffect(() => {
+  const channel = supabase
+    .channel(`chat-${conversationId}`)
+    .on('postgres_changes', {
+      event: 'INSERT',
+      schema: 'public',
+      table: 'user_messages',
+      filter: `conversation_id=eq.${conversationId}`,
+    }, (payload) => {
+      setMessages(prev => [...prev, payload.new as Message]);
+    })
+    .subscribe();
+  return () => { supabase.removeChannel(channel); };
+}, [conversationId]);
+```
+
+---
+
+## ⚠️ Critical Gotchas
+
+1. **`detectSessionInUrl: false`** — must stay false in React Native, or auth breaks
+2. **AsyncStorage vs SecureStore** — AsyncStorage is fine for dev; upgrade to `expo-secure-store` for production auth tokens
+3. **`expo-image` not `Image` from RN** — all image rendering uses `expo-image` for performance/caching
+4. **`SafeAreaView` from `react-native-safe-area-context`** — NOT from React Native core
+5. **`edges={['top']}`** inside gradient headers — only apply top safe area inside LinearGradient headers; bottom is handled by tab bar
+6. **`is_contracted` column** — may not exist on `user_conversations` in all environments; always check before using
+7. **`date-fns` imported in messages.tsx** — confirm it's in package.json or add it
+8. **Expo Router typed routes** — `experiments.typedRoutes: true` — use typed `Href` generics when navigating to dynamic routes
+9. **New Architecture** — `newArchEnabled: true` means some older RN libraries may break; test all 3rd party libs
+10. **EAS project ID** — must run `eas init` and add `extra.eas.projectId` to `app.json` before any cloud builds
+
+---
+
+## 🌐 Environment / Config
+
+### Supabase (hardcoded in `lib/supabase.ts` — safe for anon key)
+```
+SUPABASE_URL  = https://ifrxzmemiihxfdimwvcw.supabase.co
+SUPABASE_ANON_KEY = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+```
+
+### For production builds, prefer `expo-constants` + `app.json extra`
+```json
+// app.json
+"extra": {
+  "supabaseUrl": "https://ifrxzmemiihxfdimwvcw.supabase.co",
+  "supabaseAnonKey": "eyJ..."
+}
+```
+```ts
+import Constants from 'expo-constants';
+const url = Constants.expoConfig?.extra?.supabaseUrl;
+```
+
+---
+
+## 🗺️ Immediate Launch TODO (Priority Order)
+
+### P0 — Blocker (app is unusable without these)
+- [ ] **`/messages/[id]`** — Chat screen (real-time messaging, token paywall on first message)
+- [ ] **`/buy-tokens`** — Token purchase screen (Stripe or redirect to web)
+- [ ] **Add `date-fns` to package.json** — used in messages.tsx, may be missing
+
+### P1 — Core experience
+- [ ] **`/settings`** — Edit profile (name, bio, location, avatar upload)
+- [ ] **Push notifications** — install `expo-notifications`, register token, save to DB
+- [ ] **Unread badge on Messages tab** — query unread count, show on tab icon
+- [ ] **`/services/create`** — Create service listing (engineers only)
+- [ ] **`eas.json`** — Create for EAS Build
+- [ ] **`app.json`** — Add `bundleIdentifier`, `android.package`, `eas.projectId`
+
+### P2 — Polish before store review
+- [ ] **`/(auth)/forgot-password`** — Password reset flow
+- [ ] **`/orders/[id]`** — Order detail screen
+- [ ] **Privacy policy URL in app.json** — `https://www.precisionprojectflow.com/privacy-policy`
+- [ ] **App Store screenshots** — 6.7" + 6.1" iPhone, iPad
+- [ ] **App Store description + keywords**
+- [ ] **Age rating** — likely 4+ (no mature content)
+- [ ] **Review `expo-secure-store`** — replace AsyncStorage for auth tokens in production
+
+### P3 — Nice to have
+- [ ] **Haptic feedback** on key actions (send message, post RFQ)
+- [ ] **Skeleton loaders** while fetching
+- [ ] **Empty states** on all FlatLists
+- [ ] **Offline banner** using `@react-native-community/netinfo`
+- [ ] **Deep links** — `ppf://messages/[id]`, `ppf://service/[id]`
+
+---
+
+## 🔗 Related Web Files (for reference)
+
+| Web file | Mobile equivalent |
+|----------|-------------------|
+| `app/messages/page.tsx` | `app/(tabs)/messages.tsx` + `/messages/[id]` (TODO) |
+| `app/marketplace/page.tsx` | `app/(tabs)/marketplace.tsx` |
+| `app/rfq/create/page.tsx` | `app/(tabs)/rfq.tsx` |
+| `app/profiles/[id]/page.tsx` | `app/engineer/[id].tsx` |
+| `app/dashboard/engineer/page.tsx` | `app/(tabs)/profile.tsx` (engineer mode) |
+| `app/dashboard/client/page.tsx` | `app/(tabs)/profile.tsx` (client mode) |
+| `app/api/messages/send/route.ts` | Token logic — replicate client-side via `spend_tokens` RPC |
+| `lib/supabase/client.ts` | `lib/supabase.ts` |
+
+---
+
+*Updated by GitHub Copilot — June 2, 2026*
