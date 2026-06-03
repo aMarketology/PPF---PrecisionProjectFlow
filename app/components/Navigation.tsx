@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell } from 'lucide-react'
+import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X } from 'lucide-react'
 import { getUser, signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 
@@ -16,6 +16,60 @@ export default function Navigation() {
   const [isLoading, setIsLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
   const userMenuRef = useRef<HTMLDivElement>(null)
+  const searchRef = useRef<HTMLDivElement>(null)
+  const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Search state
+  const [searchOpen, setSearchOpen] = useState(false)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [searchResults, setSearchResults] = useState<{ services: any[]; engineers: any[] }>({ services: [], engineers: [] })
+  const [searchLoading, setSearchLoading] = useState(false)
+
+  // Debounced live search
+  useEffect(() => {
+    if (!searchQuery.trim()) { setSearchResults({ services: [], engineers: [] }); return }
+    const timer = setTimeout(async () => {
+      setSearchLoading(true)
+      try {
+        const supabase = createClient()
+        const q = searchQuery.trim().toLowerCase()
+        const [{ data: svcs }, { data: engs }] = await Promise.all([
+          supabase.from('services')
+            .select('id, title, category, price, images')
+            .eq('active', true)
+            .or(`title.ilike.%${q}%,category.ilike.%${q}%,description.ilike.%${q}%`)
+            .limit(4),
+          supabase.from('profiles')
+            .select('id, full_name, company_name, avatar_url, location')
+            .eq('user_type', 'engineer')
+            .or(`full_name.ilike.%${q}%,company_name.ilike.%${q}%,bio.ilike.%${q}%`)
+            .limit(3),
+        ])
+        setSearchResults({ services: svcs || [], engineers: engs || [] })
+      } catch { /* silent */ } finally {
+        setSearchLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [searchQuery])
+
+  function openSearch() {
+    setSearchOpen(true)
+    setTimeout(() => searchInputRef.current?.focus(), 50)
+  }
+
+  function closeSearch() {
+    setSearchOpen(false)
+    setSearchQuery('')
+    setSearchResults({ services: [], engineers: [] })
+  }
+
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!searchQuery.trim()) return
+    closeSearch()
+    window.location.href = `/marketplace?q=${encodeURIComponent(searchQuery.trim())}`
+  }
 
   useEffect(() => {
     const loadUser = async () => {
@@ -84,6 +138,9 @@ export default function Navigation() {
       if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
         setUserMenuOpen(false)
       }
+      if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
+        closeSearch()
+      }
     }
     document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
@@ -117,7 +174,7 @@ export default function Navigation() {
           </Link>
 
           {/* Desktop Menu */}
-          <div className="hidden md:flex gap-8 items-center">
+          <div className="hidden md:flex gap-6 items-center">
             {['Home', 'Marketplace', 'Profiles', 'RFQ', 'Contact'].map((item, index) => (
               <motion.div
                 key={item}
@@ -140,6 +197,136 @@ export default function Navigation() {
                 </Link>
               </motion.div>
             ))}
+
+            {/* ── Search Bar ── */}
+            <div ref={searchRef} className="relative">
+              <AnimatePresence mode="wait">
+                {searchOpen ? (
+                  <motion.form
+                    key="search-open"
+                    initial={{ width: 32, opacity: 0 }}
+                    animate={{ width: 260, opacity: 1 }}
+                    exit={{ width: 32, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    onSubmit={handleSearchSubmit}
+                    className="flex items-center bg-white/95 backdrop-blur-sm border border-gray-200 rounded-xl shadow-lg overflow-visible"
+                  >
+                    <Search className="w-4 h-4 text-gray-400 ml-3 flex-shrink-0" />
+                    <input
+                      ref={searchInputRef}
+                      type="text"
+                      value={searchQuery}
+                      onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Search services, engineers..."
+                      className="flex-1 px-2 py-2 text-sm text-gray-900 placeholder-gray-400 bg-transparent outline-none"
+                    />
+                    {searchQuery ? (
+                      <button type="button" onClick={() => setSearchQuery('')} className="p-2 text-gray-400 hover:text-gray-600">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    ) : (
+                      <button type="button" onClick={closeSearch} className="p-2 text-gray-400 hover:text-gray-600">
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    )}
+
+                    {/* Results dropdown */}
+                    <AnimatePresence>
+                      {searchQuery.trim() && (searchLoading || searchResults.services.length > 0 || searchResults.engineers.length > 0) && (
+                        <motion.div
+                          initial={{ opacity: 0, y: 6 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: 6 }}
+                          className="absolute top-full left-0 right-0 mt-1.5 bg-white rounded-xl shadow-2xl border border-gray-100 overflow-hidden z-[9999] w-80"
+                        >
+                          {searchLoading ? (
+                            <div className="px-4 py-3 text-sm text-gray-500 flex items-center gap-2">
+                              <div className="w-3.5 h-3.5 border-2 border-[#003D82] border-t-transparent rounded-full animate-spin" />
+                              Searching...
+                            </div>
+                          ) : (
+                            <>
+                              {searchResults.services.length > 0 && (
+                                <div>
+                                  <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Services</div>
+                                  {searchResults.services.map(s => (
+                                    <Link
+                                      key={s.id}
+                                      href={`/marketplace/service/${s.id}`}
+                                      onClick={closeSearch}
+                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group"
+                                    >
+                                      <div className="w-8 h-8 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
+                                        {s.images?.[0] ? (
+                                          <img src={s.images[0]} alt="" className="w-full h-full object-cover" />
+                                        ) : (
+                                          <div className="w-full h-full bg-gradient-to-br from-[#003D82] to-[#0066C0]" />
+                                        )}
+                                      </div>
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#003D82]">{s.title}</p>
+                                        <p className="text-xs text-gray-400 truncate">{s.category} · ${Number(s.price).toLocaleString()}</p>
+                                      </div>
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                              {searchResults.engineers.length > 0 && (
+                                <div>
+                                  <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50">Engineers</div>
+                                  {searchResults.engineers.map(e => (
+                                    <Link
+                                      key={e.id}
+                                      href={`/profiles/${e.id}`}
+                                      onClick={closeSearch}
+                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group"
+                                    >
+                                      {e.avatar_url ? (
+                                        <img src={e.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200" />
+                                      ) : (
+                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">
+                                          {(e.full_name || 'E').charAt(0).toUpperCase()}
+                                        </div>
+                                      )}
+                                      <div className="flex-1 min-w-0">
+                                        <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#003D82]">{e.full_name}</p>
+                                        <p className="text-xs text-gray-400 truncate">{e.company_name || e.location || 'Engineer'}</p>
+                                      </div>
+                                    </Link>
+                                  ))}
+                                </div>
+                              )}
+                              {/* View all results */}
+                              <div className="border-t border-gray-100">
+                                <button
+                                  type="submit"
+                                  className="w-full px-4 py-2.5 text-sm text-[#003D82] font-semibold hover:bg-blue-50 transition-colors text-left flex items-center gap-2"
+                                >
+                                  <Search className="w-3.5 h-3.5" />
+                                  See all results for &ldquo;{searchQuery}&rdquo;
+                                </button>
+                              </div>
+                            </>
+                          )}
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </motion.form>
+                ) : (
+                  <motion.button
+                    key="search-icon"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    onClick={openSearch}
+                    className={`p-2 rounded-lg hover:bg-white/20 transition-colors ${scrolled ? 'text-gray-700' : 'text-white'}`}
+                    title="Search"
+                  >
+                    <Search className="w-5 h-5" />
+                  </motion.button>
+                )}
+              </AnimatePresence>
+            </div>
             
             {/* User Menu Dropdown */}
             <motion.div

@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, Suspense } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import { createClient } from '@/lib/supabase/client'
-import { Search, Filter, Star, Heart, MapPin, DollarSign, ChevronDown, SlidersHorizontal, Loader, Clock, Award, Wifi, HardHat, X, CheckCircle2 } from 'lucide-react'
+import { Search, Star, Heart, MapPin, Loader, Clock, Award, Wifi, HardHat, X, CheckCircle2, ArrowRight } from 'lucide-react'
 
 interface Service {
   id: string
@@ -67,8 +68,9 @@ const serviceAreaLabel: Record<string, string> = {
   both: 'Remote & On-Site',
 }
 
-export default function MarketplacePage() {
-  const [searchQuery, setSearchQuery] = useState('')
+function MarketplaceInner() {
+  const searchParams = useSearchParams()
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
   const [selectedCategory, setSelectedCategory] = useState('all')
   const [priceRange, setPriceRange] = useState([0, 50000])
   const [sortBy, setSortBy] = useState('newest')
@@ -296,7 +298,7 @@ export default function MarketplacePage() {
                         className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
                         onError={e => { (e.target as HTMLImageElement).src = categoryFallbacks['Other Services'] }}
                       />
-                      <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-black/5 to-transparent" />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-black/10 to-transparent" />
 
                       {/* Multi-image dots */}
                       {service.images && service.images.length > 1 && (
@@ -317,9 +319,16 @@ export default function MarketplacePage() {
                         <Heart className={`h-3.5 w-3.5 transition-colors ${favorites.has(service.id) ? 'text-red-500 fill-current' : 'text-gray-500'}`} />
                       </motion.button>
 
-                      {/* Price Badge */}
+                      {/* Category pill on image */}
+                      <div className="absolute top-3 left-3">
+                        <span className="text-[10px] font-semibold text-white bg-[#003D82]/80 backdrop-blur-sm px-2 py-0.5 rounded-full">
+                          {service.category.replace(' Engineering', ' Eng.')}
+                        </span>
+                      </div>
+
+                      {/* Price — bottom left */}
                       <div className="absolute bottom-3 left-3">
-                        <span className="text-sm font-bold text-white drop-shadow-md">
+                        <span className="text-base font-extrabold text-white drop-shadow-md">
                           ${Number(service.price).toLocaleString()}
                         </span>
                       </div>
@@ -327,28 +336,40 @@ export default function MarketplacePage() {
 
                     {/* Content */}
                     <div className="p-4 flex flex-col flex-1">
-                      {/* Category pill */}
-                      <span className="inline-block text-[11px] font-semibold text-[#003D82] bg-blue-50 px-2 py-0.5 rounded-md mb-2 self-start">
-                        {service.category.replace(' Engineering', ' Eng.')}
-                      </span>
-
-                      <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-[#003D82] transition-colors">
+                      <h3 className="font-semibold text-gray-900 text-sm leading-snug mb-3 line-clamp-2 group-hover:text-[#003D82] transition-colors">
                         {service.title}
                       </h3>
 
-                      {/* Provider */}
-                      <div className="flex items-center gap-1.5 mb-3">
-                        <div className="w-5 h-5 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0">
-                          <span className="text-white text-[9px] font-bold">
-                            {(service.provider?.full_name || 'V').charAt(0).toUpperCase()}
-                          </span>
-                        </div>
-                        <span className="text-xs text-gray-500 font-medium truncate">{service.provider?.full_name || 'Vendor'}</span>
-                        <CheckCircle2 className="w-3 h-3 text-blue-500 flex-shrink-0" />
+                      {/* Provider row — with real avatar */}
+                      <div className="flex items-center gap-2 mb-3">
+                        {service.provider?.avatar_url ? (
+                          <img
+                            src={service.provider.avatar_url}
+                            alt={service.provider.full_name}
+                            className="w-6 h-6 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200"
+                          />
+                        ) : (
+                          <div className="w-6 h-6 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 ring-1 ring-gray-200">
+                            <span className="text-white text-[9px] font-bold">
+                              {(service.provider?.full_name || 'V').charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                        <span className="text-xs text-gray-600 font-medium truncate flex-1">{service.provider?.full_name || 'Vendor'}</span>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />
+                      </div>
+
+                      {/* Star rating */}
+                      <div className="flex items-center gap-1 mb-3">
+                        {[1,2,3,4,5].map(i => (
+                          <Star key={i} className={`w-3 h-3 ${i <= 4 ? 'text-amber-400 fill-amber-400' : 'text-amber-300 fill-amber-200'}`} />
+                        ))}
+                        <span className="text-[11px] text-gray-500 font-medium ml-0.5">4.9</span>
+                        <span className="text-[11px] text-gray-400 ml-0.5">(12)</span>
                       </div>
 
                       {/* Meta badges */}
-                      <div className="flex flex-wrap gap-1 mt-auto">
+                      <div className="flex flex-wrap gap-1 mt-auto mb-3">
                         {service.delivery_time && (
                           <span className="text-[11px] text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md font-medium flex items-center gap-1">
                             <Clock className="w-2.5 h-2.5" />
@@ -375,6 +396,14 @@ export default function MarketplacePage() {
                           </span>
                         )}
                       </div>
+
+                      {/* CTA */}
+                      <div className="flex items-center justify-between pt-3 border-t border-gray-100">
+                        <span className="text-xs font-bold text-[#003D82]">${Number(service.price).toLocaleString()}</span>
+                        <span className="text-xs font-semibold text-[#003D82] flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                          View Service <ArrowRight className="w-3 h-3" />
+                        </span>
+                      </div>
                     </div>
                   </motion.div>
                 </Link>
@@ -385,5 +414,13 @@ export default function MarketplacePage() {
       </div>
       <Footer />
     </>
+  )
+}
+
+export default function MarketplacePage() {
+  return (
+    <Suspense fallback={null}>
+      <MarketplaceInner />
+    </Suspense>
   )
 }
