@@ -1,412 +1,302 @@
-'use client';
+'use client'
 
-import { useState, useEffect } from 'react';
-import { createClient } from '@/lib/supabase/client';
-import { motion } from 'framer-motion';
-import { Search, Building2, CheckCircle, AlertCircle, Upload } from 'lucide-react';
-import Navigation from '@/app/components/Navigation';
-import Footer from '@/app/components/Footer';
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams, useRouter } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
+import { motion } from 'framer-motion'
+import Link from 'next/link'
+import Navigation from '@/app/components/Navigation'
+import Footer from '@/app/components/Footer'
+import {
+  Building2, CheckCircle2, AlertCircle, Loader2,
+  ArrowLeft, User, Mail, Phone, Briefcase
+} from 'lucide-react'
 
 interface Company {
-  id: string;
-  company_name: string;
-  tagline: string;
-  description: string;
-  website: string;
-  city: string;
-  state: string;
-  specialties: string[];
-  certifications: string[];
-  verified: boolean;
-  is_claimed: boolean;
-  verification_status: string;
+  id: string
+  company_name: string
+  slug: string | null
+  industry: string | null
+  city: string | null
+  state: string | null
+  is_claimed: boolean
 }
 
-export default function ClaimCompanyPage() {
-  const [user, setUser] = useState<any>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [companies, setCompanies] = useState<Company[]>([]);
-  const [filteredCompanies, setFilteredCompanies] = useState<Company[]>([]);
-  const [selectedCompany, setSelectedCompany] = useState<Company | null>(null);
-  const [claimReason, setClaimReason] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-  const [error, setError] = useState('');
+function ClaimCompanyInner() {
+  const searchParams = useSearchParams()
+  const router = useRouter()
+  const prefilledId   = searchParams.get('id')
+  const prefilledName = searchParams.get('name')
 
-  const supabase = createClient();
+  const [user, setUser]             = useState<any>(null)
+  const [company, setCompany]       = useState<Company | null>(null)
+  const [loading, setLoading]       = useState(true)
+  const [submitting, setSubmitting] = useState(false)
+  const [submitted, setSubmitted]   = useState(false)
+  const [error, setError]           = useState('')
+
+  const [fullName, setFullName]   = useState('')
+  const [title, setTitle]         = useState('')
+  const [workEmail, setWorkEmail] = useState('')
+  const [phone, setPhone]         = useState('')
+  const [reason, setReason]       = useState('')
 
   useEffect(() => {
-    checkUser();
-    loadCompanies();
-  }, []);
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (!user) {
+        router.push(`/login?redirect=/claim-company?id=${prefilledId}&name=${encodeURIComponent(prefilledName || '')}`)
+        return
+      }
+      setUser(user)
+      supabase.from('profiles').select('full_name, email').eq('id', user.id).single()
+        .then(({ data }) => {
+          if (data?.full_name) setFullName(data.full_name)
+          if (data?.email)     setWorkEmail(data.email)
+        })
+    })
 
-  useEffect(() => {
-    if (searchQuery.trim()) {
-      const filtered = companies.filter(company =>
-        company.company_name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company.city.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        company.state.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setFilteredCompanies(filtered);
+    if (prefilledId) {
+      const supabase = createClient()
+      supabase.from('company_profiles')
+        .select('id, company_name, slug, industry, city, state, is_claimed')
+        .eq('id', prefilledId)
+        .single()
+        .then(({ data }) => {
+          if (data) setCompany(data)
+          setLoading(false)
+        })
     } else {
-      setFilteredCompanies(companies);
+      setLoading(false)
     }
-  }, [searchQuery, companies]);
+  }, [])
 
-  const checkUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    setUser(user);
-  };
-
-  const loadCompanies = async () => {
-    const { data, error } = await supabase
-      .from('company_profiles')
-      .select('*')
-      .eq('verified', true)
-      .eq('is_claimed', false)
-      .order('company_name');
-
-    if (data) {
-      setCompanies(data);
-      setFilteredCompanies(data);
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault()
+    if (!user || !company) return
+    if (reason.trim().length < 20) {
+      setError('Please explain your connection to this company (min 20 characters).')
+      return
     }
-  };
-
-  const handleClaimSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!user) {
-      setError('You must be logged in to claim a company');
-      return;
-    }
-
-    if (!selectedCompany) {
-      setError('Please select a company to claim');
-      return;
-    }
-
-    if (claimReason.trim().length < 50) {
-      setError('Please provide at least 50 characters explaining why you should be granted access');
-      return;
-    }
-
-    setLoading(true);
-    setError('');
-
+    setSubmitting(true)
+    setError('')
     try {
-      // Insert claim request
-      const { error: claimError } = await supabase
+      const supabase = createClient()
+      const { error: insertError } = await supabase
         .from('company_claims')
         .insert({
-          company_id: selectedCompany.id,
-          user_id: user.id,
-          claim_reason: claimReason,
-          status: 'pending'
-        });
-
-      if (claimError) throw claimError;
-
-      // Update company status to pending
-      const { error: updateError } = await supabase
-        .from('company_profiles')
-        .update({ verification_status: 'pending' })
-        .eq('id', selectedCompany.id);
-
-      if (updateError) throw updateError;
-
-      setSubmitted(true);
-      setSelectedCompany(null);
-      setClaimReason('');
-      loadCompanies(); // Refresh list
-
+          company_id: company.id,
+          user_id:    user.id,
+          reason:     `Name: ${fullName} | Title: ${title} | Email: ${workEmail} | Phone: ${phone}\n\n${reason}`,
+          status:     'pending',
+        })
+      if (insertError) throw insertError
+      setSubmitted(true)
     } catch (err: any) {
-      setError(err.message || 'Failed to submit claim');
+      setError(err.message || 'Failed to submit claim')
     } finally {
-      setLoading(false);
+      setSubmitting(false)
     }
-  };
+  }
 
-  if (!user) {
+  if (loading) {
     return (
-      <>
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
         <Navigation />
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pt-24 pb-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <AlertCircle className="w-16 h-16 text-amber-500 mx-auto mb-4" />
-            <h1 className="text-3xl font-bold text-slate-900 mb-4">Authentication Required</h1>
-            <p className="text-lg text-slate-600 mb-8">
-              You must be logged in to claim a company profile.
-            </p>
-            <a
-              href="/login"
-              className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
-            >
-              Log In
-            </a>
-          </div>
+        <div className="flex items-center justify-center min-h-[80vh]">
+          <Loader2 className="w-8 h-8 animate-spin text-[#003D82]" />
         </div>
         <Footer />
-      </>
-    );
+      </div>
+    )
   }
 
   if (submitted) {
     return (
-      <>
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
         <Navigation />
-        <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pt-24 pb-12">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <motion.div
-              initial={{ scale: 0 }}
-              animate={{ scale: 1 }}
-              transition={{ type: "spring", duration: 0.5 }}
-            >
-              <CheckCircle className="w-20 h-20 text-green-500 mx-auto mb-6" />
-            </motion.div>
-            <h1 className="text-3xl font-bold text-slate-900 mb-4">Claim Request Submitted!</h1>
-            <p className="text-lg text-slate-600 mb-8">
-              Your claim request has been submitted for review. Our team will verify your information and get back to you within 2-3 business days.
+        <div className="flex items-center justify-center min-h-[80vh] px-4">
+          <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }}
+            className="text-center max-w-md mx-auto">
+            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-5">
+              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Claim Request Submitted!</h1>
+            <p className="text-gray-500 mb-6 text-sm leading-relaxed">
+              Our team will review your claim for <strong>{company?.company_name}</strong> and get back to you within 1–2 business days.
             </p>
-            <div className="bg-white rounded-xl p-6 shadow-lg max-w-2xl mx-auto mb-8">
-              <h3 className="font-semibold text-slate-900 mb-3">What happens next?</h3>
-              <ol className="text-left text-slate-600 space-y-2">
-                <li className="flex items-start">
-                  <span className="font-bold text-blue-600 mr-2">1.</span>
-                  <span>Our team reviews your claim request and verifies your identity</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold text-blue-600 mr-2">2.</span>
-                  <span>We may contact you for additional verification documents</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold text-blue-600 mr-2">3.</span>
-                  <span>Once approved, you'll gain full access to manage the company profile</span>
-                </li>
-                <li className="flex items-start">
-                  <span className="font-bold text-blue-600 mr-2">4.</span>
-                  <span>You can then connect Stripe, list products, and start receiving orders</span>
-                </li>
-              </ol>
+            <div className="bg-white rounded-2xl border border-gray-100 p-5 text-left mb-6 space-y-2 text-sm text-gray-600">
+              <p className="font-semibold text-gray-800 mb-1">What happens next:</p>
+              <p>✅ Admin reviews and verifies your connection to the company</p>
+              <p>✅ You receive confirmation once approved</p>
+              <p>✅ You can then edit the profile, add photos, update contact info</p>
             </div>
-            <div className="space-x-4">
-              <button
-                onClick={() => setSubmitted(false)}
-                className="px-6 py-3 bg-white text-blue-600 rounded-lg font-semibold hover:bg-slate-50 transition-colors"
-              >
-                Claim Another Company
-              </button>
-              <a
-                href="/dashboard"
-                className="inline-flex items-center px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all"
-              >
-                Go to Dashboard
-              </a>
-            </div>
+            <Link href={company?.slug ? `/companies/${company.slug}` : '/companies'}
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-bold rounded-xl transition-all text-sm">
+              <ArrowLeft className="w-4 h-4" /> Back to Company Profile
+            </Link>
+          </motion.div>
+        </div>
+        <Footer />
+      </div>
+    )
+  }
+
+  if (!company) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[80vh] px-4">
+          <div className="text-center max-w-sm">
+            <Building2 className="w-12 h-12 text-gray-300 mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Company Not Found</h1>
+            <p className="text-gray-500 text-sm mb-5">Use the link from a company profile page to claim it.</p>
+            <Link href="/companies" className="inline-flex items-center gap-2 text-sm text-[#003D82] font-semibold">
+              <ArrowLeft className="w-4 h-4" /> Browse Directory
+            </Link>
           </div>
         </div>
         <Footer />
-      </>
-    );
+      </div>
+    )
+  }
+
+  if (company.is_claimed) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
+        <Navigation />
+        <div className="flex items-center justify-center min-h-[80vh] px-4">
+          <div className="text-center max-w-sm">
+            <CheckCircle2 className="w-12 h-12 text-emerald-500 mx-auto mb-4" />
+            <h1 className="text-xl font-bold text-gray-900 mb-2">Already Claimed</h1>
+            <p className="text-gray-500 text-sm mb-5">{company.company_name} has already been claimed and verified.</p>
+            <Link href={company.slug ? `/companies/${company.slug}` : '/companies'}
+              className="inline-flex items-center gap-2 text-sm text-[#003D82] font-semibold">
+              <ArrowLeft className="w-4 h-4" /> View Profile
+            </Link>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    )
   }
 
   return (
-    <>
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
       <Navigation />
-      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-slate-100 pt-24 pb-12">
-        <div className="max-w-6xl mx-auto px-4">
-          {/* Header */}
-          <div className="text-center mb-12">
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-            >
-              <Building2 className="w-16 h-16 text-blue-600 mx-auto mb-4" />
-              <h1 className="text-4xl font-bold text-slate-900 mb-4">
-                Claim Your Company Profile
-              </h1>
-              <p className="text-xl text-slate-600 max-w-3xl mx-auto">
-                Find your company in our marketplace and request access to manage its profile, products, and orders.
-              </p>
-            </motion.div>
-          </div>
 
-          {/* Search */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.5, delay: 0.1 }}
-            className="bg-white rounded-xl shadow-lg p-6 mb-8"
-          >
-            <div className="relative">
-              <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-slate-400 w-5 h-5" />
-              <input
-                type="text"
-                placeholder="Search by company name, city, or state..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-              />
-            </div>
-            <p className="text-sm text-slate-500 mt-2">
-              {filteredCompanies.length} unclaimed {filteredCompanies.length === 1 ? 'company' : 'companies'} available
-            </p>
-          </motion.div>
-
-          {/* Companies Grid */}
-          <div className="grid md:grid-cols-2 gap-6 mb-8">
-            {filteredCompanies.map((company, index) => (
-              <motion.div
-                key={company.id}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5, delay: index * 0.05 }}
-                className={`bg-white rounded-xl shadow-lg p-6 cursor-pointer transition-all hover:shadow-xl ${
-                  selectedCompany?.id === company.id ? 'ring-2 ring-blue-500' : ''
-                }`}
-                onClick={() => setSelectedCompany(company)}
-              >
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex-1">
-                    <h3 className="text-xl font-bold text-slate-900 mb-1">
-                      {company.company_name}
-                    </h3>
-                    <p className="text-sm text-slate-600 mb-2">{company.tagline}</p>
-                    <p className="text-sm text-slate-500">
-                      {company.city}, {company.state}
-                    </p>
-                  </div>
-                  {company.verified && (
-                    <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
-                  )}
-                </div>
-
-                <p className="text-sm text-slate-600 mb-4 line-clamp-2">
-                  {company.description}
-                </p>
-
-                <div className="mb-4">
-                  <p className="text-xs font-semibold text-slate-700 mb-2">Specialties:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {company.specialties.slice(0, 3).map((specialty, idx) => (
-                      <span
-                        key={idx}
-                        className="px-2 py-1 bg-blue-50 text-blue-700 text-xs rounded-full"
-                      >
-                        {specialty}
-                      </span>
-                    ))}
-                    {company.specialties.length > 3 && (
-                      <span className="px-2 py-1 bg-slate-100 text-slate-600 text-xs rounded-full">
-                        +{company.specialties.length - 3} more
-                      </span>
-                    )}
-                  </div>
-                </div>
-
-                <button
-                  className={`w-full py-2 rounded-lg font-semibold transition-all ${
-                    selectedCompany?.id === company.id
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-slate-100 text-slate-700 hover:bg-slate-200'
-                  }`}
-                >
-                  {selectedCompany?.id === company.id ? 'Selected' : 'Select to Claim'}
-                </button>
-              </motion.div>
-            ))}
-          </div>
-
-          {/* Claim Form */}
-          {selectedCompany && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.5 }}
-              className="bg-white rounded-xl shadow-lg p-8"
-            >
-              <h2 className="text-2xl font-bold text-slate-900 mb-6">
-                Claim {selectedCompany.company_name}
-              </h2>
-
-              <form onSubmit={handleClaimSubmit}>
-                <div className="mb-6">
-                  <label className="block text-sm font-semibold text-slate-700 mb-2">
-                    Why should you be granted access to this company profile?
-                    <span className="text-red-500">*</span>
-                  </label>
-                  <textarea
-                    value={claimReason}
-                    onChange={(e) => setClaimReason(e.target.value)}
-                    rows={6}
-                    required
-                    placeholder="Please explain your relationship to this company (e.g., employee, owner, authorized representative). Include your position, how long you've been with the company, and why you need access to manage this profile. Minimum 50 characters."
-                    className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-slate-900"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">
-                    {claimReason.length} / 50 characters minimum
-                  </p>
-                </div>
-
-                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
-                  <div className="flex items-start">
-                    <AlertCircle className="w-5 h-5 text-blue-600 mr-3 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <h4 className="font-semibold text-blue-900 mb-1">Verification Required</h4>
-                      <p className="text-sm text-blue-800">
-                        Our team will review your claim and may request additional documentation such as:
-                        business email verification, employee ID, business license, or authorization letter.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {error && (
-                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-                    <div className="flex items-start">
-                      <AlertCircle className="w-5 h-5 text-red-600 mr-3 flex-shrink-0 mt-0.5" />
-                      <p className="text-sm text-red-800">{error}</p>
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex gap-4">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedCompany(null);
-                      setClaimReason('');
-                      setError('');
-                    }}
-                    className="flex-1 px-6 py-3 bg-slate-100 text-slate-700 rounded-lg font-semibold hover:bg-slate-200 transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={loading || claimReason.length < 50}
-                    className="flex-1 px-6 py-3 bg-gradient-to-r from-blue-600 to-cyan-600 text-white rounded-lg font-semibold hover:from-blue-700 hover:to-cyan-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {loading ? 'Submitting...' : 'Submit Claim Request'}
-                  </button>
-                </div>
-              </form>
-            </motion.div>
-          )}
-
-          {/* Empty State */}
-          {filteredCompanies.length === 0 && (
-            <div className="text-center py-12">
-              <Search className="w-16 h-16 text-slate-300 mx-auto mb-4" />
-              <h3 className="text-xl font-semibold text-slate-700 mb-2">No companies found</h3>
-              <p className="text-slate-500">
-                Try adjusting your search or check back later for new listings.
-              </p>
-            </div>
-          )}
+      <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-28 pb-14">
+        <div className="max-w-3xl mx-auto px-4 sm:px-6">
+          <Link href={company.slug ? `/companies/${company.slug}` : '/companies'}
+            className="inline-flex items-center gap-1.5 text-white/70 hover:text-white text-sm mb-4 transition-colors">
+            <ArrowLeft className="w-4 h-4" /> Back to Profile
+          </Link>
+          <h1 className="text-3xl font-extrabold text-white mb-2">Claim This Company</h1>
+          <p className="text-blue-200">Verify your connection to <strong className="text-white">{company.company_name}</strong></p>
         </div>
       </div>
+
+      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+
+        <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 mb-6 flex items-center gap-4">
+          <div className="w-12 h-12 rounded-xl bg-[#003D82]/10 flex items-center justify-center flex-shrink-0">
+            <Building2 className="w-6 h-6 text-[#003D82]" />
+          </div>
+          <div>
+            <p className="font-bold text-gray-900">{company.company_name}</p>
+            <p className="text-sm text-gray-500">{[company.city, company.state].filter(Boolean).join(', ')}{company.industry ? ` · ${company.industry}` : ''}</p>
+          </div>
+          <span className="ml-auto text-xs text-amber-700 bg-amber-50 border border-amber-200 px-2.5 py-1 rounded-full font-semibold flex items-center gap-1 shrink-0">
+            <Briefcase className="w-3 h-3" /> Unclaimed
+          </span>
+        </div>
+
+        <form onSubmit={handleSubmit} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 space-y-5">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">Your Information</h2>
+            <p className="text-sm text-gray-500 mt-0.5">Our admin team reviews all claims within 1–2 business days.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input required value={fullName} onChange={e => setFullName(e.target.value)}
+                  placeholder="Jane Smith"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#003D82]" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Job Title <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <Briefcase className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input required value={title} onChange={e => setTitle(e.target.value)}
+                  placeholder="e.g. Inside Sales Manager"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#003D82]" />
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Work Email <span className="text-red-500">*</span></label>
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input required type="email" value={workEmail} onChange={e => setWorkEmail(e.target.value)}
+                  placeholder="you@company.com"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#003D82]" />
+              </div>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Phone</label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                <input value={phone} onChange={e => setPhone(e.target.value)}
+                  placeholder="+1 (555) 000-0000"
+                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#003D82]" />
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">
+              Your connection to this company <span className="text-red-500">*</span>
+            </label>
+            <textarea required rows={4} value={reason} onChange={e => setReason(e.target.value)}
+              placeholder="Briefly describe your relationship — e.g. I'm the inside sales manager and have worked here for 3 years. I'd like to update our company profile and respond to inquiries."
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#003D82] resize-none" />
+            <p className="text-xs text-gray-400 mt-1">{reason.length} chars · 20 minimum</p>
+          </div>
+
+          {error && (
+            <div className="flex items-start gap-2 bg-red-50 border border-red-200 rounded-xl px-4 py-3 text-sm text-red-700">
+              <AlertCircle className="w-4 h-4 mt-0.5 flex-shrink-0" /> {error}
+            </div>
+          )}
+
+          <div className="flex gap-3 pt-1">
+            <Link href={company.slug ? `/companies/${company.slug}` : '/companies'}
+              className="flex-1 text-center py-3 border border-gray-200 text-gray-600 font-semibold rounded-xl hover:bg-gray-50 transition-colors text-sm">
+              Cancel
+            </Link>
+            <button type="submit" disabled={submitting || reason.length < 20}
+              className="flex-1 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:opacity-50 text-white font-bold rounded-xl transition-colors text-sm flex items-center justify-center gap-2">
+              {submitting ? <><Loader2 className="w-4 h-4 animate-spin" /> Submitting…</> : 'Submit Claim Request'}
+            </button>
+          </div>
+        </form>
+      </div>
+
       <Footer />
-    </>
-  );
+    </div>
+  )
+}
+
+export default function ClaimCompanyPage() {
+  return (
+    <Suspense fallback={null}>
+      <ClaimCompanyInner />
+    </Suspense>
+  )
 }

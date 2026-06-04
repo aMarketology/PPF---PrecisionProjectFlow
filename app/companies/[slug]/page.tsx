@@ -30,6 +30,7 @@ interface Company {
   contact_email: string | null
   contact_phone: string | null
   street_address: string | null
+  owner_id: string | null
 }
 
 const industryColor: Record<string, string> = {
@@ -59,9 +60,12 @@ export default function CompanyDetailPage() {
 
   const [company, setCompany] = useState<Company | null>(null)
   const [isLoading, setIsLoading] = useState(true)
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null)
 
   useEffect(() => {
     if (slug) loadCompany()
+    // get current user id for edit button
+    createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
   }, [slug])
 
   async function loadCompany() {
@@ -69,7 +73,7 @@ export default function CompanyDetailPage() {
       const supabase = createClient()
       const { data, error } = await supabase
         .from('company_profiles')
-        .select('id, company_name, slug, industry, description, city, state, website, email, phone, is_claimed, specialties, certifications, contact_name, contact_title, contact_email, contact_phone, street_address')
+        .select('id, company_name, slug, industry, description, city, state, website, email, phone, is_claimed, specialties, certifications, contact_name, contact_title, contact_email, contact_phone, street_address, owner_id')
         .eq('slug', slug)
         .single()
 
@@ -305,6 +309,16 @@ export default function CompanyDetailPage() {
                   <Briefcase className="w-4 h-4" /> Claim This Company
                 </Link>
               </div>
+            )}
+
+            {/* Owner edit button */}
+            {company.owner_id && currentUserId === company.owner_id && (
+              <Link
+                href={`/companies/${slug}/edit`}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all text-sm"
+              >
+                ✏️ Edit Company Profile
+              </Link>
             )}
 
             {/* Back link */}
