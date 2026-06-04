@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X } from 'lucide-react'
+import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins } from 'lucide-react'
 import { getUser, signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 
@@ -424,6 +424,14 @@ export default function Navigation() {
                                 {unreadCount > 99 ? '99+' : unreadCount}
                               </span>
                             )}
+                          </Link>
+                          <Link
+                            href="/tokens"
+                            className="flex items-center gap-3 px-4 py-2.5 text-yellow-700 hover:bg-yellow-50 transition-colors"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Coins className="h-4 w-4 text-yellow-500" />
+                            <span>Buy Tokens</span>
                           </Link>
                           <div className="border-t border-gray-200 my-2"></div>
                           <button
