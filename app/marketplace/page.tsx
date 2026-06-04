@@ -89,7 +89,6 @@ function MarketplaceInner() {
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [cards, setCards] = useState<Card[]>([])
   const [loading, setLoading] = useState(true)
-  const [debugInfo, setDebugInfo] = useState<string | null>(null)
 
   useEffect(() => { fetchAll() }, [])
 
@@ -129,10 +128,6 @@ function MarketplaceInner() {
 
       if (compError) console.error('company_profiles error:', compError)
       console.log('directory companies fetched:', companies?.length ?? 0)
-
-      // Debug info for diagnosing production issues
-      const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || 'MISSING'
-      setDebugInfo(`URL: ${supabaseUrl.slice(0, 40)}… | services: ${serviceCards.length} | companies: ${companies?.length ?? 0} | compError: ${compError ? compError.message : 'none'}`)
 
       const directoryCards: DirectoryCard[] = (companies || []).map((c: any) => ({
         _type: 'directory' as const,
@@ -278,9 +273,6 @@ function MarketplaceInner() {
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">No matching results</h3>
               <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">Try broadening your search or clearing filters.</p>
-              {debugInfo && (
-                <p className="text-[11px] text-gray-400 font-mono bg-gray-50 border border-gray-200 rounded-lg px-3 py-2 mb-4 max-w-lg mx-auto break-all">{debugInfo}</p>
-              )}
               <button onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]) }}
                 className="bg-[#003D82] text-white px-6 py-3 rounded-xl hover:bg-[#002960] transition-all font-semibold text-sm">
                 Clear all filters
