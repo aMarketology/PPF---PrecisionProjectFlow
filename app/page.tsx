@@ -30,14 +30,14 @@ import { getUser } from './actions/auth'
 
 // Engineering categories matching ThomasNet style
 const engineeringCategories = [
-  { icon: Building2, name: 'Civil Engineering', count: '2,847 suppliers', color: 'blue' },
-  { icon: Factory, name: 'Mechanical Engineering', count: '3,421 suppliers', color: 'orange' },
-  { icon: Zap, name: 'Electrical Engineering', count: '2,156 suppliers', color: 'yellow' },
-  { icon: Cpu, name: 'Controls & Automation', count: '1,893 suppliers', color: 'purple' },
-  { icon: Wrench, name: 'Manufacturing', count: '4,102 suppliers', color: 'green' },
-  { icon: HardHat, name: 'Construction Services', count: '3,654 suppliers', color: 'red' },
-  { icon: Package, name: 'Material Handling', count: '1,567 suppliers', color: 'indigo' },
-  { icon: Truck, name: 'Logistics & Supply Chain', count: '2,234 suppliers', color: 'cyan' },
+  { icon: Building2, name: 'Civil Engineering',        count: 'Browse suppliers', color: 'blue' },
+  { icon: Factory,   name: 'Mechanical Engineering',   count: 'Browse suppliers', color: 'orange' },
+  { icon: Zap,       name: 'Electrical Engineering',   count: 'Browse suppliers', color: 'yellow' },
+  { icon: Cpu,       name: 'Controls & Automation',    count: 'Browse suppliers', color: 'purple' },
+  { icon: Wrench,    name: 'Manufacturing',             count: 'Browse suppliers', color: 'green' },
+  { icon: HardHat,   name: 'Construction Services',    count: 'Browse suppliers', color: 'red' },
+  { icon: Package,   name: 'Material Handling',        count: 'Browse suppliers', color: 'indigo' },
+  { icon: Truck,     name: 'Logistics & Supply Chain', count: 'Browse suppliers', color: 'cyan' },
 ]
 
 // Featured suppliers
@@ -101,10 +101,10 @@ const howItWorksSteps = [
 
 // Trust indicators
 const trustIndicators = [
-  { icon: Users, value: '10,000+', label: 'Verified Suppliers' },
-  { icon: Globe, value: '50+', label: 'Countries Served' },
-  { icon: Award, value: '98%', label: 'Customer Satisfaction' },
-  { icon: Shield, value: '24/7', label: 'Secure Platform' },
+  { icon: Building2, value: '3,900+', label: 'Companies Listed' },
+  { icon: Users,     value: 'Free',   label: 'To Join & Browse' },
+  { icon: FileText,  value: 'Direct', label: 'RFQ to Supplier' },
+  { icon: Shield,    value: 'Secure', label: 'Verified Platform' },
 ]
 
 export default function HomePage() {
@@ -204,21 +204,21 @@ export default function HomePage() {
                   href="/marketplace"
                   className="text-white hover:text-blue-100 underline text-sm"
                 >
-                  Browse All Categories
-                </Link>
-                <span className="text-blue-200">•</span>
-                <Link
-                  href="/marketplace?featured=true"
-                  className="text-white hover:text-blue-100 underline text-sm"
-                >
-                  View Featured Suppliers
+                  Browse Directory
                 </Link>
                 <span className="text-blue-200">•</span>
                 <Link
                   href="/rfq/create"
                   className="text-white hover:text-blue-100 underline text-sm"
                 >
-                  Request a Quote
+                  Post an RFQ
+                </Link>
+                <span className="text-blue-200">•</span>
+                <Link
+                  href="/signup"
+                  className="text-white hover:text-blue-100 underline text-sm"
+                >
+                  Join Free
                 </Link>
               </div>
             </div>
@@ -261,7 +261,7 @@ export default function HomePage() {
               Browse by Engineering Category
             </h2>
             <p className="text-xl text-gray-600">
-              Explore thousands of verified suppliers across major industries
+              Find engineers and vendors across every major discipline
             </p>
           </div>
 
