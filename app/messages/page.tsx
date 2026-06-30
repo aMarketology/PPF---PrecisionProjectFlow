@@ -24,7 +24,7 @@ const UNLOCK_COST = 100;
 interface UserProfile { id: string; full_name: string; email: string; user_type: string; avatar_url?: string | null; }
 interface Conversation {
   id: string; participant_one_id: string; participant_two_id: string;
-  last_message_at: string; created_at: string; is_contracted: boolean; is_unlocked: boolean;
+  last_message_at: string; created_at: string; is_unlocked: boolean;
   other_user: UserProfile; last_message?: { content: string; sender_id: string; created_at: string } | null;
   unread_count: number;
 }
@@ -210,13 +210,13 @@ function MessagesPageInner() {
   const markMessagesAsRead = async (conversationId: string) => {
     try {
       const supabase = createClient();
-      await supabase.from('user_messages').update({ is_read: true, read_at: new Date().toISOString() })
+      await supabase.from('user_messages').update({ is_read: true })
         .eq('conversation_id', conversationId).eq('is_read', false).neq('sender_id', currentUserId);
       setConversations(prev => prev.map(c => c.id === conversationId ? { ...c, unread_count: 0 } : c));
     } catch (err) { console.error('markMessagesAsRead:', err); }
   };
 
-  const isFreeConversation = (conv: Conversation) => conv.is_unlocked || conv.is_contracted;
+  const isFreeConversation = (conv: Conversation) => conv.is_unlocked;
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -348,8 +348,8 @@ function MessagesPageInner() {
                               <span className="font-semibold text-gray-900 truncate text-sm">{conv.other_user?.full_name || 'Unknown'}</span>
                               {conv.unread_count > 0 && <span className="ml-1 px-1.5 py-0.5 bg-[#003D82] text-white text-xs font-bold rounded-full">{conv.unread_count}</span>}
                             </div>
-                            <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-medium mb-1 ${conv.is_contracted ? 'bg-emerald-100 text-emerald-700' : conv.is_unlocked ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                              {conv.is_contracted ? '✅ Contracted' : conv.is_unlocked ? '🔓 Unlocked' : '🔒 Locked'}
+                            <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-medium mb-1 ${conv.is_unlocked ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
+                              {conv.is_unlocked ? '🔓 Unlocked' : '🔒 Locked'}
                             </span>
                             {conv.last_message && <p className="text-xs text-gray-500 truncate">{conv.last_message.sender_id === currentUserId ? 'You: ' : ''}{conv.last_message.content || '[attachment]'}</p>}
                             <p className="text-xs text-gray-400 mt-0.5">{formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true })}</p>
@@ -382,8 +382,7 @@ function MessagesPageInner() {
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {selectedConversation.is_contracted && <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Under Contract</span>}
-                        {selectedConversation.is_unlocked && !selectedConversation.is_contracted && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>}
+                        {selectedConversation.is_unlocked && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>}
                       </div>
                     </div>
 
