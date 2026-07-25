@@ -10,6 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
+    "db": "node scripts/db.js",
+    "db:fix": "node scripts/db.js --file ./supabase/FIX_MISSING_COLUMNS.sql",
     "db:test": "node scripts/test-database.js",
     "db:seed": "node scripts/seed-test-data.js",
     "db:cleanup": "node scripts/cleanup-test-data.js",
@@ -37,6 +39,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@tailwindcss/typography": "^0.5.20",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.1",
     "@testing-library/user-event": "^14.6.1",
