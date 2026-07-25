@@ -7,6 +7,7 @@ import {
   MessageSquare, Send, Loader, User, Clock, Search, X, Plus,
   CheckCheck, Check, Lock, Unlock, DollarSign, ShieldCheck,
   Paperclip, FileText, Download, ExternalLink, Zap,
+  Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -25,6 +26,8 @@ interface UserProfile { id: string; full_name: string; email: string; user_type:
 interface Conversation {
   id: string; participant_one_id: string; participant_two_id: string;
   last_message_at: string; created_at: string; is_unlocked: boolean;
+  conversation_type: 'direct' | 'group' | 'channel';
+  name?: string | null; description?: string | null; is_public?: boolean;
   other_user: UserProfile; last_message?: { content: string; sender_id: string; created_at: string } | null;
   unread_count: number;
 }
@@ -117,9 +120,28 @@ function MessagesPageInner() {
   const [isSearching, setIsSearching] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // ── Channels & Groups ──
+  const [channels, setChannels] = useState<Conversation[]>([]);
+  const [groups, setGroups] = useState<Conversation[]>([]);
+  const [directConvs, setDirectConvs] = useState<Conversation[]>([]);
+  const [showCreateChannelModal, setShowCreateChannelModal] = useState(false);
+  const [newChannelName, setNewChannelName] = useState('');
+  const [newChannelDesc, setNewChannelDesc] = useState('');
+  const [newChannelType, setNewChannelType] = useState<'channel' | 'group'>('channel');
+  const [newChannelPublic, setNewChannelPublic] = useState(true);
+  const [sidebarSection, setSidebarSection] = useState<'all' | 'channels' | 'groups' | 'dms'>('all');
+  const [collapsedSections, setCollapsedSections] = useState<Record<string, boolean>>({});
+  const [memberSearchQuery, setMemberSearchQuery] = useState('');
+  const [memberSearchResults, setMemberSearchResults] = useState<UserProfile[]>([]);
+  const [isMemberSearching, setIsMemberSearching] = useState(false);
+  const [selectedMembers, setSelectedMembers] = useState<UserProfile[]>([]);
+  const [userCompanyId, setUserCompanyId] = useState<string | null>(null);
+  const [userCompanyName, setUserCompanyName] = useState<string | null>(null);
+  const [companyChannel, setCompanyChannel] = useState<Conversation | null>(null);
+  const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const realtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const messagesEnd = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { initializeUser(); }, []);
   useEffect(() => { if (currentUserId) loadConversations(); }, [currentUserId]);
@@ -139,6 +161,20 @@ function MessagesPageInner() {
     if (existing) setSelectedConversation(existing); else openOrCreateConversation(withId);
   }, [searchParams, currentUserId, isLoadingConversations]);
   useEffect(() => { if (searchQuery.length >= 2) searchUsers(); else setSearchResults([]); }, [searchQuery]);
+  useEffect(() => { if (memberSearchQuery.length >= 2) searchMembers(); else setMemberSearchResults([]); }, [memberSearchQuery]);
+  useEffect(() => {
+    if (!userCompanyId) { setTeamMembers([]); return; }
+    const supabase = createClient();
+    supabase.from('company_members').select('user_id, role').eq('company_id', userCompanyId).eq('status', 'active')
+      .then(async ({ data: mems }) => {
+        if (!mems) return;
+        const withProfiles = await Promise.all(mems.map(async (m: any) => {
+          const { data: prof } = await supabase.from('profiles').select('full_name, email, avatar_url, user_type').eq('id', m.user_id).single();
+          return { ...m, profile: prof || { full_name: 'Unknown', email: '', user_type: 'engineer' } };
+        }));
+        setTeamMembers(withProfiles);
+      });
+  }, [userCompanyId]);
 
   const setupRealtime = useCallback((conversationId: string) => {
     const supabase = createClient();
@@ -163,8 +199,16 @@ function MessagesPageInner() {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
       setCurrentUserId(user.id);
-      const { data: profile } = await supabase.from('profiles').select('token_balance').eq('id', user.id).single();
-      if (profile) setTokenBalance(profile.token_balance ?? 0);
+      const { data: profile } = await supabase.from('profiles').select('token_balance, company_id').eq('id', user.id).single();
+      if (profile) {
+        setTokenBalance(profile.token_balance ?? 0);
+        if (profile.company_id) {
+          setUserCompanyId(profile.company_id);
+          // Fetch company name
+          const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', profile.company_id).single();
+          if (comp) setUserCompanyName(comp.company_name);
+        }
+      }
       setTokenPacks([
         { id: 'starter', name: 'Starter', tokens: 100, price_cents: 1000, unlocks: 1 },
         { id: 'pro', name: 'Pro', tokens: 500, price_cents: 4500, unlocks: 5 },
@@ -177,21 +221,88 @@ function MessagesPageInner() {
     setIsLoadingConversations(true);
     try {
       const supabase = createClient();
-      const { data: convData, error } = await supabase.from('user_conversations').select('*')
+
+      // Fetch all conversations the user is part of
+      // Direct: via participant_one_id / participant_two_id
+      // Group/Channel: via conversation_participants
+      const { data: directData } = await supabase.from('user_conversations').select('*')
+        .eq('conversation_type', 'direct')
         .or(`participant_one_id.eq.${currentUserId},participant_two_id.eq.${currentUserId}`)
         .order('last_message_at', { ascending: false });
-      if (error) { if ((error as any)?.code === '42P01') { setConversations([]); return; } throw error; }
-      const withDetails = await Promise.all((convData || []).map(async (conv) => {
-        const otherId = conv.participant_one_id === currentUserId ? conv.participant_two_id : conv.participant_one_id;
-        const [{ data: otherUser }, { data: lastMsg }, { count }] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, email, user_type, avatar_url').eq('id', otherId).single(),
-          supabase.from('user_messages').select('content, sender_id, created_at').eq('conversation_id', conv.id).order('created_at', { ascending: false }).limit(1).single(),
-          supabase.from('user_messages').select('*', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('is_read', false).neq('sender_id', currentUserId),
-        ]);
-        return { ...conv, other_user: otherUser, last_message: lastMsg, unread_count: count || 0 };
+
+      const { data: groupChannelData } = await supabase.from('user_conversations').select('*')
+        .in('conversation_type', ['group', 'channel'])
+        .order('last_message_at', { ascending: false });
+
+      // Filter group/channel to only those the user is a member of
+      const allConvs = [...(directData || [])];
+      if (groupChannelData) {
+        for (const gc of groupChannelData) {
+          const { data: membership } = await supabase.from('conversation_participants')
+            .select('id').eq('conversation_id', gc.id).eq('user_id', currentUserId).maybeSingle();
+          if (membership) allConvs.push(gc);
+        }
+      }
+
+      // Sort by last_message_at
+      allConvs.sort((a, b) => new Date(b.last_message_at).getTime() - new Date(a.last_message_at).getTime());
+
+      const withDetails = await Promise.all(allConvs.map(async (conv) => {
+        let otherUser: any = null;
+        let lastMsg: any = null;
+        let unreadCount = 0;
+
+        if (conv.conversation_type === 'direct') {
+          const otherId = conv.participant_one_id === currentUserId ? conv.participant_two_id : conv.participant_one_id;
+          const [{ data: ou }, { data: lm }, { count }] = await Promise.all([
+            supabase.from('profiles').select('id, full_name, email, user_type, avatar_url').eq('id', otherId).single(),
+            supabase.from('user_messages').select('content, sender_id, created_at').eq('conversation_id', conv.id).order('created_at', { ascending: false }).limit(1).single(),
+            supabase.from('user_messages').select('*', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('is_read', false).neq('sender_id', currentUserId),
+          ]);
+          otherUser = ou; lastMsg = lm; unreadCount = count || 0;
+        } else {
+          // For groups/channels, get last message and unread count
+          const [{ data: lm }, { count }] = await Promise.all([
+            supabase.from('user_messages').select('content, sender_id, created_at').eq('conversation_id', conv.id).order('created_at', { ascending: false }).limit(1).single(),
+            supabase.from('user_messages').select('*', { count: 'exact', head: true }).eq('conversation_id', conv.id).eq('is_read', false).neq('sender_id', currentUserId),
+          ]);
+          lastMsg = lm; unreadCount = count || 0;
+        }
+
+        return { ...conv, other_user: otherUser, last_message: lastMsg, unread_count: unreadCount };
       }));
+
+      // Split by type
+      const channels = withDetails.filter(c => c.conversation_type === 'channel');
+      const groups = withDetails.filter(c => c.conversation_type === 'group');
+      const directs = withDetails.filter(c => c.conversation_type === 'direct');
+
+      // Fetch company channel if user has a company
+      let compChan: Conversation | null = null;
+      if (userCompanyId) {
+        const { data: cc } = await supabase.from('user_conversations')
+          .select('*').eq('company_id', userCompanyId).eq('conversation_type', 'channel').eq('name', 'General').maybeSingle();
+        if (cc) {
+          const [{ data: lm }, { count }] = await Promise.all([
+            supabase.from('user_messages').select('content, sender_id, created_at').eq('conversation_id', cc.id).order('created_at', { ascending: false }).limit(1).single(),
+            supabase.from('user_messages').select('*', { count: 'exact', head: true }).eq('conversation_id', cc.id).eq('is_read', false).neq('sender_id', currentUserId),
+          ]);
+          compChan = { ...cc, other_user: null, last_message: lm, unread_count: count || 0 } as Conversation;
+          // Add to channels if not already there
+          if (!channels.some(c => c.id === cc.id)) channels.unshift(compChan);
+        }
+      }
+      setCompanyChannel(compChan);
+
+      setChannels(channels as Conversation[]);
+      setGroups(groups as Conversation[]);
+      setDirectConvs(directs as Conversation[]);
       setConversations(withDetails as Conversation[]);
-      if (selectedConversation) { const u = withDetails.find(c => c.id === selectedConversation.id); if (u) setSelectedConversation(u as Conversation); }
+
+      if (selectedConversation) {
+        const u = withDetails.find(c => c.id === selectedConversation.id);
+        if (u) setSelectedConversation(u as Conversation);
+      }
     } catch (err: any) { console.error('loadConversations:', err); toast.error('Failed to load conversations'); }
     finally { setIsLoadingConversations(false); }
   };
@@ -216,7 +327,10 @@ function MessagesPageInner() {
     } catch (err) { console.error('markMessagesAsRead:', err); }
   };
 
-  const isFreeConversation = (conv: Conversation) => conv.is_unlocked;
+  const isFreeConversation = (conv: Conversation) => {
+    if (conv.conversation_type !== 'direct') return true; // channels & groups are always free
+    return conv.is_unlocked;
+  };
 
   const handleSendMessage = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -275,6 +389,22 @@ function MessagesPageInner() {
     } finally { setIsSearching(false); }
   };
 
+  const searchMembers = async () => {
+    setIsMemberSearching(true);
+    try {
+      const supabase = createClient();
+      const { data } = await supabase.from('profiles').select('id, full_name, email, user_type, avatar_url')
+        .neq('id', currentUserId!).ilike('full_name', `%${memberSearchQuery}%`).limit(10);
+      setMemberSearchResults((data || []).filter(u => !selectedMembers.some(m => m.id === u.id)));
+    } finally { setIsMemberSearching(false); }
+  };
+
+  const toggleSelectedMember = (u: UserProfile) => {
+    setSelectedMembers(prev => prev.some(m => m.id === u.id) ? prev.filter(m => m.id !== u.id) : [...prev, u]);
+    setMemberSearchResults(prev => prev.filter(m => m.id !== u.id));
+    setMemberSearchQuery('');
+  };
+
   const startConversation = async (otherUser: UserProfile) => {
     try {
       const supabase = createClient();
@@ -316,48 +446,115 @@ function MessagesPageInner() {
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden" style={{ height: '72vh' }}>
             <div className="flex h-full">
 
-              {/* Sidebar */}
-              <div className="w-80 border-r border-gray-100 flex flex-col flex-shrink-0">
-                <div className="p-3 border-b border-gray-100 space-y-2">
-                  <button onClick={() => setShowNewConvModal(true)} className="w-full flex items-center justify-center gap-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold px-4 py-2.5 rounded-xl transition-all text-sm">
-                    <Plus className="w-4 h-4" /> New Message
-                  </button>
+              {/* Sidebar — Slack-style with sections */}
+              <div className="w-72 border-r border-gray-100 flex flex-col flex-shrink-0 bg-gray-50/50">
+                {/* Header */}
+                <div className="p-3 border-b border-gray-200 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <h2 className="font-extrabold text-gray-900 text-sm">Messages</h2>
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => setShowNewConvModal(true)} title="New direct message"
+                        className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-500 hover:text-gray-700">
+                        <Plus className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => setShowCreateChannelModal(true)} title="Create channel"
+                        className="p-1.5 hover:bg-gray-200 rounded-lg transition-colors text-gray-500 hover:text-gray-700">
+                        <Hash className="w-4 h-4" />
+                      </button>
+                    </div>
+                  </div>
                   <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                    <input type="text" value={convFilter} onChange={e => setConvFilter(e.target.value)} placeholder="Filter conversations..."
-                      className="w-full pl-9 pr-4 py-2 text-sm border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82]" />
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
+                    <input type="text" value={convFilter} onChange={e => setConvFilter(e.target.value)} placeholder="Jump to..."
+                      className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] bg-white" />
                   </div>
                 </div>
+
+                {/* Conversation list with sections */}
                 <div className="flex-1 overflow-y-auto">
-                  {isLoadingConversations ? <div className="flex justify-center p-8"><Loader className="w-6 h-6 text-[#003D82] animate-spin" /></div>
-                    : filtered.length === 0 ? (
-                      <div className="p-8 text-center text-gray-400">
-                        <MessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-200" />
-                        <p className="text-sm">{convFilter ? 'No matches' : 'No conversations yet'}</p>
-                      </div>
-                    ) : filtered.map(conv => (
-                      <motion.button key={conv.id} onClick={() => setSelectedConversation(conv)} whileHover={{ x: 2 }}
-                        className={`w-full p-3 text-left border-b border-gray-50 hover:bg-blue-50/60 transition-colors ${selectedConversation?.id === conv.id ? 'bg-blue-50 border-l-2 border-l-[#003D82]' : ''}`}>
-                        <div className="flex items-start gap-3">
-                          <div className="relative">
-                            <Avatar user={conv.other_user} size="md" />
-                            {conv.is_unlocked && <div className="absolute -bottom-0.5 -right-0.5 w-4 h-4 bg-green-500 rounded-full border-2 border-white flex items-center justify-center"><Unlock className="w-2 h-2 text-white" /></div>}
+                  {isLoadingConversations ? (
+                    <div className="flex justify-center p-8"><Loader className="w-5 h-5 text-[#003D82] animate-spin" /></div>
+                  ) : (
+                    <>
+                      {/* ── Company Channel ── */}
+                      {userCompanyId && userCompanyName && (
+                        <div className="px-3 py-2 border-b border-gray-100">
+                          <div className="flex items-center gap-2 mb-1.5 px-1">
+                            <Building2 className="w-3.5 h-3.5 text-[#FF6B35]" />
+                            <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider truncate">{userCompanyName}</span>
                           </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between mb-0.5">
-                              <span className="font-semibold text-gray-900 truncate text-sm">{conv.other_user?.full_name || 'Unknown'}</span>
-                              {conv.unread_count > 0 && <span className="ml-1 px-1.5 py-0.5 bg-[#003D82] text-white text-xs font-bold rounded-full">{conv.unread_count}</span>}
-                            </div>
-                            <span className={`inline-block px-1.5 py-0.5 text-xs rounded font-medium mb-1 ${conv.is_unlocked ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-500'}`}>
-                              {conv.is_unlocked ? '🔓 Unlocked' : '🔒 Locked'}
-                            </span>
-                            {conv.last_message && <p className="text-xs text-gray-500 truncate">{conv.last_message.sender_id === currentUserId ? 'You: ' : ''}{conv.last_message.content || '[attachment]'}</p>}
-                            <p className="text-xs text-gray-400 mt-0.5">{formatDistanceToNow(new Date(conv.last_message_at), { addSuffix: true })}</p>
-                          </div>
+                          {companyChannel ? (
+                            <motion.button
+                              whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                              onClick={() => setSelectedConversation(companyChannel)}
+                              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                                selectedConversation?.id === companyChannel.id
+                                  ? 'bg-[#003D82] text-white shadow-md'
+                                  : 'hover:bg-gray-100 text-gray-700'
+                              }`}
+                            >
+                              <Hash className={`w-3.5 h-3.5 flex-shrink-0 ${selectedConversation?.id === companyChannel.id ? 'text-white/80' : 'text-[#FF6B35]'}`} />
+                              <span className="text-xs font-semibold truncate">General</span>
+                              {companyChannel.unread_count > 0 && (
+                                <span className={`ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                                  selectedConversation?.id === companyChannel.id ? 'bg-white/20 text-white' : 'bg-[#FF6B35] text-white'
+                                }`}>{companyChannel.unread_count}</span>
+                              )}
+                            </motion.button>
+                          ) : (
+                            <p className="text-xs text-gray-400 px-1">Loading...</p>
+                          )}
                         </div>
-                      </motion.button>
-                    ))
-                  }
+                      )}
+
+                      {/* ── Channels Section ── */}
+                      <SidebarSection
+                        title="Channels"
+                        icon={<Hash className="w-3.5 h-3.5" />}
+                        items={channels}
+                        collapsed={collapsedSections['channels']}
+                        onToggle={() => setCollapsedSections(prev => ({ ...prev, channels: !prev.channels }))}
+                        selectedId={selectedConversation?.id}
+                        currentUserId={currentUserId}
+                        onSelect={setSelectedConversation}
+                        filter={convFilter}
+                      />
+
+                      {/* ── Groups Section ── */}
+                      <SidebarSection
+                        title="Groups"
+                        icon={<Users className="w-3.5 h-3.5" />}
+                        items={groups}
+                        collapsed={collapsedSections['groups']}
+                        onToggle={() => setCollapsedSections(prev => ({ ...prev, groups: !prev.groups }))}
+                        selectedId={selectedConversation?.id}
+                        currentUserId={currentUserId}
+                        onSelect={setSelectedConversation}
+                        filter={convFilter}
+                      />
+
+                      {/* ── Direct Messages Section ── */}
+                      <SidebarSection
+                        title="Direct Messages"
+                        icon={<MessageSquare className="w-3.5 h-3.5" />}
+                        items={directConvs}
+                        collapsed={collapsedSections['dms']}
+                        onToggle={() => setCollapsedSections(prev => ({ ...prev, dms: !prev.dms }))}
+                        selectedId={selectedConversation?.id}
+                        currentUserId={currentUserId}
+                        onSelect={setSelectedConversation}
+                        filter={convFilter}
+                      />
+
+                      {channels.length === 0 && groups.length === 0 && directConvs.length === 0 && (
+                        <div className="p-8 text-center text-gray-400">
+                          <MessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-200" />
+                          <p className="text-xs">No conversations yet</p>
+                          <p className="text-xs mt-1 text-gray-300">Start a DM or create a channel</p>
+                        </div>
+                      )}
+                    </>
+                  )}
                 </div>
               </div>
 
@@ -368,21 +565,49 @@ function MessagesPageInner() {
                     {/* Header */}
                     <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-white">
                       <div className="flex items-center gap-3">
-                        <Avatar user={selectedConversation.other_user} size="md" />
+                        {selectedConversation.conversation_type === 'channel' ? (
+                          <div className="w-10 h-10 rounded-lg bg-[#003D82]/10 flex items-center justify-center">
+                            <Hash className="w-5 h-5 text-[#003D82]" />
+                          </div>
+                        ) : selectedConversation.conversation_type === 'group' ? (
+                          <div className="w-10 h-10 rounded-lg bg-[#003D82]/10 flex items-center justify-center">
+                            <Users className="w-5 h-5 text-[#003D82]" />
+                          </div>
+                        ) : (
+                          <Avatar user={selectedConversation.other_user} size="md" />
+                        )}
                         <div>
-                          <h2 className="font-bold text-gray-900">{selectedConversation.other_user?.full_name}</h2>
+                          <h2 className="font-bold text-gray-900">
+                            {selectedConversation.conversation_type === 'direct'
+                              ? selectedConversation.other_user?.full_name
+                              : selectedConversation.name || 'Unnamed'}
+                          </h2>
                           <div className="flex items-center gap-2 mt-0.5">
-                            <span className="text-xs text-gray-500 capitalize">{selectedConversation.other_user?.user_type}</span>
-                            {selectedConversation.other_user?.id && (
-                              <Link href={`/profiles/${selectedConversation.other_user.id}`} className="text-xs text-[#003D82] hover:underline flex items-center gap-0.5">
-                                View Profile <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
-                              </Link>
+                            {selectedConversation.conversation_type === 'direct' ? (
+                              <>
+                                <span className="text-xs text-gray-500 capitalize">{selectedConversation.other_user?.user_type}</span>
+                                {selectedConversation.other_user?.id && (
+                                  <Link href={`/profiles/${selectedConversation.other_user.id}`} className="text-xs text-[#003D82] hover:underline flex items-center gap-0.5">
+                                    View Profile <ExternalLink className="w-2.5 h-2.5 ml-0.5" />
+                                  </Link>
+                                )}
+                              </>
+                            ) : (
+                              <span className="text-xs text-gray-500 capitalize">{selectedConversation.conversation_type}</span>
                             )}
                           </div>
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
-                        {selectedConversation.is_unlocked && <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>}
+                        {selectedConversation.conversation_type === 'direct' && selectedConversation.is_unlocked && (
+                          <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>
+                        )}
+                        {selectedConversation.conversation_type !== 'direct' && (
+                          <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                            {selectedConversation.conversation_type === 'channel' ? <Hash className="w-3 h-3" /> : <Users className="w-3 h-3" />}
+                            {selectedConversation.conversation_type === 'channel' ? 'Channel' : 'Group'}
+                          </span>
+                        )}
                       </div>
                     </div>
 
@@ -469,6 +694,95 @@ function MessagesPageInner() {
                   </div>
                 )}
               </div>
+
+              {/* Right Sidebar — Company & Team */}
+              <div className="w-64 border-l border-gray-100 flex flex-col flex-shrink-0 bg-gray-50/30">
+                {userCompanyId && userCompanyName ? (
+                  <>
+                    {/* Company Header */}
+                    <div className="p-4 border-b border-gray-100">
+                      <div className="flex items-center gap-2 mb-3">
+                        <div className="w-9 h-9 rounded-lg bg-[#FF6B35]/10 flex items-center justify-center">
+                          <Building2 className="w-5 h-5 text-[#FF6B35]" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-bold text-gray-900 text-sm truncate">{userCompanyName}</p>
+                          <p className="text-xs text-gray-500">Your Company</p>
+                        </div>
+                      </div>
+                      <Link href={`/dashboard/company/${userCompanyId}`}
+                        className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-xs font-semibold rounded-lg transition-colors">
+                        <Settings2 className="w-3.5 h-3.5" /> Manage Company
+                      </Link>
+                    </div>
+
+                    {/* Company Channel */}
+                    <div className="p-3 border-b border-gray-100">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Team Channel</p>
+                      {companyChannel ? (
+                        <motion.button
+                          whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                          onClick={() => setSelectedConversation(companyChannel)}
+                          className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-all ${
+                            selectedConversation?.id === companyChannel.id
+                              ? 'bg-[#003D82] text-white shadow-md'
+                              : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <Hash className={`w-3.5 h-3.5 flex-shrink-0 ${selectedConversation?.id === companyChannel.id ? 'text-white/80' : 'text-[#FF6B35]'}`} />
+                          <span className="text-xs font-semibold truncate">General</span>
+                          {companyChannel.unread_count > 0 && (
+                            <span className={`ml-auto px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                              selectedConversation?.id === companyChannel.id ? 'bg-white/20 text-white' : 'bg-[#FF6B35] text-white'
+                            }`}>{companyChannel.unread_count}</span>
+                          )}
+                        </motion.button>
+                      ) : (
+                        <p className="text-xs text-gray-400 px-1">Loading...</p>
+                      )}
+                    </div>
+
+                    {/* Team Members */}
+                    <div className="flex-1 overflow-y-auto p-3">
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">Team Members</p>
+                      <div className="space-y-1">
+                        {teamMembers.length === 0 ? (
+                          <p className="text-xs text-gray-400 px-1 py-2">No members</p>
+                        ) : (
+                          teamMembers.map((tm: any) => (
+                            <div key={tm.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                                {tm.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <p className="text-xs font-semibold text-gray-900 truncate">{tm.profile?.full_name || 'Unknown'}</p>
+                                <p className="text-[10px] text-gray-500 capitalize">{tm.role}</p>
+                              </div>
+                              {tm.role === 'owner' && <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                            </div>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex flex-col items-center justify-center p-6 text-center">
+                    <div className="w-14 h-14 rounded-2xl bg-gray-100 flex items-center justify-center mb-3">
+                      <Building2 className="w-7 h-7 text-gray-300" />
+                    </div>
+                    <p className="font-semibold text-gray-700 text-sm mb-1">No Company</p>
+                    <p className="text-xs text-gray-400 mb-4 leading-relaxed">Create or claim your company to unlock team channels and free internal messaging.</p>
+                    <Link href="/companies/create"
+                      className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white text-xs font-semibold rounded-lg transition-colors">
+                      <Building2 className="w-3.5 h-3.5" /> Create Company
+                    </Link>
+                    <Link href="/companies"
+                      className="inline-flex items-center gap-1.5 mt-2 text-xs text-[#003D82] hover:underline">
+                      <Search className="w-3 h-3" /> Claim Existing
+                    </Link>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
         </div>
@@ -546,43 +860,159 @@ function MessagesPageInner() {
       <AnimatePresence>
         {showNewConvModal && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4" onClick={() => setShowNewConvModal(false)}>
-            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[80vh] overflow-hidden" onClick={e => e.stopPropagation()}>
-              <div className="p-5 border-b border-gray-100 flex items-center justify-between">
-                <h3 className="text-xl font-bold text-gray-900">New Message</h3>
-                <button onClick={() => setShowNewConvModal(false)} className="p-2 hover:bg-gray-100 rounded-lg transition-colors"><X className="w-5 h-5" /></button>
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900">New Direct Message</h3>
+                <p className="text-gray-500 text-sm mt-0.5">Connect with someone new</p>
               </div>
-              <div className="p-4 border-b border-gray-100">
-                <div className="relative">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                  <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search engineers or clients..." autoFocus
-                    className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Search by name or email</label>
+                  <div className="relative mt-1">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
+                      placeholder="Enter name or email..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                  </div>
+                </div>
+                {searchQuery.length >= 2 && (
+                  <div className="max-h-60 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                    {isSearching ? (
+                      <div className="flex justify-center py-3"><Loader className="w-4 h-4 text-[#003D82] animate-spin" /></div>
+                    ) : searchResults.length === 0 ? (
+                      <p className="text-center text-xs text-gray-400 py-3">No users found</p>
+                    ) : (
+                      searchResults.map(u => (
+                        <button key={u.id} type="button" onClick={() => startConversation(u)}
+                          className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left">
+                          <Avatar user={u} size="sm" />
+                          <div className="min-w-0">
+                            <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
+                            <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                          </div>
+                        </button>
+                      ))
+                    )}
+                  </div>
+                )}
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => setShowNewConvModal(false)}
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={() => { setSearchQuery(''); setShowNewConvModal(false); }}
+                    className="flex-1 px-4 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg transition-all">
+                    <Plus className="w-4 h-4" /> New Message
+                  </button>
                 </div>
               </div>
-              <div className="p-4 overflow-y-auto max-h-80">
-                {isSearching ? <div className="flex justify-center py-8"><Loader className="w-6 h-6 text-[#003D82] animate-spin" /></div>
-                  : searchResults.length === 0 ? (
-                    <div className="text-center py-8 text-gray-400">
-                      <User className="w-10 h-10 mx-auto mb-3 text-gray-200" />
-                      <p className="text-sm">{searchQuery.length >= 2 ? 'No users found' : 'Start typing to search'}</p>
-                    </div>
-                  ) : (
-                    <div className="space-y-2">
-                      {searchResults.map(u => (
-                        <motion.button key={u.id} onClick={() => startConversation(u)} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                          className="w-full p-3 border border-gray-200 rounded-xl hover:border-[#003D82] hover:bg-blue-50 transition-all text-left">
-                          <div className="flex items-center gap-3">
-                            <Avatar user={u} size="md" />
-                            <div>
-                              <p className="font-semibold text-gray-900 text-sm">{u.full_name}</p>
-                              <p className="text-xs text-gray-500">{u.email}</p>
-                              <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs rounded font-medium">{u.user_type === 'engineer' ? 'Engineer' : 'Client'}</span>
-                            </div>
-                          </div>
-                        </motion.button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Create Channel Modal */}
+      <AnimatePresence>
+        {showCreateChannelModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="p-6 border-b border-gray-100">
+                <h3 className="text-xl font-bold text-gray-900">Create a New Channel</h3>
+                <p className="text-gray-500 text-sm mt-0.5">Channels are for group messaging.</p>
+              </div>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Channel Name</label>
+                  <input type="text" value={newChannelName} onChange={e => setNewChannelName(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Description</label>
+                  <textarea value={newChannelDesc} onChange={e => setNewChannelDesc(e.target.value)}
+                    className="mt-1 block w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm resize-none" rows={3} />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">Channel Type</label>
+                  <div className="mt-1 flex gap-2">
+                    <button type="button" onClick={() => setNewChannelType('channel')}
+                      className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${newChannelType === 'channel' ? 'bg-[#003D82] text-white' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}>
+                      <Hash className="w-4 h-4" /> Channel
+                    </button>
+                    <button type="button" onClick={() => setNewChannelType('group')}
+                      className={`flex-1 px-4 py-2 rounded-lg font-semibold transition-all flex items-center justify-center gap-2 ${newChannelType === 'group' ? 'bg-[#003D82] text-white' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}>
+                      <Users className="w-4 h-4" /> Group
+                    </button>
+                  </div>
+                </div>
+                {newChannelType === 'channel' && (
+                  <div className="flex items-center gap-2">
+                    <input type="checkbox" id="publicChannel" checked={newChannelPublic} onChange={e => setNewChannelPublic(e.target.checked)}
+                      className="w-4 h-4 text-[#003D82] border-gray-300 rounded focus:ring-2 focus:ring-[#003D82]/30" />
+                    <label htmlFor="publicChannel" className="text-sm text-gray-700 cursor-pointer">Make this channel public</label>
+                  </div>
+                )}
+                <div>
+                  <label className="block text-sm font-medium text-gray-700">
+                    {newChannelType === 'group' ? 'Add Members' : 'Invite Members (optional)'}
+                  </label>
+                  {selectedMembers.length > 0 && (
+                    <div className="mt-2 flex flex-wrap gap-2">
+                      {selectedMembers.map(m => (
+                        <span key={m.id} className="inline-flex items-center gap-1.5 pl-1 pr-2 py-1 bg-blue-50 border border-blue-200 rounded-full text-xs font-medium text-[#003D82]">
+                          <Avatar user={m} size="sm" />{m.full_name}
+                          <button type="button" onClick={() => setSelectedMembers(prev => prev.filter(x => x.id !== m.id))} className="hover:text-red-500"><X className="w-3 h-3" /></button>
+                        </span>
                       ))}
                     </div>
-                  )
-                }
+                  )}
+                  <div className="relative mt-2">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="text" value={memberSearchQuery} onChange={e => setMemberSearchQuery(e.target.value)}
+                      placeholder="Search by name..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                  </div>
+                  {memberSearchQuery.length >= 2 && (
+                    <div className="mt-1 max-h-40 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                      {isMemberSearching ? (
+                        <div className="flex justify-center py-3"><Loader className="w-4 h-4 text-[#003D82] animate-spin" /></div>
+                      ) : memberSearchResults.length === 0 ? (
+                        <p className="text-center text-xs text-gray-400 py-3">No users found</p>
+                      ) : (
+                        memberSearchResults.map(u => (
+                          <button key={u.id} type="button" onClick={() => toggleSelectedMember(u)}
+                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left">
+                            <Avatar user={u} size="sm" />
+                            <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p><p className="text-xs text-gray-500 truncate">{u.email}</p></div>
+                          </button>
+                        ))
+                      )}
+                    </div>
+                  )}
+                </div>
+                <div className="flex gap-3 pt-2">
+                  <button type="button" onClick={() => { setShowCreateChannelModal(false); setSelectedMembers([]); setMemberSearchQuery(''); }}
+                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={async () => {
+                    if (!newChannelName.trim()) { toast.error('Channel name is required'); return; }
+                    const supabase = createClient();
+                    const { data: newConvData, error } = await supabase.from('user_conversations').insert({
+                      conversation_type: newChannelType, name: newChannelName.trim(), description: newChannelDesc.trim(),
+                      is_public: newChannelType === 'group' ? false : newChannelPublic, created_at: new Date().toISOString(), last_message_at: new Date().toISOString(),
+                    }).select().single();
+                    if (error) { toast.error('Failed to create channel'); return; }
+                    const participantRows = [
+                      { conversation_id: newConvData.id, user_id: currentUserId, role: 'owner' },
+                      ...selectedMembers.map(m => ({ conversation_id: newConvData.id, user_id: m.id, role: 'member' })),
+                    ];
+                    await supabase.from('conversation_participants').insert(participantRows);
+                    const newConv = { ...(newConvData as any), other_user: null, unread_count: 0 } as Conversation;
+                    if (newChannelType === 'channel') setChannels(prev => [...prev, newConv]);
+                    else setGroups(prev => [...prev, newConv]);
+                    setShowCreateChannelModal(false);
+                    setNewChannelName(''); setNewChannelDesc(''); setNewChannelType('channel'); setNewChannelPublic(true);
+                    setSelectedMembers([]); setMemberSearchQuery('');
+                    toast.success(newChannelType === 'group' ? `Group created with ${selectedMembers.length + 1} member${selectedMembers.length ? 's' : ''}` : 'Channel created successfully');
+                  }} className="flex-1 px-4 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg transition-all">
+                    <Plus className="w-4 h-4" /> Create {newChannelType === 'group' ? 'Group' : 'Channel'}
+                  </button>
+                </div>
               </div>
             </motion.div>
           </motion.div>
@@ -594,9 +1024,58 @@ function MessagesPageInner() {
   );
 }
 
+function SidebarSection({ title, icon, items, collapsed, onToggle, selectedId, currentUserId, onSelect, filter }: {
+  title: string; icon: React.ReactNode; items: Conversation[]; collapsed: boolean; onToggle: () => void;
+  selectedId?: string | null; currentUserId: string | null; onSelect: (c: Conversation) => void; filter: string;
+}) {
+  const filtered = items.filter(c => {
+    if (!filter) return true;
+    const q = filter.toLowerCase();
+    return (c.name?.toLowerCase().includes(q)) || (c.other_user?.full_name?.toLowerCase().includes(q));
+  });
+  return (
+    <div className="border-b border-gray-100 last:border-b-0">
+      <button onClick={onToggle} className="w-full flex items-center gap-2 px-3 py-2 hover:bg-gray-100 transition-colors text-left">
+        {collapsed ? <ChevronRight className="w-3 h-3 text-gray-400" /> : <ChevronDown className="w-3 h-3 text-gray-400" />}
+        <span className="text-gray-400">{icon}</span>
+        <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{title}</span>
+        <span className="ml-auto text-[10px] text-gray-400">{filtered.length}</span>
+      </button>
+      {!collapsed && (
+        <div className="pb-1">
+          {filtered.length === 0 ? (
+            <p className="text-xs text-gray-400 px-6 py-2">No {title.toLowerCase()}</p>
+          ) : (
+            filtered.map(c => (
+              <motion.button key={c.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
+                onClick={() => onSelect(c)}
+                className={`w-full flex items-center gap-2 px-4 py-1.5 text-left transition-all ${selectedId === c.id ? 'bg-[#003D82] text-white' : 'hover:bg-gray-100 text-gray-700'}`}>
+                {c.conversation_type === 'direct' ? (
+                  <Avatar user={c.other_user} size="sm" />
+                ) : (
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0 ${selectedId === c.id ? 'bg-white/20' : 'bg-[#003D82]/10'}`}>
+                    {c.conversation_type === 'channel' ? <Hash className="w-3.5 h-3.5 text-[#003D82]" /> : <Users className="w-3.5 h-3.5 text-[#003D82]" />}
+                  </div>
+                )}
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-semibold truncate">{c.conversation_type === 'direct' ? c.other_user?.full_name : c.name || 'Unnamed'}</p>
+                  {c.last_message && <p className="text-[10px] text-gray-400 truncate">{c.last_message.content}</p>}
+                </div>
+                {c.unread_count > 0 && (
+                  <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${selectedId === c.id ? 'bg-white/20 text-white' : 'bg-[#003D82] text-white'}`}>{c.unread_count}</span>
+                )}
+              </motion.button>
+            ))
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function MessagesPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader className="w-8 h-8 animate-spin text-[#003D82]" /></div>}>
+    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader className="w-8 h-8 text-[#003D82] animate-spin" /></div>}>
       <MessagesPageInner />
     </Suspense>
   );

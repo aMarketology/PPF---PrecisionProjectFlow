@@ -5,13 +5,10 @@ import { sendNewMessageEmail } from '@/lib/email';
 export const dynamic = 'force-dynamic';
 
 // POST /api/messages/send
-// Token model (v2 — unlock-based):
-//   FREE   — conversation is_unlocked = true (already paid the one-time fee)
-//   FREE   — conversation is_contracted = true (under contract)
-//   FREE   — users are friends (are_friends RPC)
-//   FREE   — users share the same company_id (same_company RPC)
-//   LOCKED — otherwise. Client must call /api/messages/unlock first (100 tokens).
-// Body: { conversationId: string, content: string, attachmentUrl?: string, attachmentName?: string, attachmentType?: string }
+// Works for all conversation types: direct, group, channel.
+// DMs: FREE if is_unlocked = true. LOCKED (402) otherwise.
+// Groups/Channels: always FREE for members.
+// Body: { conversationId, content, attachmentUrl?, attachmentName?, attachmentType? }
 export async function POST(request: NextRequest) {
   try {
     const { conversationId, content, attachmentUrl, attachmentName, attachmentType } = await request.json();
@@ -29,37 +26,60 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Verify user is a participant in this conversation
+    // Fetch conversation with type info
     const { data: conv, error: convError } = await supabase
       .from('user_conversations')
-      .select('id, participant_one_id, participant_two_id, is_contracted, is_unlocked')
+      .select('id, participant_one_id, participant_two_id, is_unlocked, conversation_type')
       .eq('id', conversationId)
-      .or(`participant_one_id.eq.${user.id},participant_two_id.eq.${user.id}`)
       .single();
 
     if (convError || !conv) {
+      console.error('[send] conversation lookup failed:', convError?.message);
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
     }
 
-    // Determine the other user
-    const otherUserId = conv.participant_one_id === user.id
-      ? conv.participant_two_id
-      : conv.participant_one_id;
+    // Verify the caller is a participant
+    let isParticipant = false;
+    let otherUserId: string | null = null;
 
-    const isUnlocked   = conv.is_unlocked   ?? false;
-    const isContracted = conv.is_contracted ?? false;
+    if (conv.conversation_type === 'direct') {
+      isParticipant = conv.participant_one_id === user.id || conv.participant_two_id === user.id;
+      otherUserId = conv.participant_one_id === user.id ? conv.participant_two_id : conv.participant_one_id;
+    } else {
+      // Group/Channel — check conversation_participants
+      const { data: membership } = await supabase
+        .from('conversation_participants')
+        .select('id')
+        .eq('conversation_id', conversationId)
+        .eq('user_id', user.id)
+        .maybeSingle();
+      isParticipant = !!membership;
+    }
 
-    // Check friends / same company in parallel
-    const [{ data: friendCheck }, { data: companyCheck }] = await Promise.all([
-      supabase.rpc('are_friends',   { user_a: user.id, user_b: otherUserId }),
-      supabase.rpc('same_company',  { user_a: user.id, user_b: otherUserId }),
-    ]);
-    const areFriends    = friendCheck  === true;
-    const isSameCompany = companyCheck === true;
+    if (!isParticipant) {
+      return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
 
-    const isFree = isUnlocked || isContracted || areFriends || isSameCompany;
+    // Determine if the thread is free to message
+    const isGroupOrChannel = conv.conversation_type === 'group' || conv.conversation_type === 'channel';
+    let isFree = isGroupOrChannel; // groups & channels are always free
 
-    // If thread is locked, tell the client — they must unlock first
+    if (!isFree) {
+      // Direct message — check unlock status
+      const isUnlocked = conv.is_unlocked ?? false;
+      let areFriends = false;
+      let isSameCompany = false;
+      try {
+        const { data } = await supabase.rpc('are_friends', { user_a: user.id, user_b: otherUserId });
+        areFriends = data === true;
+      } catch {}
+      try {
+        const { data } = await supabase.rpc('same_company', { user_a: user.id, user_b: otherUserId });
+        isSameCompany = data === true;
+      } catch {}
+      isFree = isUnlocked || areFriends || isSameCompany;
+    }
+
     if (!isFree) {
       return NextResponse.json(
         { error: 'conversation_locked', unlockCost: 100 },
@@ -89,30 +109,36 @@ export async function POST(request: NextRequest) {
       .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
 
-    // Fire-and-forget: notify the recipient by email
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, email')
-      .in('id', [user.id, otherUserId]);
+    // Email notification (direct messages only)
+    if (conv.conversation_type === 'direct' && otherUserId) {
+      try {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, email')
+          .in('id', [user.id, otherUserId]);
 
-    if (profiles && profiles.length === 2) {
-      const sender    = profiles.find((p: any) => p.id === user.id);
-      const recipient = profiles.find((p: any) => p.id === otherUserId);
-      if (sender && recipient) {
-        sendNewMessageEmail({
-          to:            recipient.email,
-          recipientName: recipient.full_name,
-          senderName:    sender.full_name,
-          preview:       content?.trim() ?? '[attachment]',
-          conversationId,
-        }).catch(err => console.error('[email] new-message failed:', err));
+        if (profiles && profiles.length === 2) {
+          const sender    = profiles.find((p: any) => p.id === user.id);
+          const recipient = profiles.find((p: any) => p.id === otherUserId);
+          if (sender && recipient) {
+            sendNewMessageEmail({
+              to:            recipient.email,
+              recipientName: recipient.full_name,
+              senderName:    sender.full_name,
+              preview:       content?.trim() ?? '[attachment]',
+              conversationId,
+            }).catch(err => console.error('[email] new-message failed:', err));
+          }
+        }
+      } catch (emailErr) {
+        console.error('[send] email notification failed:', emailErr);
       }
     }
 
     return NextResponse.json({
       message,
       free: true,
-      reason: isContracted ? 'contracted' : areFriends ? 'friends' : isSameCompany ? 'same_company' : 'unlocked',
+      reason: isGroupOrChannel ? 'channel' : 'unlocked',
     });
 
   } catch (error: any) {
