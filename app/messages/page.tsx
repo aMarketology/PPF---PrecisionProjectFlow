@@ -198,17 +198,21 @@ function MessagesPageInner() {
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) { router.push('/login'); return; }
-      setCurrentUserId(user.id);
+
+      // Fetch profile FIRST so we can set both id and company_id together
       const { data: profile } = await supabase.from('profiles').select('token_balance, company_id').eq('id', user.id).single();
       if (profile) {
         setTokenBalance(profile.token_balance ?? 0);
         if (profile.company_id) {
           setUserCompanyId(profile.company_id);
-          // Fetch company name
           const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', profile.company_id).single();
           if (comp) setUserCompanyName(comp.company_name);
         }
       }
+
+      // NOW set currentUserId — this will trigger loadConversations with company_id already in state
+      setCurrentUserId(user.id);
+
       setTokenPacks([
         { id: 'starter', name: 'Starter', tokens: 100, price_cents: 1000, unlocks: 1 },
         { id: 'pro', name: 'Pro', tokens: 500, price_cents: 4500, unlocks: 5 },
@@ -1008,7 +1012,7 @@ function MessagesPageInner() {
                     setShowCreateChannelModal(false);
                     setNewChannelName(''); setNewChannelDesc(''); setNewChannelType('channel'); setNewChannelPublic(true);
                     setSelectedMembers([]); setMemberSearchQuery('');
-                    toast.success(newChannelType === 'group' ? `Group created with ${selectedMembers.length + 1} member${selectedMembers.length ? 's' : ''}` : 'Channel created successfully');
+                    toast.success(newChannelType === 'group' ? 'Group created!' : 'Channel created!');
                   }} className="flex-1 px-4 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg transition-all">
                     <Plus className="w-4 h-4" /> Create {newChannelType === 'group' ? 'Group' : 'Channel'}
                   </button>
