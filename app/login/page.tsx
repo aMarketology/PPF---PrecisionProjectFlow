@@ -43,9 +43,11 @@ export default function LoginPage() {
             .eq('id', user.id)
             .single();
           if (profile?.user_type === 'engineer') {
+            router.push('/feed');
+          } else if (profile?.user_type === 'client') {
             router.push('/dashboard/engineer');
           } else {
-            router.push('/dashboard/client');
+            router.push('/feed');
           }
         } else {
           router.push('/');
