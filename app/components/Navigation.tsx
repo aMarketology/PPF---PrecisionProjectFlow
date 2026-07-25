@@ -150,54 +150,48 @@ export default function Navigation() {
     <motion.nav
       initial={{ y: -100 }}
       animate={{ y: 0 }}
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        scrolled
-          ? 'bg-white/90 backdrop-blur-lg shadow-lg'
-          : 'bg-transparent'
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-white border-b border-gray-100 ${
+        scrolled ? 'shadow-sm' : ''
       }`}
     >
-      <div className="max-w-7xl mx-auto px-4 py-4">
-        <div className="flex justify-between items-center">
-          <Link href="/" className="flex-shrink-0">
-            <motion.div
-              whileHover={{ scale: 1.05 }}
-              className="flex items-center"
-            >
-              <Image
-                src="/Precision Project Flow Engineering Marketplace.png"
-                alt="Precision Project Flow"
-                width={120}
-                height={120}
-                className="h-16 w-auto"
-              />
-            </motion.div>
-          </Link>
-
-          {/* Desktop Menu */}
-          <div className="hidden md:flex gap-6 items-center">
-            {['Home', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ', 'Contact'].map((item, index) => (
-              <motion.div
-                key={item}
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.1 }}
-              >
-                <Link
-                  href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
-                  className={`font-medium transition-colors relative group ${
-                    scrolled
-                      ? 'text-gray-900 hover:text-blue-600'
-                      : 'text-white hover:text-blue-100'
-                  }`}
-                >
-                  {item}
-                  <span className={`absolute -bottom-1 left-0 w-0 h-0.5 transition-all group-hover:w-full ${
-                    scrolled ? 'bg-blue-600' : 'bg-white'
-                  }`} />
-                </Link>
+      <div className="max-w-7xl mx-auto px-4 sm:px-6">
+        <div className="flex items-center justify-between h-16">
+          {/* Left: Logo + Nav Links together */}
+          <div className="flex items-center gap-2 flex-1 min-w-0">
+            <Link href="/" className="flex-shrink-0 mr-1">
+              <motion.div whileHover={{ scale: 1.05 }} className="flex items-center">
+                <Image
+                  src="/Precision Project Flow Engineering Marketplace.png"
+                  alt="Precision Project Flow"
+                  width={90}
+                  height={36}
+                  className="h-9 w-auto"
+                />
               </motion.div>
-            ))}
+            </Link>
 
+            {/* Desktop Menu */}
+            <div className="hidden md:flex items-center gap-0.5">
+              {['Home', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ', 'Contact'].map((item, index) => (
+                <motion.div
+                  key={item}
+                  initial={{ opacity: 0, y: -20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: index * 0.03 }}
+                >
+                  <Link
+                    href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
+                    className="px-2.5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-[#003D82] hover:bg-blue-50 whitespace-nowrap"
+                  >
+                    {item}
+                  </Link>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+
+          {/* Right: Search + User */}
+          <div className="flex items-center gap-1 flex-shrink-0">
             {/* ── Search Bar ── */}
             <div ref={searchRef} className="relative">
               <AnimatePresence mode="wait">
@@ -319,7 +313,7 @@ export default function Navigation() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={openSearch}
-                    className={`p-2 rounded-lg hover:bg-white/20 transition-colors ${scrolled ? 'text-gray-700' : 'text-white'}`}
+                    className={`p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500`}
                     title="Search"
                   >
                     <Search className="w-5 h-5" />
@@ -340,8 +334,8 @@ export default function Navigation() {
                 // Signed In - User Menu
                 <>
                   {/* Notification Bell */}
-                  <Link href="/messages" className="relative p-2 rounded-lg hover:bg-white/20 transition-colors mr-1" title="Messages">
-                    <Bell className={`w-5 h-5 ${scrolled ? 'text-gray-700' : 'text-white'}`} />
+                  <Link href="/messages" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Messages">
+                    <Bell className="w-5 h-5 text-gray-500" />
                     <AnimatePresence>
                       {unreadCount > 0 && (
                         <motion.span
@@ -359,15 +353,15 @@ export default function Navigation() {
 
                   <motion.button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-semibold px-4 py-2 rounded-lg transition-all"
+                    className="flex items-center gap-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-medium text-sm px-3 py-1.5 rounded-lg transition-all"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
-                    <div className="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-blue-600 flex items-center justify-center text-white text-sm font-bold">
+                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
                       {user.profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
-                    <span>{user.profile?.full_name || 'User'}</span>
-                    <ChevronDown className={`h-4 w-4 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                    <span className="truncate max-w-[100px]">{user.profile?.full_name || 'User'}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </motion.button>
 
                   <AnimatePresence>
@@ -378,11 +372,23 @@ export default function Navigation() {
                         exit={{ opacity: 0, y: 10 }}
                         className="absolute right-0 mt-2 w-56 bg-white border border-gray-200 rounded-xl shadow-xl overflow-hidden"
                       >
-                        <div className="p-3 bg-gradient-to-br from-blue-50 to-slate-50 border-b border-gray-200">
-                          <p className="font-semibold text-gray-900">{user.profile?.full_name || 'User'}</p>
-                          <p className="text-sm text-gray-600">{user.email}</p>
-                          <span className="inline-block mt-1 px-2 py-0.5 bg-blue-100 text-blue-700 text-xs font-medium rounded">
-                            {user.profile?.user_type === 'engineer' ? 'Engineer' : 'Client'}
+                        <div className="p-4 bg-gradient-to-br from-blue-50 to-slate-50 border-b border-gray-200">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm flex-shrink-0">
+                              {user.profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-bold text-gray-900 text-sm truncate">{user.profile?.full_name || 'User'}</p>
+                              {user.profile?.company_name && (
+                                <p className="text-xs text-gray-500 truncate flex items-center gap-1">
+                                  {user.profile.company_name}
+                                </p>
+                              )}
+                              <p className="text-[11px] text-gray-400 truncate">{user.email}</p>
+                            </div>
+                          </div>
+                          <span className="inline-block mt-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-semibold rounded">
+                            {user.profile?.user_type === 'engineer' ? 'Vendor' : 'Supplier'}
                           </span>
                         </div>
                         <div className="py-2">
@@ -452,24 +458,24 @@ export default function Navigation() {
                 </>
               ) : (
                 // Signed Out - Get Started & Log In Buttons
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2">
                   <Link href="/get-started">
                     <motion.button
-                      className="flex items-center gap-2 bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-semibold px-6 py-2.5 rounded-lg transition-all shadow-md hover:shadow-lg"
+                      className="flex items-center gap-1.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold text-sm px-4 py-2 rounded-lg transition-all shadow-sm"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span>Get Started</span>
+                      Get Started
                     </motion.button>
                   </Link>
 
                   <Link href="/login">
                     <motion.button
-                      className="flex items-center gap-2 bg-white border-2 border-gray-200 hover:border-blue-500 text-gray-900 font-semibold px-6 py-2.5 rounded-lg transition-all"
+                      className="flex items-center gap-1.5 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold text-sm px-4 py-2 rounded-lg transition-all"
                       whileHover={{ scale: 1.02 }}
                       whileTap={{ scale: 0.98 }}
                     >
-                      <span>Log In</span>
+                      Log In
                     </motion.button>
                   </Link>
                 </div>
