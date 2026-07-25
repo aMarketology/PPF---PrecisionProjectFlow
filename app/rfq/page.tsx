@@ -17,6 +17,7 @@ import {
 
 interface RFQ {
   id: string;
+  slug?: string | null;
   client_id: string;
   title: string;
   category: string;
@@ -319,7 +320,7 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply }: { rfq: RFQ; i: number
               <span className="text-xs text-gray-400">{rfq.client?.company_name ? '' : ''}</span>
               <span className="flex items-center gap-1 text-[10px] text-gray-400"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(rfq.created_at), { addSuffix: true })}</span>
             </div>
-            <Link href={`/rfq/${rfq.id}`}>
+            <Link href={`/rfq/${rfq.slug || rfq.id}`}>
               <h3 className="font-bold text-gray-900 text-base hover:text-[#003D82] transition-colors">{rfq.title}</h3>
             </Link>
             <p className="text-sm text-gray-600 mt-1 leading-relaxed line-clamp-2">{rfq.description}</p>
@@ -357,7 +358,7 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply }: { rfq: RFQ; i: number
               </div>
             )}
             <div className="flex gap-1.5">
-              <Link href={`/rfq/${rfq.id}`}
+              <Link href={`/rfq/${rfq.slug || rfq.id}`}
                 className="px-3 py-1.5 text-xs font-semibold text-[#003D82] border border-gray-200 hover:bg-blue-50 rounded-lg transition-colors">
                 Details
               </Link>

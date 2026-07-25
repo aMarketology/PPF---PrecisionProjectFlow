@@ -54,6 +54,7 @@ export default function CreateRFQPage() {
   const [submitted, setSubmitted] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [rfqId, setRfqId] = useState<string | null>(null)
+  const [rfqSlug, setRfqSlug] = useState<string | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target
@@ -99,14 +100,18 @@ export default function CreateRFQPage() {
           budget: formData.budget || null,
           timeline: formData.timeline || null,
           location: formData.location || null,
+          slug: formData.title.toLowerCase()
+            .replace(/[^a-z0-9]+/g, '-')
+            .replace(/^-|-$/g, '') + '-' + crypto.randomUUID().substring(0, 8),
           status: 'open',
         })
-        .select('id')
+        .select('id, slug')
         .single()
 
       if (error) throw error
 
       setRfqId(data.id)
+      setRfqSlug(data.slug)
       setSubmitted(true)
       toast.success('RFQ submitted successfully!')
 
@@ -177,6 +182,18 @@ export default function CreateRFQPage() {
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl transition-all"
               >
                 Browse Engineers
+              </Link>
+              <Link
+                href={`/rfq/${rfqSlug || rfqId}`}
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all"
+              >
+                View Your RFQ <FileText className="w-4 h-4" />
+              </Link>
+              <Link
+                href="/rfq"
+                className="inline-flex items-center justify-center gap-2 px-6 py-3 border border-gray-200 text-gray-700 font-semibold rounded-xl hover:bg-gray-50 transition-all"
+              >
+                Browse RFQ Marketplace
               </Link>
             </div>
           </motion.div>

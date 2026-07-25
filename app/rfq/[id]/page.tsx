@@ -54,7 +54,15 @@ export default function RFQDetailPage() {
   const loadRFQ = async () => {
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.from('rfqs').select('*').eq('id', rfqId).single();
+      // Try fetching by UUID first, then fall back to slug
+      const isUuid = rfqId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+      let query = supabase.from('rfqs').select('*');
+      if (isUuid) {
+        query = query.eq('id', rfqId);
+      } else {
+        query = query.eq('slug', rfqId);
+      }
+      const { data, error } = await query.single();
       if (error || !data) { toast.error('RFQ not found'); router.push('/rfq'); return; }
 
       const { data: prof } = await supabase.from('profiles')
