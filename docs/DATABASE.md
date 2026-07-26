@@ -1,175 +1,346 @@
-# 🚀 DATABASE RESET & SETUP GUIDE
+# PPF Database Schema (Updated July 25, 2026)# 🚀 DATABASE RESET & SETUP GUIDE
 
-## Quick Setup (30 minutes)
 
-You have **4 SQL files** ready to run in order:
 
-```
+> **Supabase Project:** `ifrxzmemiihxfdimwvcw`## Quick Setup (30 minutes)
+
+
+
+---You have **4 SQL files** ready to run in order:
+
+
+
+## Core Tables```
+
 /sql/
-  000_reset_database.sql    ← Clean slate
-  001_create_tables.sql     ← 6 core tables only
-  002_enable_rls.sql        ← Security policies
-  003_seed_vendors.sql      ← 16 vendors, 56 products
-```
 
----
+### profiles  000_reset_database.sql    ← Clean slate
 
-## Step 1: Reset Database (2 min)
+| Column | Type | Notes |  001_create_tables.sql     ← 6 core tables only
 
-**⚠️ WARNING: This deletes ALL existing data!**
+|---|---|---|  002_enable_rls.sql        ← Security policies
 
-1. Go to Supabase Dashboard → SQL Editor
-2. Copy contents of `sql/000_reset_database.sql`
-3. Paste and run
+| id | UUID | PK, FK to auth.users |  003_seed_vendors.sql      ← 16 vendors, 56 products
+
+| email | TEXT | Unique |```
+
+| full_name | TEXT | |
+
+| avatar_url | TEXT | |---
+
+| phone | TEXT | |
+
+| bio | TEXT | |## Step 1: Reset Database (2 min)
+
+| user_type | TEXT | 'engineer' (vendor) or 'client' (supplier) |
+
+| location | TEXT | |**⚠️ WARNING: This deletes ALL existing data!**
+
+| company_id | UUID | FK to company_profiles |
+
+| token_balance | INTEGER | $ProjectFlow token wallet |1. Go to Supabase Dashboard → SQL Editor
+
+| is_admin | BOOLEAN | |2. Copy contents of `sql/000_reset_database.sql`
+
+| created_at | TIMESTAMPTZ | |3. Paste and run
+
+| updated_at | TIMESTAMPTZ | |
 
 **Expected result:** All tables dropped cleanly
 
----
+### company_profiles
 
-## Step 2: Create Tables (3 min)
+| Column | Type | Notes |---
 
-**Two options:**
+|---|---|---|
 
-### Option A: All at Once (Recommended)
-1. Copy contents of `sql/001_create_all_tables.sql`
-2. Paste in SQL Editor and run
+| id | UUID | PK |## Step 2: Create Tables (3 min)
 
-### Option B: One at a Time
-Run each file in `sql/tables/` in order:
-1. `001_profiles.sql`
-2. `002_company_profiles.sql`
-3. `003_products.sql`
-4. `004_product_orders.sql`
-5. `005_stripe_connect_accounts.sql`
-6. `006_conversations.sql`
+| owner_id | UUID | FK to auth.users |
+
+| company_name | TEXT | |**Two options:**
+
+| slug | TEXT | Unique URL slug |
+
+| description | TEXT | |### Option A: All at Once (Recommended)
+
+| industry | TEXT | |1. Copy contents of `sql/001_create_all_tables.sql`
+
+| email | TEXT | |2. Paste in SQL Editor and run
+
+| phone | TEXT | |
+
+| website | TEXT | |### Option B: One at a Time
+
+| city | TEXT | |Run each file in `sql/tables/` in order:
+
+| state | TEXT | |1. `001_profiles.sql`
+
+| specialties | TEXT[] | Array of capability tags |2. `002_company_profiles.sql`
+
+| is_verified | BOOLEAN | |3. `003_products.sql`
+
+| logo_url | TEXT | |4. `004_product_orders.sql`
+
+| created_at | TIMESTAMPTZ | |5. `005_stripe_connect_accounts.sql`
+
+| updated_at | TIMESTAMPTZ | |6. `006_conversations.sql`
+
 7. `007_conversation_participants.sql`
-8. `008_messages.sql`
 
-**Expected result:** 8 tables created:
-- ✅ profiles
-- ✅ company_profiles
-- ✅ products
-- ✅ product_orders
-- ✅ stripe_connect_accounts
-- ✅ conversations
-- ✅ conversation_participants
-- ✅ messages
+### company_members8. `008_messages.sql`
 
-**Verify:**
+| Column | Type | Notes |
+
+|---|---|---|**Expected result:** 8 tables created:
+
+| id | UUID | PK |- ✅ profiles
+
+| company_id | UUID | FK to company_profiles |- ✅ company_profiles
+
+| user_id | UUID | FK to auth.users |- ✅ products
+
+| role | TEXT | 'owner' / 'admin' / 'member' |- ✅ product_orders
+
+| status | TEXT | 'active' / 'invited' / 'removed' |- ✅ stripe_connect_accounts
+
+| invited_by | UUID | FK to auth.users |- ✅ conversations
+
+| created_at | TIMESTAMPTZ | |- ✅ conversation_participants
+
+| updated_at | TIMESTAMPTZ | |- ✅ messages
+
+
+
+---**Verify:**
+
 ```sql
-SELECT table_name FROM information_schema.tables 
+
+## Messaging TablesSELECT table_name FROM information_schema.tables 
+
 WHERE table_schema = 'public' 
-ORDER BY table_name;
-```
 
----
+### user_conversationsORDER BY table_name;
 
-## Step 3: Enable Security (5 min)
+| Column | Type | Notes |```
 
-1. Copy contents of `sql/002_enable_rls.sql`
-2. Paste and run
+|---|---|---|
 
-**Expected result:** RLS enabled on all tables with policies
+| id | UUID | PK |---
 
-**Verify:**
-```sql
-SELECT tablename, rowsecurity 
+| participant_one_id | UUID | Nullable (direct only) |
+
+| participant_two_id | UUID | Nullable (direct only) |## Step 3: Enable Security (5 min)
+
+| conversation_type | TEXT | 'direct' / 'group' / 'channel' |
+
+| name | TEXT | Channel/group name |1. Copy contents of `sql/002_enable_rls.sql`
+
+| description | TEXT | |2. Paste and run
+
+| is_public | BOOLEAN | |
+
+| company_id | UUID | FK to company_profiles |**Expected result:** RLS enabled on all tables with policies
+
+| is_unlocked | BOOLEAN | |
+
+| created_by | UUID | |**Verify:**
+
+| created_at | TIMESTAMPTZ | |```sql
+
+| last_message_at | TIMESTAMPTZ | |SELECT tablename, rowsecurity 
+
 FROM pg_tables 
-WHERE schemaname = 'public';
-```
-All should show `rowsecurity = true`
 
----
+### conversation_participantsWHERE schemaname = 'public';
 
-## Step 4: Load Vendors (10 min)
+| Column | Type | Notes |```
+
+|---|---|---|All should show `rowsecurity = true`
+
+| id | UUID | PK |
+
+| conversation_id | UUID | FK |---
+
+| user_id | UUID | FK |
+
+| role | TEXT | 'owner' / 'admin' / 'member' |## Step 4: Load Vendors (10 min)
+
+| joined_at | TIMESTAMPTZ | |
 
 1. Copy contents of `sql/003_seed_vendors.sql`
-2. Paste and run
 
-**Expected result:** 16 companies + 56 products loaded
+### user_messages2. Paste and run
 
-**Verify:**
-```sql
--- Should return 16
-SELECT COUNT(*) as companies FROM public.company_profiles;
+| Column | Type | Notes |
 
--- Should return 56
-SELECT COUNT(*) as products FROM public.products WHERE is_active = true;
+|---|---|---|**Expected result:** 16 companies + 56 products loaded
 
--- Check price range
-SELECT 
-    MIN(price)/100.0 as min_dollars,
-    MAX(price)/100.0 as max_dollars,
+| id | UUID | PK |
+
+| conversation_id | UUID | FK |**Verify:**
+
+| sender_id | UUID | FK |```sql
+
+| content | TEXT | |-- Should return 16
+
+| is_read | BOOLEAN | |SELECT COUNT(*) as companies FROM public.company_profiles;
+
+| is_system_message | BOOLEAN | |
+
+| is_paid | BOOLEAN | |-- Should return 56
+
+| payment_id | TEXT | |SELECT COUNT(*) as products FROM public.products WHERE is_active = true;
+
+| read_at | TIMESTAMPTZ | |
+
+| attachment_url | TEXT | |-- Check price range
+
+| attachment_name | TEXT | |SELECT 
+
+| attachment_type | TEXT | |    MIN(price)/100.0 as min_dollars,
+
+| created_at | TIMESTAMPTZ | |    MAX(price)/100.0 as max_dollars,
+
     COUNT(*) as total_products
-FROM public.products;
+
+---FROM public.products;
+
 ```
+
+## RFQ Tables
 
 **Expected output:**
-```
-companies: 16
-products: 56
-min_dollars: $55.00
-max_dollars: $8,500.00
-```
 
----
+### rfqs```
 
-## Step 5: Test Marketplace (10 min)
+| Column | Type | Notes |companies: 16
 
-1. **Start dev server:**
-   ```bash
-   npm run dev
+|---|---|---|products: 56
+
+| id | UUID | PK |min_dollars: $55.00
+
+| client_id | UUID | FK to profiles |max_dollars: $8,500.00
+
+| title | TEXT | |```
+
+| slug | TEXT | Clean URL (e.g. hvac-chiller-8ac9a281) |
+
+| category | TEXT | Engineering discipline |---
+
+| description | TEXT | |
+
+| quantity | TEXT | |## Step 5: Test Marketplace (10 min)
+
+| budget | TEXT | |
+
+| timeline | TEXT | |1. **Start dev server:**
+
+| location | TEXT | |   ```bash
+
+| attachment_urls | TEXT[] | |   npm run dev
+
+| status | TEXT | 'open' / 'in_review' / 'awarded' / 'closed' |   ```
+
+| created_at | TIMESTAMPTZ | |
+
+| updated_at | TIMESTAMPTZ | |2. **Visit marketplace:**
+
    ```
 
-2. **Visit marketplace:**
+---   http://localhost:3000/marketplace
+
    ```
-   http://localhost:3000/marketplace
-   ```
+
+## Activity Ledger
 
 3. **Expected:**
-   - ✅ 56 products displayed
-   - ✅ Prices showing correctly (e.g., "$459.00" not "45900")
-   - ✅ Categories: Motors & Drives, Pumps & Valves, HVAC, Electrical, etc.
-   - ✅ Company names visible
-   - ✅ Filter by category works
 
-4. **Click on a product:**
-   - Should navigate to `/profiles/[company_id]`
-   - Company banner displays
-   - Product list shows
-   - Contact sidebar visible
+### site_activities   - ✅ 56 products displayed
 
----
+| Column | Type | Notes |   - ✅ Prices showing correctly (e.g., "$459.00" not "45900")
 
-## Troubleshooting
+|---|---|---|   - ✅ Categories: Motors & Drives, Pumps & Valves, HVAC, Electrical, etc.
 
-### ❌ "Column does not exist" error
+| id | UUID | PK |   - ✅ Company names visible
+
+| activity_type | TEXT | 'rfq_posted' / 'rfq_awarded' / 'social_post_created' / 'order_placed' / 'company_joined' / 'team_member_added' |   - ✅ Filter by category works
+
+| actor_id | UUID | FK to auth.users |
+
+| target_type | TEXT | 'rfq' / 'order' / 'feed_post' / 'company' |4. **Click on a product:**
+
+| target_id | UUID | |   - Should navigate to `/profiles/[company_id]`
+
+| summary | TEXT | Human-readable description |   - Company banner displays
+
+| metadata | JSONB | Flexible payload |   - Product list shows
+
+| previous_hash | TEXT | SHA256 of previous row |   - Contact sidebar visible
+
+| row_hash | TEXT | SHA256(id + type + actor + previous_hash) |
+
+| created_at | TIMESTAMPTZ | |---
+
+
+
+---## Troubleshooting
+
+
+
+## Token Tables### ❌ "Column does not exist" error
+
 **Solution:** You didn't run scripts in order. Start over with 000_reset.
 
-### ❌ Prices showing as "45900" instead of "$459.00"
-**Solution:** Check `app/marketplace/page.tsx` price display:
-```typescript
-// Should be:
-${(product.price / 100).toFixed(2)}
+### token_transactions
 
-// NOT:
-${product.price}
-```
+| Column | Type | Notes |### ❌ Prices showing as "45900" instead of "$459.00"
 
-### ❌ No products showing
+|---|---|---|**Solution:** Check `app/marketplace/page.tsx` price display:
+
+| id | UUID | PK |```typescript
+
+| user_id | UUID | FK |// Should be:
+
+| amount | INTEGER | Positive=credit, negative=debit |${(product.price / 100).toFixed(2)}
+
+| description | TEXT | |
+
+| reference_id | UUID | |// NOT:
+
+| stripe_payment_id | TEXT | |${product.price}
+
+| created_at | TIMESTAMPTZ | |```
+
+
+
+---### ❌ No products showing
+
 **Check:**
-```sql
+
+## Migration Files (in supabase/)```sql
+
 SELECT COUNT(*) FROM products WHERE is_active = true;
-```
-If 0, re-run `003_seed_vendors.sql`
 
-### ❌ "Table already exists" error
-**Solution:** Run `000_reset_database.sql` first
+| File | Purpose |```
 
----
+|---|---|If 0, re-run `003_seed_vendors.sql`
 
-## What You Just Built
+| `PROJECTFLOW_TOKENS.sql` | Token ledger + spend/add/refund RPCs |
 
+| `CHANNELS_AND_GROUPS.sql` | conversation_type, conversation_participants, RLS |### ❌ "Table already exists" error
+
+| `COMPANY_TEAMS.sql` | company_members, ensure_company_channel RPC |**Solution:** Run `000_reset_database.sql` first
+
+| `FIX_MISSING_COLUMNS.sql` | is_unlocked, is_system_message, attachments |
+
+| `RFQ_TABLE.sql` | rfqs table |---
+
+| `SITE_ACTIVITIES_LEDGER.sql` | site_activities table + triggers + backfill |
+
+| `FEED_AND_STORAGE.sql` | feed_posts, feed_likes, storage buckets |## What You Just Built
+
+| `RFQ_SLUGS.sql` | Add slug column to rfqs |
 ### Database Schema (6 tables):
 ```
 profiles              ← User accounts

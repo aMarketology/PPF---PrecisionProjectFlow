@@ -1,13 +1,13 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** July 24, 2026
-**Status:** ✅ LIVE · 📝 Blog launched · 💬 Slack-style messaging · 🗄️ Channels & Groups DB
+**Last updated:** July 25, 2026
+**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace · 🔗 Blockchain Ledger · 🏢 Company Teams
 
 ---
 
 ## 📍 Current Focus
-**PHASE 3 — Messaging Deep Dive + Organic Growth (Blog SEO).**
-Messaging system is functional but needs WhatsApp-level polish. Blog is live with 3 SEO posts targeting ~5,000 impressions/mo. Next: make messaging fast, reliable, and realtime.
+**PHASE 4 — Transaction & Offer System.**
+Core platform is built (messaging, RFQs, teams, activity ledger). Now building: @ mentions, formal offers, and RFQ relevance matching so vendors only see RFQs that fit their business.
 
 ---
 
@@ -156,9 +156,44 @@ Messaging system is functional but needs WhatsApp-level polish. Blog is live wit
 ## 🏢 Company Teams & Scoped Messaging (July 24, 2026)
 | Item | Detail |
 |------|--------|
-| `COMPANY_TEAMS.sql` | New migration: `company_members` table, `sync_profile_company_id` trigger, `ensure_company_channel` RPC, `invite_company_member` RPC, backfill for existing owners, realtime enabled |
-| Create Company page | `/companies/create` — full form (name, industry, description, website, email, phone, city, state, specialties), auto-creates company_members row + General channel |
-| Company Dashboard | `/dashboard/company/[id]` — Overview tab (company details, quick actions) + Team tab (member list, role management, invite modal, remove member) |
-| Messages sidebar | Company channel ("General") pinned at top with 🏢 icon when user has a company; `loadConversations` fetches company channel via `company_id` |
-| Directory CTA | "Create Your Company" button added to `/companies` hero |
-| Cross-company DM paywall | Unchanged — `same_company()` RPC already handles free messaging within same company; cross-company DMs still require token unlock |
+| `COMPANY_TEAMS.sql` | Migration: `company_members` table, `sync_profile_company_id` trigger, `ensure_company_channel` RPC, `invite_company_member` RPC |
+| Create Company page | `/companies/create` — auto-creates company + General channel |
+| Company Dashboard | `/dashboard/company/[id]` — overview + team management with invite modal |
+| Messages 3-column layout | Left sidebar (channels/groups/DMs), center thread, right sidebar (company info + team members) |
+| Login redirects | Engineer(vendor)→`/feed`, Client(supplier)→`/dashboard/engineer` |
+
+### RFQ Marketplace (July 25, 2026)
+| Item | Detail |
+|------|--------|
+| RFQ linear feed | `/rfq` — horizontal RFQ cards with full title, description, location, budget, Apply button |
+| Right dashboard panel | Stats, quick actions, category filter on `/rfq` |
+| RFQ detail page | `/rfq/[id]` — hero with budget/timeline bar, description, inline Apply CTA, client footer |
+| RFQ slugs | Clean URLs like `/rfq/hvac-chiller-compressor-8ac9a281` |
+| Apply via DM | "Apply" routes to `/messages?with={clientId}` — token-gated for cross-company |
+| 8 seeded RFQs | Realistic industrial part requests and engineering services |
+
+### Site Activities Ledger (July 25, 2026)
+| Item | Detail |
+|------|--------|
+| `SITE_ACTIVITIES_LEDGER.sql` | Append-only SHA256 hash-chained ledger table |
+| 5 DB triggers | Auto-log RFQs, feed posts, orders, companies joining, team members |
+| Backfill | 8 RFQs + 3,968 companies + 4 team members logged (3,980 total) |
+| `/feed` page | Unified activity stream with filter pills, search, real-time updates, hash chain display |
+| `/api/activities` | Paginated ledger API with type/search filters |
+| Realtime enabled | New activities appear instantly on `/feed` |
+
+### Navigation & Branding (July 25, 2026)
+| Item | Detail |
+|------|--------|
+| Slim nav | h-16 container, h-9 logo, compact link padding |
+| Always grey links | `text-gray-600` — no more white text that changed on scroll |
+| User dropdown | Nameplate with avatar, company name, email, role badge |
+| Features page | `/features` — 9-section platform guide with links to every page |
+| Get Started page | Updated stats (3,968 companies, 8 RFQs, 3,980 activities, 8 users) + 9 feature cards |
+
+---
+
+## 📋 Next Up (In Order)
+1. **@ Mentions in Channels** — Type `@` to tag teammates, they get notified
+2. **Formal Offer System** — Vendors submit structured offers (price, timeline, terms); clients accept/reject
+3. **RFQ Tagging Algorithm** — Vendor profiles tagged with categories; RFQ feed filtered by relevance

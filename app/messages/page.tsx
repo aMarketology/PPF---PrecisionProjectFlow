@@ -7,7 +7,7 @@ import {
   MessageSquare, Send, Loader, User, Clock, Search, X, Plus,
   CheckCheck, Check, Lock, Unlock, DollarSign, ShieldCheck,
   Paperclip, FileText, Download, ExternalLink, Zap,
-  Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown,
+  Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown, AtSign,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -41,6 +41,28 @@ function Avatar({ user, size = 'md' }: { user: UserProfile | null; size?: 'sm' |
   const sz = size === 'sm' ? 'w-8 h-8 text-sm' : size === 'lg' ? 'w-14 h-14 text-xl' : 'w-11 h-11 text-base';
   if (user?.avatar_url) return <img src={user.avatar_url} alt={user.full_name} className={`${sz} rounded-full object-cover flex-shrink-0 border-2 border-white shadow-sm`} />;
   return <div className={`${sz} rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold flex-shrink-0`}>{user?.full_name?.charAt(0)?.toUpperCase() || 'U'}</div>;
+}
+
+function MentionRenderer({ content, isOwn }: { content: string; isOwn: boolean }) {
+  // Split by @username pattern and render mentions as highlighted spans
+  const parts = content.split(/(@[a-zA-Z0-9_\s.]+?)(?=\s|$)/g);
+  return (
+    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
+      {parts.map((part, i) => {
+        if (part.startsWith('@') && part.length > 1) {
+          return (
+            <span key={i} className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-xs font-semibold ${
+              isOwn ? 'bg-blue-400/30 text-white' : 'bg-blue-100 text-[#003D82]'
+            }`}>
+              <AtSign className="w-3 h-3" />
+              {part.substring(1)}
+            </span>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
 }
 
 function AttachmentDisplay({ msg, isOwn }: { msg: Message; isOwn: boolean }) {
@@ -388,7 +410,12 @@ function MessagesPageInner() {
     setIsSearching(true);
     try {
       const supabase = createClient();
-      const { data } = await supabase.from('profiles').select('id, full_name, email, user_type, avatar_url').neq('id', currentUserId!).ilike('full_name', `%${searchQuery}%`).limit(10);
+      const q = `%${searchQuery}%`;
+      const { data } = await supabase.from('profiles')
+        .select('id, full_name, email, user_type, avatar_url')
+        .neq('id', currentUserId!)
+        .or(`full_name.ilike.${q},email.ilike.${q}`)
+        .limit(10);
       setSearchResults(data || []);
     } finally { setIsSearching(false); }
   };
@@ -631,7 +658,7 @@ function MessagesPageInner() {
                               <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[68%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
                                   <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-[#003D82] text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'}`}>
-                                    {msg.content && <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">{msg.content}</p>}
+                                    {msg.content && <MentionRenderer content={msg.content} isOwn={isOwn} />}
                                     <AttachmentDisplay msg={msg} isOwn={isOwn} />
                                   </div>
                                   <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'}`}>
@@ -684,7 +711,7 @@ function MessagesPageInner() {
                             <p className="font-semibold text-gray-900 text-sm">Unlock this conversation</p>
                             <p className="text-gray-500 text-xs">100 tokens (~$10) one-time · Free messaging forever after · Both parties can respond</p>
                           </div>
-                          <button onClick={() => setShowUnlockModal(true)} className="px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-colors flex-shrink-0">
+                          <button onClick={() => setShowUnlockModal(true)} className="px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-colors">
                             <Unlock className="w-3.5 h-3.5" /> Unlock
                           </button>
                         </div>

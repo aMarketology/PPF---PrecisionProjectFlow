@@ -103,48 +103,50 @@ export async function POST(request: NextRequest) {
 
     if (msgError) throw msgError;
 
-    // Update last_message_at on the conversation
-    await supabase
-      .from('user_conversations')
-      .update({ last_message_at: new Date().toISOString() })
-      .eq('id', conversationId);
+    // ── Parse @mentions from content ────────────────────────────────
+    if (content?.trim()) {
+      const mentionNames: string[] = [];
+      const mentionRegex = /@([a-zA-Z]+(?:\s[a-zA-Z]+)?)/g;
+      let m;
+      while ((m = mentionRegex.exec(content)) !== null) {
+        const name = m[1].trim();
+        if (name && !mentionNames.includes(name)) mentionNames.push(name);
+      }
 
-    // Email notification (direct messages only)
-    if (conv.conversation_type === 'direct' && otherUserId) {
-      try {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, email')
-          .in('id', [user.id, otherUserId]);
+      for (const name of mentionNames) {
+        try {
+          const { data: mu } = await supabase.from('profiles')
+            .select('id').ilike('full_name', `%${name}%`).limit(1);
+          if (!mu || !mu[0]) continue;
 
-        if (profiles && profiles.length === 2) {
-          const sender    = profiles.find((p: any) => p.id === user.id);
-          const recipient = profiles.find((p: any) => p.id === otherUserId);
-          if (sender && recipient) {
-            sendNewMessageEmail({
-              to:            recipient.email,
-              recipientName: recipient.full_name,
-              senderName:    sender.full_name,
-              preview:       content?.trim() ?? '[attachment]',
-              conversationId,
-            }).catch(err => console.error('[email] new-message failed:', err));
+          let isMember = false;
+          if (conv.conversation_type === 'direct') {
+            isMember = mu[0].id === conv.participant_one_id || mu[0].id === conv.participant_two_id;
+          } else {
+            const { data: cp } = await supabase.from('conversation_participants')
+              .select('id').eq('conversation_id', conversationId).eq('user_id', mu[0].id).maybeSingle();
+            isMember = !!cp;
           }
+
+          if (isMember) {
+            await supabase.from('message_mentions').insert({
+              message_id: message.id,
+              conversation_id: conversationId,
+              mentioned_user_id: mu[0].id,
+            });
+          }
+        } catch (mentionErr) {
+          console.error('[send] mention error for', name, mentionErr);
         }
-      } catch (emailErr) {
-        console.error('[send] email notification failed:', emailErr);
       }
     }
+    // ── End @mention parsing ────────────────────────────────────────
 
-    return NextResponse.json({
-      message,
-      free: true,
-      reason: isGroupOrChannel ? 'channel' : 'unlocked',
-    });
-
-  } catch (error: any) {
-    console.error('Send message error:', error);
+    return NextResponse.json({ message }, { status: 201 });
+  } catch (error) {
+    console.error('[send] error:', error);
     return NextResponse.json(
-      { error: error.message || 'Failed to send message' },
+      { error: 'internal_server_error' },
       { status: 500 }
     );
   }
