@@ -1,203 +1,118 @@
-# 🚀 PRECISION PROJECT FLOW — ROADMAP# 🚀 PRECISION PROJECT FLOW — ROADMAP
+# 🚀 PRECISION PROJECT FLOW — ROADMAP
 
-
-
-> **🟢 CURRENT STATE — July 25, 2026**> **🟢 CURRENT STATE — May 29, 2026**
-
->>
-
-> The platform is **live in production** at https://www.precisionprojectflow.com.> The platform is **live in production** at https://www.precisionprojectflow.com.
-
-> **Supabase project:** `ifrxzmemiihxfdimwvcw`> Web app (54 routes), **mobile app (published 🎉)**, SEO foundation (sitemap, robots,
-
-> 6 category landing pages), and the blog are all shipped. Auth, marketplace,
-
----> messaging w/ token paywall, RFQs, dashboards, and Stripe are all live.
-
+> **🟢 CURRENT STATE — July 30, 2026**
 >
-
-## Current Architecture> **🔴 We are now in: PHASE 2 — MESSAGING & TOKEN HARDENING + FULL SYSTEM TEST**
-
+> The platform is **live in production** at https://www.precisionprojectflow.com.
+> **Supabase project:** `ifrxzmemiihxfdimwvcw`
 >
+> Auth, marketplace, messaging w/ token paywall + channels/groups, RFQs, dashboards, Stripe, company teams, activity ledger, and blog are all live. Contract-to-Unlock integration just shipped.
 
-| Layer | Technology | Status |> The mobile app is out. The next priority is making the **messaging + $ProjectFlow
+## Current Architecture
 
-|---|---|---|> token economy bulletproof**, then running a complete end-to-end test of the system.
-
-| Frontend | Next.js 14.2.35, React 18, Tailwind CSS, Framer Motion | ✅ Live |>
-
-| Database | Supabase PostgreSQL (ifrxzmemiihxfdimwvcw) | ✅ Live |> **Active workstream (May 29):**
-
-| Auth | Supabase Auth + RLS | ✅ Live |> 1. ✅ Unified **$ProjectFlow Token Ledger** (`supabase/PROJECTFLOW_TOKENS.sql`) —
-
-| Messaging | Custom with channels/groups/DMs + token paywall | ✅ Live |>    single `token_transactions` audit table behind the wallet, with idempotent
-
-| RFQ Marketplace | Live feed, detail pages, DM-based applications | ✅ Live |>    `add_tokens`, race-safe `spend_tokens`, and new `refund_tokens`.
-
-| Activity Ledger | SHA256 hash-chained site_activities table | ✅ Live |> 2. ✅ Fixed code↔SQL drift: `credit-tokens` + webhook now match the real function
-
-| Company Teams | company_members, company channels, team management | ✅ Live |>    signatures (was silently broken — referenced a non-existent table).
-
-| Payments | Stripe (token packs) | ✅ Live |> 3. ✅ Send route now **auto-refunds** tokens if a message fails to save.
-
-| Blog | 3 SEO posts on `/blog` | ✅ Live |> 4. ✅ Webhook now credits token purchases server-side (safety net if browser closes).
-
-> 5. ✅ UI now shows consistent **"2 tokens"** pricing (was mixing "$10" and "2 tokens").
-
----> 6. 🔴 **YOU:** run `supabase/PROJECTFLOW_TOKENS.sql` in Supabase SQL Editor.
-
-> 7. 🔴 Run the **full system test** (see `docs/SYSTEM_TEST.md`).
-
-## Routes Built (62 total)>
-
-> Everything below this banner is **historical context** from earlier planning phases —
-
-### Core Pages> kept for reference but no longer the active plan. Use `/session.md` as the source of truth.
-
-| Route | Description | Status |
-
-|---|---|---|---
-
-| `/` | Homepage | ✅ Live |
-
-| `/feed` | Unified activity ledger (3,980+ events) | ✅ Live |## 🎯 SUPPLY-FIRST EXECUTION STRATEGY *(historical — Feb 2026 plan)*
-
-| `/features` | Platform guide / how-to docs | ✅ Live |
-
-| `/get-started` | Onboarding with real stats | ✅ Live |**Created:** January 12, 2026  
-
-**Last Updated**: February 11, 2026  
-
-### RFQ Marketplace**Current Phase**: **PHASE 1 - VENDOR RECRUITMENT** ⚡  
-
-| Route | Description | Status |**Strategy**: Build Supply Before Demand
-
+| Layer | Technology | Status |
 |---|---|---|
+| Frontend | Next.js 14.2.35, React 18, Tailwind CSS, Framer Motion | ✅ Live |
+| Database | Supabase PostgreSQL (ifrxzmemiihxfdimwvcw) | ✅ Live |
+| Auth | Supabase Auth + RLS | ✅ Live |
+| Messaging | Custom with channels/groups/DMs + token paywall | ✅ Live |
+| Contract-to-Unlock | DB trigger auto-unlocks DM on `in_progress` order | ✅ Shipped July 30 |
+| RFQ Marketplace | Feed, detail pages, DM-based applications | ✅ Live |
+| Activity Ledger | SHA256 hash-chained site_activities table | ✅ Live |
+| Company Teams | company_members, company channels, team management | ✅ Live |
+| Payments | Stripe (token packs + product purchases) | ✅ Live |
+| Blog | 3 SEO posts on `/blog` | ✅ Live |
 
-| `/rfq` | Linear RFQ feed with dashboard panel, filters, search | ✅ Live |---
+---
 
-| `/rfq/[slug]` | RFQ detail with Apply via DM | ✅ Live |
+## Routes Built (62+ total)
 
-| `/rfq/create` | Multi-step RFQ form | ✅ Live |## 🚨 CRITICAL PIVOT: NEW EXECUTION ROADMAP
-
-
-
-### Messaging### **READ THIS FIRST:** [SUPPLY-FIRST-ROADMAP.md](./SUPPLY-FIRST-ROADMAP.md)
-
+### Core Pages
 | Route | Description | Status |
+|---|---|---|
+| `/` | Homepage | ✅ Live |
+| `/feed` | Unified activity ledger (3,980+ events) | ✅ Live |
+| `/features` | Platform guide / how-to docs | ✅ Live |
+| `/get-started` | Onboarding with real stats | ✅ Live |
 
-|---|---|---|**The Problem:** You cannot invite technicians to a "ghost town" with no vendors to answer their requests.
+### RFQ Marketplace
+| Route | Description | Status |
+|---|---|---|
+| `/rfq` | Linear RFQ feed with dashboard panel, filters, search | ✅ Live |
+| `/rfq/[slug]` | RFQ detail with Apply via DM | ✅ Live |
+| `/rfq/create` | Multi-step RFQ form | ✅ Live |
 
+### Messaging
+| Route | Description | Status |
+|---|---|---|
 | `/messages` | 3-column layout: sidebar, thread, company panel | ✅ Live |
+| `/api/messages/send` | Send message (token-gated for cross-company) | ✅ Live |
+| `/api/messages/unlock` | Unlock DM for 100 tokens | ✅ Live |
+| `/api/messages/credit-tokens` | Post-Stripe token credit | ✅ Live |
+| `/api/messages/upload` | File upload (25MB limit) | ✅ Live |
 
-| `/api/messages/send` | Send message (token-gated for cross-company) | ✅ Live |**The Solution:** Supply-First Sequencing
-
-| `/api/messages/unlock` | Unlock DM for 100 tokens | ✅ Live |1. ✅ Recruit 20-50 emergency response vendors FIRST
-
-2. ✅ Build simple photo-to-quote MVP
-
-### Companies & Teams3. ✅ Market to technicians with guaranteed responses
-
-| Route | Description | Status |4. ✅ Collect 5% transaction fees
-
-|---|---|---|5. ✅ Scale with manufacturer partnerships
-
+### Companies & Teams
+| Route | Description | Status |
+|---|---|---|
 | `/companies` | Directory (3,968+ companies) | ✅ Live |
-
-| `/companies/create` | Create company + auto team channel | ✅ Live |### **12-Week Execution Timeline:**
-
+| `/companies/create` | Create company + auto team channel | ✅ Live |
 | `/companies/[slug]` | Company profile | ✅ Live |
+| `/dashboard/company/[id]` | Dashboard + team management | ✅ Live |
 
-| `/dashboard/company/[id]` | Dashboard + team management | ✅ Live || Phase | Weeks | Goal | Status |
-
-|-------|-------|------|--------|
-
-### Dashboards| **Phase 1** | 1-2 | Recruit 20-50 vendors | 🔄 **IN PROGRESS** |
-
-| Route | Description | Status || **Phase 2** | 3-4 | Build photo-to-quote MVP | 📋 Next |
-
-|---|---|---|| **Phase 3** | 5-8 | Get 100 technician users | 📋 Queued |
-
-| `/dashboard/engineer` | Vendor dashboard (Orders, Services, Earnings) | ✅ Live || **Phase 4** | 9-12 | $10K GMV, manufacturer partnerships | 📋 Queued |
-
+### Dashboards
+| Route | Description | Status |
+|---|---|---|
+| `/dashboard/engineer` | Vendor dashboard (Orders, Services, Earnings) | ✅ Live |
 | `/dashboard/client` | Client dashboard | ✅ Live |
+| `/orders` | Order management | ✅ Live |
 
-| `/orders` | Order management | ✅ Live |---
+### Orders & Contracts
+| Route | Description | Status |
+|---|---|---|
+| `/orders/[id]` | Order detail | ✅ Live |
+| `/orders/sales` | Sales management | ✅ Live |
+| `/orders/sales/[id]` | Sales detail | ✅ Live |
+| `/api/orders/[id]/update-status` | Order status updates (now with contract-to-unlock) | ✅ Live |
+| `/api/stripe/webhooks` | Stripe webhook (order creation + token safety-net) | ✅ Live |
 
+---
 
+## Recently Shipped (July 30, 2026)
 
----## 📋 THIS WEEK'S PRIORITIES (Week of Feb 11)
+### Contract-to-Unlock Messaging
+| Feature | Details |
+|---|---|
+| DB trigger on `product_orders` | Auto-fires when order status changes to `in_progress` |
+| `get_or_create_conversation` | Find-or-create DM between buyer and vendor |
+| Auto-unlock | Sets `is_unlocked = true` on the conversation |
+| System message | `🤝 Contract started — you can now message freely` |
+| `in_progress_at` column | Added to `product_orders` (schema gap fix) |
+| App-layer fallback | Update-status route mirrors the trigger with realtime support |
+| Decision: stay unlocked | Once unlocked, stays unlocked — no re-gating after contract ends |
 
+### Channels & Groups (July 24)
+| Feature | Details |
+|---|---|
+| Slack-style messaging | 3 sections: Channels, Groups, Direct Messages |
+| Conversation participants | Junction table with roles |
+| Company channels | Auto-created "General" channel per company |
+| Always free | No token cost for channel/group messaging |
 
+### RFQ Marketplace (July 25)
+| Feature | Details |
+|---|---|
+| Linear feed, detail pages, slug URLs | Apply via DM |
+| 8 seeded RFQs | Realistic industrial part requests |
 
-## Recently Shipped (July 23-25, 2026)### ✅ COMPLETED TODAY:
+---
 
+## Next Up (Priority Order)
 
-
-| Feature | Details |**Database Simplification:**
-
-|---|---|- [x] **SIMPLIFIED TO 6 CORE TABLES** (removed 7 unnecessary tables)
-
-| Channels & Groups | Slack-style messaging with conversations_participants |- [x] Fixed column name conflicts (unified on `is_verified`)
-
-| RFQ Marketplace | Feed, detail, create, slug URLs, Apply via DM |- [x] Created clean 4-file database setup system
-
-| Site Activities Ledger | SHA256 hash-chained, searchable, real-time |
-
-| Company Teams | Create/invite/manage members, auto General channel |**SQL Files in `/sql/`:**
-
-| Messages 3-column | Left sidebar, center thread, right company panel |- [x] `000_reset_database.sql` - Complete database reset
-
-| Features Guide | `/features` with 9 sections |- [x] `001_create_all_tables.sql` - Master file (all 8 tables)
-
-| Get Started | Real stats (3,968 companies, 8 users, 3,980 activities) |- [x] `002_enable_rls.sql` - Security policies
-
-| Login Redirects | Vendor→`/feed`, Supplier→`/dashboard/engineer` |- [x] `003_seed_vendors.sql` - 16 vendors + 56 products combined
-
-| Nav Redesign | Slim, always grey, compact user dropdown |
-
-**Individual Table Files in `/sql/tables/`:**
-
----- [x] `001_profiles.sql` - User accounts
-
-- [x] `002_company_profiles.sql` - Vendor companies
-
-## Next Up (Priority Order)- [x] `003_products.sql` - Products/services
-
-- [x] `004_product_orders.sql` - Purchase orders
-
-### 1. @ Mentions in Channels- [x] `005_stripe_connect_accounts.sql` - Payment integration
-
-- Parse `@username` in messages, insert into `message_mentions`- [x] `006_conversations.sql` - Message threads (enhanced)
-
-- Highlight mentioned names, notification badge- [x] `007_conversation_participants.sql` - Conversation members
-
-- [x] `008_messages.sql` - Individual messages + functions
-
-### 2. Formal Offer System- [x] `README.md` - Table documentation
-
-- `rfq_offers` table, structured offer form, accept/reject workflow
-
-- Accepted offers → auto-create orders**Vendor Seed Data:**
-
-- [x] 10 emergency response vendors (Dallas) - motors, pumps, HVAC, electrical
-
-### 3. RFQ Tagging Algorithm- [x] 6 real company profiles - Minco, PEKO, IDS, SmartFlow, Henderson, Fishbeck
-
-- Vendor profile specialties → filtered RFQ feed- [x] 56 products with detailed specs ($55 - $8,500 range)
-
-- "Recommended for You" section- [x] All vendors claimable later by real companies
-
-**Documentation:**
-- [x] `DATABASE_SETUP.md` - Complete reset & setup guide (30 min)
-- [x] `LOAD_VENDORS_TEST_STRIPE.md` - Comprehensive testing guide
-- [x] `QUICK_START_VENDORS.md` - Quick reference card
-
-### 🔥 IMMEDIATE NEXT (Today/Tomorrow):
-
-**1. Reset & Load Database** (30 minutes) ⚡
-   - [ ] **READ:** `DATABASE_SETUP.md` (complete guide)
-   - [ ] Open Supabase Dashboard → SQL Editor
+1. **@ Mentions in Channels** — Parse `@username`, insert into `message_mentions`, highlight, notify
+2. **Formal Offer System** — `rfq_offers` table, structured offer form, accept/reject → auto-create orders
+3. **RFQ Tagging Algorithm** — Vendor profile specialties → filtered "Recommended for You" RFQ feed
+4. **Realtime Messages** — Supabase subscription for live message delivery
+5. **Avatar Images** — Show real `avatar_url` instead of initials in conversation list
+6. **Email Notifications** — Resend emails for new messages
    - [ ] Run `sql/000_reset_database.sql` (⚠️ deletes all data)
    - [ ] Run `sql/001_create_tables.sql` (creates 6 tables)
    - [ ] Run `sql/002_enable_rls.sql` (security policies)

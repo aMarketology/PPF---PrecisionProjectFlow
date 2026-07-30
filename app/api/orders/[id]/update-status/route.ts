@@ -172,6 +172,55 @@ export async function POST(
       }
     }
 
+    // ── Contract-to-Unlock: auto-unlock DM on in_progress ──
+    // App-layer fallback. The DB trigger (trg_auto_unlock_conversation)
+    // is the source of truth — this mirrors it and enables future
+    // realtime broadcast. Non-blocking: wrapped in try/catch.
+    if (newStatus === 'in_progress' && currentStatus !== 'in_progress') {
+      try {
+        // Look up the vendor (company owner)
+        const { data: companyProfile } = await supabase
+          .from('company_profiles')
+          .select('owner_id')
+          .eq('id', updatedOrder.company_id)
+          .single();
+
+        if (companyProfile?.owner_id) {
+          // Find or create DM conversation
+          const { data: convId } = await supabase.rpc('get_or_create_conversation', {
+            user_one_id: updatedOrder.buyer_id,
+            user_two_id: companyProfile.owner_id,
+          });
+
+          if (convId) {
+            // Unlock (no-op if already unlocked — DB trigger handles it)
+            await supabase
+              .from('user_conversations')
+              .update({ is_unlocked: true })
+              .eq('id', convId);
+
+            // Insert system message (idempotent — DB trigger also inserts,
+            // but this ensures the message appears even if trigger is removed)
+            await supabase
+              .from('user_messages')
+              .insert({
+                conversation_id:  convId,
+                sender_id:        updatedOrder.buyer_id,
+                content:          '🤝 Contract started — you can now message freely',
+                is_system_message: true,
+                is_read:          true,
+                created_at:       new Date().toISOString(),
+              });
+
+            console.log(`[contract-unlock] App-layer: unlocked conversation ${convId} for order ${orderId}`);
+          }
+        }
+      } catch (e) {
+        // Non-blocking — DB trigger is the source of truth
+        console.error('[contract-unlock] App-layer fallback failed:', e);
+      }
+    }
+
     return NextResponse.json({
       success: true,
       message: `Order status updated to "${newStatus}"`,

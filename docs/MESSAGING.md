@@ -348,6 +348,46 @@ Allow uploading PDFs, DXF, images via Supabase Storage.
 
 ---
 
+## 4.6 🔓 Contract-to-Unlock Integration (July 30, 2026)
+**Automatically unlocks DMs when an order enters "in progress" status.**
+
+### Architecture
+| Layer | Role |
+|-------|------|
+| **Postgres trigger** (source of truth) | Fires on `AFTER UPDATE OF status ON product_orders`. Calls `get_or_create_conversation()` → sets `is_unlocked = true` → inserts system message. Guarantees consistency from webhook, API, admin panel, or direct DB update. |
+| **Application layer** (fallback) | In `app/api/orders/[id]/update-status/route.ts` after status update succeeds. Mirrors the trigger but enables future realtime broadcast. Non-blocking — trigger is the source of truth. |
+
+### Flow
+```
+Order created (pending_payment) → Payment received (paid) → Vendor starts work (in_progress)
+                                                                        │
+                                                                        ▼
+                                                      DB trigger fires:
+                                                      1. get_or_create_conversation(buyer_id, vendor_id)
+                                                      2. UPDATE user_conversations SET is_unlocked = true
+                                                      3. INSERT system_message: "🤝 Contract started..."
+```
+
+### Key Decisions
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Unlock on `in_progress` | Not `paid` | `paid` = money moved but work hasn't started. `in_progress` = vendor accepted, work began = "under contract" |
+| Stay unlocked forever | No re-lock | Re-gating behind 100 tokens after a paid contract creates friction for revisions, support, repeat business |
+| Column used | `is_unlocked` | Already exists, already checked by send route. No need to wire up `is_contracted` separately |
+| Find-or-create convo | `get_or_create_conversation` RPC | Handles storefront purchases where buyer never DM'd vendor before |
+
+### Migration File
+`supabase/CONTRACT_UNLOCK_TRIGGER.sql` — adds `in_progress_at` column, trigger function, and trigger on `product_orders`.
+
+### System Message
+Inserted with `is_system_message = true`:
+```
+🤝 Contract started — you can now message freely
+```
+Rendered as a centered gray pill (already supported in `app/messages/page.tsx`).
+
+---
+
 ## 5. 🟠 Lower Priority — Polish
 
 | Feature | Notes |
@@ -372,9 +412,16 @@ user_conversations (
   id UUID,
   participant_one_id UUID,
   participant_two_id UUID,
-  is_contracted BOOLEAN DEFAULT false,
+  conversation_type TEXT DEFAULT 'direct',  -- 'direct' | 'group' | 'channel'
+  name TEXT,                                 -- channel/group name
+  description TEXT,                          -- channel topic
+  is_public BOOLEAN DEFAULT false,
+  company_id UUID,
+  created_by UUID,
+  is_unlocked BOOLEAN DEFAULT false,        -- DM unlock status
   last_message_at TIMESTAMPTZ,
-  created_at TIMESTAMPTZ
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
 )
 
 -- Messages
@@ -388,7 +435,20 @@ user_messages (
   is_paid BOOLEAN,
   is_system_message BOOLEAN DEFAULT false,
   payment_id TEXT,
-  created_at TIMESTAMPTZ
+  attachment_url TEXT,
+  attachment_name TEXT,
+  attachment_type TEXT,
+  created_at TIMESTAMPTZ,
+  updated_at TIMESTAMPTZ
+)
+
+-- Conversation participants (for groups/channels)
+conversation_participants (
+  id UUID,
+  conversation_id UUID,
+  user_id UUID,
+  role TEXT DEFAULT 'member',  -- 'owner' | 'admin' | 'member'
+  joined_at TIMESTAMPTZ
 )
 
 -- Token ledger
@@ -409,12 +469,13 @@ token_transactions (
 
 ## 7. Recommended Build Order
 
-1. **Realtime** (3.1) — biggest UX gap, Supabase subscription ~50 lines
-2. **Avatar images** (3.2) — quick wins, huge visual improvement
-3. **Email notifications** (3.3) — drives re-engagement, Resend already wired
-4. **Token balance in nav** (3.4) — reduces paywall surprise
-5. **View Profile link** (4.1) — connects messaging to marketplace
-6. **Conversation search** (4.2) — needed once users have many convos
-7. **Typing indicator** (4.3) — feel premium
-8. **System messages** (4.4) — milestone events, ties to orders
-9. **File attachments** (4.5) — engineering use case, high value
+1. **Contract-to-Unlock** ✅ Shipped (July 30) — DB trigger auto-unlocks DM when order hits `in_progress`
+2. **Realtime** (3.1) — biggest UX gap, Supabase subscription ~50 lines
+3. **Avatar images** (3.2) — quick wins, huge visual improvement
+4. **Email notifications** (3.3) — drives re-engagement, Resend already wired
+5. **Token balance in nav** (3.4) — reduces paywall surprise
+6. **View Profile link** (4.1) — connects messaging to marketplace
+7. **Conversation search** (4.2) — needed once users have many convos
+8. **Typing indicator** (4.3) — feel premium
+9. **System messages** (4.4) — milestone events, ties to orders
+10. **File attachments** (4.5) — engineering use case, high value

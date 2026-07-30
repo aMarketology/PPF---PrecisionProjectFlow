@@ -1,13 +1,13 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** July 25, 2026
-**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace · 🔗 Blockchain Ledger · 🏢 Company Teams
+**Last updated:** July 30, 2026
+**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock
 
 ---
 
 ## 📍 Current Focus
-**PHASE 4 — Transaction & Offer System.**
-Core platform is built (messaging, RFQs, teams, activity ledger). Now building: @ mentions, formal offers, and RFQ relevance matching so vendors only see RFQs that fit their business.
+**Contract-to-Unlock Messaging Integration — Phase 4a.**
+When an order moves to `in_progress` (vendor accepted, work began), the DM between buyer and vendor is automatically unlocked. Uses a **Postgres DB trigger** as source of truth + application-layer enhancement for realtime capability.
 
 ---
 
@@ -68,6 +68,18 @@ Core platform is built (messaging, RFQs, teams, activity ledger). Now building: 
 | Item | Detail |
 |------|--------|
 | Tokens minted | `jg.reinard@gmail.com` (Joshua) + `bootysweat.808@gmail.com` (MAXIMMILLION) — 500 tokens each via `scripts/mint-tokens.js` |
+
+### Contract-to-Unlock Messaging (July 30, 2026) — NEW
+| Item | Detail |
+|------|--------|
+| Architecture decision | **DB trigger (primary) + App layer (secondary)** — trigger guarantees consistency across webhook, API, admin; app layer adds realtime broadcast support |
+| When unlock happens | Order moves to `in_progress` status (vendor accepted, work began) |
+| Find-or-create convo | `get_or_create_conversation(buyer_id, vendor_owner_id)` RPC handles storefront purchases where no prior DM exists |
+| Post-contract behavior | **Stay unlocked forever** — re-gating behind 100 tokens after a paid contract creates friction for revisions, support, repeat business |
+| System message | `🤝 Contract started — you can now message freely` inserted into message thread |
+| `in_progress_at` column | Added to `product_orders` (was referenced by code but missing from schema) |
+| `CONTRACT_UNLOCK_TRIGGER.sql` | New migration — trigger function + trigger on `product_orders` |
+| Update-status route enhanced | App-layer fallback in `app/api/orders/[id]/update-status/route.ts` |
 
 ---
 
@@ -194,6 +206,7 @@ Core platform is built (messaging, RFQs, teams, activity ledger). Now building: 
 ---
 
 ## 📋 Next Up (In Order)
-1. **@ Mentions in Channels** — Type `@` to tag teammates, they get notified
-2. **Formal Offer System** — Vendors submit structured offers (price, timeline, terms); clients accept/reject
-3. **RFQ Tagging Algorithm** — Vendor profiles tagged with categories; RFQ feed filtered by relevance
+1. **Contract-to-Unlock Integration** ✅ Just shipped (July 30)
+2. **@ Mentions in Channels** — Type `@` to tag teammates, they get notified
+3. **Formal Offer System** — Vendors submit structured offers (price, timeline, terms); clients accept/reject
+4. **RFQ Tagging Algorithm** — Vendor profiles tagged with categories; RFQ feed filtered by relevance
