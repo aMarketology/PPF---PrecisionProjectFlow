@@ -8,6 +8,7 @@ import {
   CheckCheck, Check, Lock, Unlock, DollarSign, ShieldCheck,
   Paperclip, FileText, Download, ExternalLink, Zap,
   Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown, AtSign,
+  Shield, Trash2, Edit3, UserPlus, UserMinus, Briefcase,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -162,6 +163,14 @@ function MessagesPageInner() {
   const [userCompanyName, setUserCompanyName] = useState<string | null>(null);
   const [companyChannel, setCompanyChannel] = useState<Conversation | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
+  const [channelParticipants, setChannelParticipants] = useState<any[]>([]);
+  const [showChannelSettings, setShowChannelSettings] = useState(false);
+  const [showAddMemberModal, setShowAddMemberModal] = useState(false);
+  const [addMemberSearch, setAddMemberSearch] = useState('');
+  const [addMemberResults, setAddMemberResults] = useState<UserProfile[]>([]);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const [myChannelRole, setMyChannelRole] = useState<string | null>(null);
   const realtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const globalRealtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const typingRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -176,6 +185,7 @@ function MessagesPageInner() {
     loadMessages(selectedConversation.id);
     markMessagesAsRead(selectedConversation.id);
     setupRealtime(selectedConversation.id);
+    loadMyChannelRole();
     return () => {
       if (realtimeRef.current) { createClient().removeChannel(realtimeRef.current); realtimeRef.current = null; }
       // Clear typing timers
@@ -270,10 +280,136 @@ function MessagesPageInner() {
         });
         setSelectedConversation(prev => prev?.id === updated.id ? { ...prev, ...updated } as Conversation : prev);
       })
+      .on('postgres_changes', {
+        event: '*', schema: 'public', table: 'conversation_participants',
+      }, (payload) => {
+        // Reload participants when they change
+        if (selectedConversation && (payload.new as any)?.conversation_id === selectedConversation.id) {
+          loadChannelParticipants(selectedConversation.id);
+        }
+      })
       .subscribe();
 
     globalRealtimeRef.current = channel;
+  }, [selectedConversation?.id]);
+
+  const loadMyChannelRole = useCallback(async () => {
+    if (!selectedConversation || !currentUserId) { setMyChannelRole(null); return; }
+    if (selectedConversation.conversation_type === 'direct') { setMyChannelRole(null); return; }
+    const supabase = createClient();
+    try {
+      const { data: role } = await supabase
+        .from('conversation_participants')
+        .select('role')
+        .eq('conversation_id', selectedConversation.id)
+        .eq('user_id', currentUserId)
+        .maybeSingle();
+      setMyChannelRole(role?.role || 'member');
+    } catch { setMyChannelRole('member'); }
+  }, [selectedConversation?.id, currentUserId]);
+
+  const loadChannelParticipants = useCallback(async (conversationId: string) => {
+    const supabase = createClient();
+    try {
+      const { data: parts } = await supabase
+        .from('conversation_participants')
+        .select('user_id, role');
+      if (!parts) return;
+      const withProfiles = await Promise.all(parts.map(async (p: any) => {
+        const { data: prof } = await supabase
+          .from('profiles')
+          .select('full_name, email, avatar_url, user_type')
+          .eq('id', p.user_id)
+          .maybeSingle();
+        return { ...p, profile: prof || { full_name: 'Unknown', email: '', avatar_url: null, user_type: 'engineer' } };
+      }));
+      setChannelParticipants(withProfiles);
+    } catch { /* silent */ }
   }, []);
+
+  const handleRenameChannel = async () => {
+    if (!selectedConversation || !renameValue.trim()) return;
+    setIsRenaming(true);
+    try {
+      const res = await fetch('/api/messages/update-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId: selectedConversation.id,
+          name: renameValue.trim(),
+        }),
+      });
+      if (!res.ok) { toast.error('Failed to rename'); return; }
+      setSelectedConversation(prev => prev ? { ...prev, name: renameValue.trim() } : prev);
+      setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, name: renameValue.trim() } : c));
+      setShowChannelSettings(false);
+      toast.success('Channel renamed');
+    } catch { toast.error('Failed to rename'); }
+    finally { setIsRenaming(false); }
+  };
+
+  const handleDeleteChannel = async () => {
+    if (!selectedConversation) return;
+    if (!window.confirm(`Delete "${selectedConversation.name || 'this channel'}"? This cannot be undone.`)) return;
+    try {
+      const res = await fetch('/api/messages/delete-channel', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: selectedConversation.id }),
+      });
+      if (!res.ok) { toast.error('Failed to delete'); return; }
+      setConversations(prev => prev.filter(c => c.id !== selectedConversation.id));
+      setChannels(prev => prev.filter(c => c.id !== selectedConversation.id));
+      setGroups(prev => prev.filter(c => c.id !== selectedConversation.id));
+      setSelectedConversation(null);
+      setShowChannelSettings(false);
+      toast.success('Channel deleted');
+    } catch { toast.error('Failed to delete'); }
+  };
+
+  const handleRemoveMember = async (userId: string, userName: string) => {
+    if (!selectedConversation) return;
+    if (!window.confirm(`Remove ${userName} from this channel?`)) return;
+    try {
+      const res = await fetch('/api/messages/remove-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: selectedConversation.id, targetUserId: userId }),
+      });
+      if (!res.ok) { toast.error('Failed to remove member'); return; }
+      setChannelParticipants(prev => prev.filter(p => p.user_id !== userId));
+      toast.success(`${userName} removed`);
+    } catch { toast.error('Failed to remove member'); }
+  };
+
+  const handleUpdateRole = async (userId: string, newRole: string, userName: string) => {
+    if (!selectedConversation) return;
+    try {
+      const res = await fetch('/api/messages/update-role', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: selectedConversation.id, targetUserId: userId, role: newRole }),
+      });
+      if (!res.ok) { toast.error('Failed to update role'); return; }
+      setChannelParticipants(prev => prev.map(p => p.user_id === userId ? { ...p, role: newRole } : p));
+      toast.success(`${userName} is now ${newRole}`);
+    } catch { toast.error('Failed to update role'); }
+  };
+
+  const handleAddMember = async (user: UserProfile) => {
+    if (!selectedConversation) return;
+    const res = await fetch('/api/messages/add-member', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversationId: selectedConversation.id, targetUserId: user.id }),
+    });
+    if (!res.ok) { toast.error('Failed to add member'); return; }
+    setChannelParticipants(prev => [...prev, { user_id: user.id, role: 'member', profile: user }]);
+    setShowAddMemberModal(false);
+    setAddMemberSearch('');
+    setAddMemberResults([]);
+    toast.success(`${user.full_name} added`);
+  };
 
   // ── Send typing indicator via Realtime Broadcast ──
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -657,10 +793,10 @@ function MessagesPageInner() {
                         filter={convFilter}
                       />
 
-                      {/* ── Groups Section ── */}
+                      {/* ── Projects Section ── */}
                       <SidebarSection
-                        title="Groups"
-                        icon={<Users className="w-3.5 h-3.5" />}
+                        title="Projects"
+                        icon={<Briefcase className="w-3.5 h-3.5" />}
                         items={groups}
                         collapsed={collapsedSections['groups']}
                         onToggle={() => setCollapsedSections(prev => ({ ...prev, groups: !prev.groups }))}
@@ -687,7 +823,7 @@ function MessagesPageInner() {
                         <div className="p-8 text-center text-gray-400">
                           <MessageSquare className="w-10 h-10 mx-auto mb-3 text-gray-200" />
                           <p className="text-xs">No conversations yet</p>
-                          <p className="text-xs mt-1 text-gray-300">Start a DM or create a channel</p>
+                          <p className="text-xs mt-1 text-gray-300">Start a DM, create a channel, or accept a project</p>
                         </div>
                       )}
                     </>
@@ -707,8 +843,8 @@ function MessagesPageInner() {
                             <Hash className="w-5 h-5 text-[#003D82]" />
                           </div>
                         ) : selectedConversation.conversation_type === 'group' ? (
-                          <div className="w-10 h-10 rounded-lg bg-[#003D82]/10 flex items-center justify-center">
-                            <Users className="w-5 h-5 text-[#003D82]" />
+                          <div className="w-10 h-10 rounded-lg bg-[#FF6B35]/10 flex items-center justify-center">
+                            <Briefcase className="w-5 h-5 text-[#FF6B35]" />
                           </div>
                         ) : (
                           <Avatar user={selectedConversation.other_user} size="md" />
@@ -740,10 +876,19 @@ function MessagesPageInner() {
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>
                         )}
                         {selectedConversation.conversation_type !== 'direct' && (
-                          <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full flex items-center gap-1">
-                            {selectedConversation.conversation_type === 'channel' ? <Hash className="w-3 h-3" /> : <Users className="w-3 h-3" />}
-                            {selectedConversation.conversation_type === 'channel' ? 'Channel' : 'Group'}
-                          </span>
+                          <>
+                            <span className="px-2 py-1 bg-emerald-100 text-emerald-700 text-xs font-semibold rounded-full flex items-center gap-1">
+                              {selectedConversation.conversation_type === 'channel' ? <Hash className="w-3 h-3" /> : <Briefcase className="w-3 h-3" />}
+                              {selectedConversation.conversation_type === 'channel' ? 'Channel' : 'Project'}
+                            </span>
+                            {myChannelRole && ['owner', 'admin'].includes(myChannelRole) && (
+                              <button onClick={() => { setRenameValue(selectedConversation.name || ''); setShowChannelSettings(true); loadChannelParticipants(selectedConversation.id); }}
+                                className="p-2 hover:bg-gray-100 rounded-lg transition-colors text-gray-400 hover:text-gray-700"
+                                title="Channel settings">
+                                <Settings2 className="w-4 h-4" />
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </div>
@@ -1159,6 +1304,154 @@ function MessagesPageInner() {
                     <Plus className="w-4 h-4" /> Create {newChannelType === 'group' ? 'Group' : 'Channel'}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Channel Settings Modal */}
+      <AnimatePresence>
+        {showChannelSettings && selectedConversation && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="p-5 bg-gradient-to-r from-[#001f4d] via-[#003D82] to-[#005BB5] flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
+                    {selectedConversation.conversation_type === 'channel' ? <Hash className="w-5 h-5 text-white" /> : <Briefcase className="w-5 h-5 text-white" />}
+                  </div>
+                  <div>
+                    <h3 className="text-xl font-bold text-white">{selectedConversation.name || 'Channel'} Settings</h3>
+                    <p className="text-blue-100 text-sm capitalize">{selectedConversation.conversation_type}</p>
+                  </div>
+                </div>
+                <button onClick={() => setShowChannelSettings(false)} className="p-2 hover:bg-white/20 rounded-lg transition-colors"><X className="w-5 h-5 text-white" /></button>
+              </div>
+              <div className="p-5 space-y-6 max-h-[70vh] overflow-y-auto">
+
+                {/* Rename */}
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5 flex items-center gap-1.5"><Edit3 className="w-4 h-4" /> Rename</label>
+                  <div className="flex gap-2">
+                    <input type="text" value={renameValue} onChange={e => setRenameValue(e.target.value)}
+                      className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                    <button onClick={handleRenameChannel} disabled={isRenaming || !renameValue.trim()}
+                      className="px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg text-sm disabled:opacity-50">
+                      {isRenaming ? <Loader className="w-4 h-4 animate-spin" /> : 'Save'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Members */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="text-sm font-semibold text-gray-700 flex items-center gap-1.5"><Users className="w-4 h-4" /> Members ({channelParticipants.length})</label>
+                    {myChannelRole && ['owner', 'admin'].includes(myChannelRole) && (
+                      <button onClick={() => setShowAddMemberModal(true)}
+                        className="text-xs text-[#003D82] hover:text-[#002960] font-semibold flex items-center gap-1">
+                        <UserPlus className="w-3.5 h-3.5" /> Add
+                      </button>
+                    )}
+                  </div>
+                  <div className="space-y-1 max-h-48 overflow-y-auto border border-gray-100 rounded-lg p-1">
+                    {channelParticipants.length === 0 ? (
+                      <p className="text-xs text-gray-400 p-3 text-center">Loading members...</p>
+                    ) : (
+                      channelParticipants.map((p: any) => (
+                        <div key={p.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                            {p.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="text-xs font-semibold text-gray-900 truncate">{p.profile?.full_name || 'Unknown'}</p>
+                            <p className="text-[10px] text-gray-500 capitalize">{p.role}</p>
+                          </div>
+                          {p.role === 'owner' && <Crown className="w-3 h-3 text-amber-500 flex-shrink-0" />}
+                          {myChannelRole === 'owner' && p.user_id !== currentUserId && (
+                            <div className="flex items-center gap-1">
+                              {p.role !== 'admin' && (
+                                <button onClick={() => handleUpdateRole(p.user_id, 'admin', p.profile?.full_name || 'User')}
+                                  className="p-1 hover:bg-blue-100 rounded text-gray-400 hover:text-blue-600" title="Promote to admin">
+                                  <Shield className="w-3 h-3" />
+                                </button>
+                              )}
+                              {p.role === 'admin' && (
+                                <button onClick={() => handleUpdateRole(p.user_id, 'member', p.profile?.full_name || 'User')}
+                                  className="p-1 hover:bg-amber-100 rounded text-gray-400 hover:text-amber-600" title="Demote to member">
+                                  <UserMinus className="w-3 h-3" />
+                                </button>
+                              )}
+                              <button onClick={() => handleRemoveMember(p.user_id, p.profile?.full_name || 'User')}
+                                className="p-1 hover:bg-red-100 rounded text-gray-400 hover:text-red-600" title="Remove">
+                                <X className="w-3 h-3" />
+                              </button>
+                            </div>
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </div>
+
+                {/* Danger zone */}
+                {myChannelRole === 'owner' && (
+                  <div className="border-t border-red-100 pt-4">
+                    <label className="text-sm font-semibold text-red-600 flex items-center gap-1.5 mb-2"><Trash2 className="w-4 h-4" /> Danger Zone</label>
+                    <button onClick={handleDeleteChannel}
+                      className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg transition-colors flex items-center gap-1.5">
+                      <Trash2 className="w-4 h-4" /> Delete this {selectedConversation.conversation_type === 'channel' ? 'Channel' : 'Project'}
+                    </button>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Add Member Modal */}
+      <AnimatePresence>
+        {showAddMemberModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="p-5 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900">Add Member</h3>
+                <p className="text-gray-500 text-sm mt-0.5">Add someone to this {selectedConversation?.conversation_type === 'channel' ? 'channel' : 'project'}</p>
+              </div>
+              <div className="p-5">
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={addMemberSearch} onChange={e => {
+                    setAddMemberSearch(e.target.value);
+                    if (e.target.value.length >= 2) {
+                      const supabase = createClient();
+                      supabase.from('profiles').select('id, full_name, email, user_type, avatar_url')
+                        .neq('id', currentUserId!).ilike('full_name', `%${e.target.value}%`).limit(10)
+                        .then(({ data }) => setAddMemberResults((data || []).filter(u => !channelParticipants.some(p => p.user_id === u.id))));
+                    } else { setAddMemberResults([]); }
+                  }} placeholder="Search by name..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                  {addMemberResults.length === 0 ? (
+                    <p className="text-center text-xs text-gray-400 py-4">{addMemberSearch.length < 2 ? 'Type at least 2 characters' : 'No users found'}</p>
+                  ) : (
+                    addMemberResults.map(u => (
+                      <button key={u.id} type="button" onClick={() => handleAddMember(u)}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left">
+                        <Avatar user={u} size="sm" />
+                        <div className="min-w-0">
+                          <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
+                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                        </div>
+                        <UserPlus className="w-4 h-4 text-[#003D82] ml-auto flex-shrink-0" />
+                      </button>
+                    ))
+                  )}
+                </div>
+                <button onClick={() => { setShowAddMemberModal(false); setAddMemberSearch(''); setAddMemberResults([]); }}
+                  className="mt-3 w-full px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
               </div>
             </motion.div>
           </motion.div>

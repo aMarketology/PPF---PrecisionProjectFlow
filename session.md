@@ -1,17 +1,56 @@
 # Precision Project Flow — Session Tracker
 
 **Last updated:** August 1, 2026
-**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace + Offers · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign · 🏠 Home Activity Feed
+**Status:** ✅ LIVE · 💬 Slack-style messaging 🛡️ Channel Permissions · 📋 RFQ Marketplace + Offers · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign · 🏠 Home Activity Feed
 
 ---
 
 ## 📍 Current Focus
-**RFQ Feed with Offers System & Home Page Blockchain Activity Feed.**
-Vendors can now browse open RFQs in the `/rfq` feed, submit competitive offers (bids), and see blockchain-verified activity on the home page when logged in. The RFQ feed features category-based filtering, search, match scoring (For You tab), and a live offer panel that shows real-time bidding.
+**Channel/Project Permissions + Role-Based Access Control.**
+Channels and Projects now have full role-based permissions (owner > admin > member). Owners can manage all members, promote/demote admins, and delete channels. Admins can add/remove members and update channel settings. The sidebar now shows "Projects" instead of "Groups" — project conversations are auto-created when bids/offers are accepted.
 
 ---
 
 ## ✅ Just Shipped (Aug 1, 2026)
+
+### Channel/Project Permissions
+| Item | Detail |
+|------|--------|
+| Role hierarchy | `owner` (founder) > `admin` (manager) > `member` (read/write) |
+| Owner actions | Delete channel, manage all roles, promote/demote admins |
+| Admin actions | Add/remove members, rename channel, update description/settings |
+| Member actions | Read and send messages only |
+| `is_channel_owner()` helper | SECURITY DEFINER function to check owner role (bypasses RLS) |
+| `is_channel_admin()` helper | SECURITY DEFINER function to check owner/admin role |
+| `get_channel_role()` helper | Returns the user's role in a conversation |
+| `update_channel_member_role()` RPC | Owner-only — promote/demote members |
+| `remove_channel_member()` RPC | Admin+ — kick members from channel |
+| `update_channel()` RPC | Admin+ — rename, change description, toggle public |
+| `delete_channel()` RPC | Owner-only — permanently delete channel/project |
+| `add_channel_member()` RPC | Admin+ — add new members |
+| RLS: UPDATE on `user_conversations` | Only admins/owners can update channel settings |
+| RLS: DELETE on `user_conversations` | Only owners can delete channels |
+| RLS: UPDATE/DELETE on `conversation_participants` | Only admins/owners can manage members |
+| General channel fix | Company owner now set as `owner` (was `member`) in General channel |
+
+### UI: Channel Settings Panel
+| Item | Detail |
+|------|--------|
+| Settings gear icon | Only appears for admins/owners on channel/project header |
+| Rename field | Edit channel/project name inline |
+| Member list | Shows all participants with role badges and crown icon for owner |
+| Promote/Demote buttons | Owner sees shield icon to promote to admin, demote to member |
+| Remove button | Owner/admin sees X to remove members |
+| Delete button | Owner sees red "Danger Zone" with delete action |
+| Add Member modal | Search users by name, add to channel |
+| Realtime updates | Participant list refreshes live when members change |
+
+### Sidebar Changes
+| Item | Detail |
+|------|--------|
+| "Groups" → "Projects" | Renamed in sidebar with Briefcase icon |
+| Project badge | Shows "Project" instead of "Group" in thread header |
+| Empty state | Mentions accepting bids/projects |
 
 ### RFQ Feed & Offer System
 | Item | Detail |
