@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@supabase/supabase-js'
 
 export const dynamic = 'force-dynamic';
 
 // GET /api/activities?page=0&type=all&search=
 // Returns paginated site_activities with actor profiles
+// Uses service_role key to bypass RLS — activities are public feed data
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
@@ -14,11 +15,14 @@ export async function GET(request: NextRequest) {
     const limit  = 20;
     const offset = page * limit;
 
-    const supabase = await createClient();
+    const serviceClient = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
 
-    let query = supabase
+    let query = serviceClient
       .from('site_activities')
-      .select('*, actor:profiles!actor_id(id, full_name, avatar_url, user_type)')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -30,19 +34,34 @@ export async function GET(request: NextRequest) {
       query = query.ilike('summary', `%${search}%`);
     }
 
-    const { data: activities, error } = await query;
+    const { data: activities, error, count } = await query;
     if (error) throw error;
 
-    // Get total count for the current filter
-    let countQuery = supabase.from('site_activities').select('*', { count: 'exact', head: true });
-    if (type !== 'all') countQuery = countQuery.eq('activity_type', type);
-    if (search) countQuery = countQuery.ilike('summary', `%${search}%`);
-    const { count } = await countQuery;
+    // Fetch actor profiles separately (FK is to auth.users, not profiles)
+    const list = activities ?? [];
+    let actorMap = new Map<string, any>();
+    if (list.length > 0) {
+      const actorIds = Array.from(new Set(list.map(a => a.actor_id).filter(Boolean)));
+      if (actorIds.length > 0) {
+        const { data: profiles } = await serviceClient
+          .from('profiles')
+          .select('id, full_name, avatar_url, user_type')
+          .in('id', actorIds);
+        if (profiles) {
+          actorMap = new Map(profiles.map(p => [p.id, p]));
+        }
+      }
+    }
+
+    const enriched = list.map(a => ({
+      ...a,
+      actor: a.actor_id ? (actorMap.get(a.actor_id) ?? null) : null,
+    }));
 
     return NextResponse.json({
-      activities: activities ?? [],
+      activities: enriched,
       page,
-      hasMore: (activities?.length ?? 0) === limit,
+      hasMore: list.length === limit,
       total: count ?? 0,
     });
   } catch (error: any) {
