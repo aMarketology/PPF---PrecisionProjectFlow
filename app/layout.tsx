@@ -15,6 +15,11 @@ export const metadata: Metadata = {
   description: 'Professional product flow optimization and management services. Streamline your operations with our expert team.',
   keywords: 'product flow, supply chain optimization, operations management, logistics',
   metadataBase: new URL('https://precisionproductflow.com'),
+  icons: {
+    icon: '/favicon.svg',
+    shortcut: '/favicon.svg',
+    apple: '/favicon.svg',
+  },
   openGraph: {
     type: 'website',
     url: 'https://precisionproductflow.com',

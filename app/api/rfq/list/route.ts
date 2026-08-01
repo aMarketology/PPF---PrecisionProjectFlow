@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     // Build query
     let query = supabase
       .from('rfqs')
-      .select('*, client:profiles!rfqs_client_id_fkey(id, full_name, avatar_url, company_name)', { count: 'exact' })
+      .select('*, client:profiles!rfqs_client_id_fkey(id, full_name, avatar_url, company_id)', { count: 'exact' })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
 
@@ -100,7 +100,7 @@ export async function GET(request: NextRequest) {
           id: prof.id,
           full_name: prof.full_name,
           avatar_url: prof.avatar_url,
-          company_name: prof.company_id ? companyMap.get(prof.company_id) : prof.company_name,
+          company_name: prof.company_id ? companyMap.get(prof.company_id) : undefined,
         } : null,
         offers_count: offerMap.get(r.id)?.count ?? 0,
         lowest_offer: offerMap.get(r.id)?.lowest ?? null,

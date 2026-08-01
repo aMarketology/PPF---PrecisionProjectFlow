@@ -172,7 +172,7 @@ export default function Navigation() {
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-0.5">
-              {['Home', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ Feed', 'Contact'].map((item, index) => (
+              {['Home', 'Activity', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ Feed', 'Contact'].map((item, index) => (
                 <motion.div
                   key={item}
                   initial={{ opacity: 0, y: -20 }}
