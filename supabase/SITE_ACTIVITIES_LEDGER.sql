@@ -14,7 +14,7 @@ CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 -- ── 2. site_activities table ───────────────────────────────────────
 CREATE TABLE IF NOT EXISTS public.site_activities (
   id              UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-  activity_type   TEXT        NOT NULL,  -- 'rfq_posted' | 'rfq_awarded' | 'order_placed' | 'order_completed' | 'social_post_created' | 'company_joined' | 'team_member_added'
+  activity_type   TEXT        NOT NULL,  -- 'rfq_posted' | 'rfq_awarded' | 'offer_submitted' | 'order_placed' | 'order_completed' | 'social_post_created' | 'company_joined' | 'team_member_added'
   actor_id        UUID        REFERENCES auth.users(id) ON DELETE SET NULL,
   target_type     TEXT,                  -- 'rfq' | 'order' | 'feed_post' | 'company' | 'project'
   target_id       UUID,                  -- the resource that was acted upon

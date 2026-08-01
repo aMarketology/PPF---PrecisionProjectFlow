@@ -24,9 +24,25 @@ import {
   Star,
   FileText,
   Users,
-  Globe
+  Globe,
+  Hash,
+  MessageCircle,
+  ShoppingCart,
+  UserPlus,
+  Coins,
+  Clock,
+  Loader2,
+  ExternalLink,
 } from 'lucide-react'
 import { getUser } from './actions/auth'
+import { createClient } from '@/lib/supabase/client'
+import { formatDistanceToNow } from 'date-fns'
+
+interface SiteActivity {
+  id: string; activity_type: string; actor_id: string; target_type: string | null; target_id: string | null;
+  summary: string; metadata: Record<string, any>; previous_hash: string | null; row_hash: string;
+  created_at: string; actor: { id: string; full_name: string; avatar_url: string | null; user_type: string } | null;
+}
 
 // Engineering categories matching ThomasNet style
 const engineeringCategories = [
@@ -111,14 +127,30 @@ export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [searchFocus, setSearchFocus] = useState(false)
+  const [activities, setActivities] = useState<SiteActivity[]>([])
+  const [activitiesLoading, setActivitiesLoading] = useState(false)
 
   useEffect(() => {
     async function fetchUser() {
       const userData = await getUser()
       setUser(userData)
+      // If logged in, also fetch blockchain activity feed
+      if (userData?.id) {
+        loadActivities()
+      }
     }
     fetchUser()
   }, [])
+
+  const loadActivities = async () => {
+    setActivitiesLoading(true)
+    try {
+      const res = await fetch('/api/activities?page=0&type=all&search=')
+      const data = await res.json()
+      setActivities(data.activities?.slice(0, 6) ?? [])
+    } catch { /* silent */ }
+    finally { setActivitiesLoading(false) }
+  }
 
   const popularSearches = [
     'Structural Steel Fabrication',
@@ -231,6 +263,138 @@ export default function HomePage() {
           <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-blue-600 rounded-full opacity-10 blur-3xl"></div>
         </div>
       </section>
+
+      {/* ── Blockchain Activity Feed (Authenticated users) ── */}
+      {user && (
+        <section className="bg-gray-50 border-b border-gray-200">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <div className="inline-flex items-center gap-2 bg-[#003D82]/10 text-[#003D82] rounded-full px-3 py-1 text-xs font-semibold mb-2">
+                  <Hash className="w-3.5 h-3.5" /> Blockchain Ledger
+                </div>
+                <h2 className="text-2xl font-bold text-gray-900">Live Activity Feed</h2>
+                <p className="text-sm text-gray-500">Real-time platform activity — cryptographically chained</p>
+              </div>
+              <Link
+                href="/feed"
+                className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl text-sm transition-all"
+              >
+                <TrendingUp className="w-4 h-4" />
+                View Full Feed
+              </Link>
+            </div>
+
+            {activitiesLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="w-6 h-6 animate-spin text-[#003D82]" />
+              </div>
+            ) : activities.length === 0 ? (
+              <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
+                <Hash className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+                <p className="font-semibold text-gray-600 text-sm">No activity yet</p>
+                <p className="text-xs text-gray-400 mt-1">Activity will appear as vendors post RFQs, submit offers, and complete orders.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {activities.map((activity) => {
+                  const iconBg: Record<string, string> = {
+                    rfq_posted: 'bg-blue-100 text-blue-600',
+                    rfq_awarded: 'bg-emerald-100 text-emerald-600',
+                    offer_submitted: 'bg-rose-100 text-rose-600',
+                    social_post_created: 'bg-purple-100 text-purple-600',
+                    order_placed: 'bg-amber-100 text-amber-600',
+                    order_completed: 'bg-green-100 text-green-600',
+                    company_joined: 'bg-cyan-100 text-cyan-600',
+                    team_member_added: 'bg-rose-100 text-rose-600',
+                  };
+                  const activityIcons: Record<string, React.ReactNode> = {
+                    rfq_posted: <FileText className="w-4 h-4" />,
+                    rfq_awarded: <Award className="w-4 h-4" />,
+                    offer_submitted: <TrendingUp className="w-4 h-4" />,
+                    social_post_created: <MessageCircle className="w-4 h-4" />,
+                    order_placed: <ShoppingCart className="w-4 h-4" />,
+                    order_completed: <CheckCircle2 className="w-4 h-4" />,
+                    company_joined: <Building2 className="w-4 h-4" />,
+                    team_member_added: <UserPlus className="w-4 h-4" />,
+                  };
+                  const targetLink = activity.target_type === 'rfq' && activity.target_id
+                    ? `/rfq/${activity.target_id}`
+                    : activity.target_type === 'feed_post' && activity.target_id
+                    ? `/feed`
+                    : null;
+
+                  return (
+                    <motion.div
+                      key={activity.id}
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      className="bg-white rounded-xl border border-gray-100 shadow-sm hover:shadow-md transition-all overflow-hidden"
+                    >
+                      <div className="p-4">
+                        <div className="flex items-start gap-3">
+                          <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${iconBg[activity.activity_type] || 'bg-gray-100 text-gray-600'}`}>
+                            {activityIcons[activity.activity_type] || <FileText className="w-4 h-4" />}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-0.5">
+                              {activity.actor && (
+                                <span className="font-semibold text-gray-900 text-sm truncate">{activity.actor.full_name}</span>
+                              )}
+                              <span className="text-[10px] text-gray-400">
+                                {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                            <p className="text-xs text-gray-600 leading-relaxed line-clamp-2">{activity.summary}</p>
+                            {activity.metadata?.budget && (
+                              <p className="text-xs text-emerald-600 font-semibold mt-1">Budget: {activity.metadata.budget}</p>
+                            )}
+                            {activity.metadata?.category && (
+                              <span className="inline-block mt-1.5 px-2 py-0.5 bg-blue-50 text-[#003D82] text-[10px] font-semibold rounded-full">
+                                {activity.metadata.category}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      <div className="px-4 py-2 border-t border-gray-50 bg-gray-50/50 flex items-center justify-between">
+                        <div className="flex items-center gap-1.5 text-[9px] text-gray-400 font-mono">
+                          <Hash className="w-2.5 h-2.5" />
+                          <span className="truncate max-w-[100px]" title={activity.row_hash}>
+                            {activity.row_hash?.substring(0, 12) || 'pending'}...
+                          </span>
+                        </div>
+                        {targetLink && (
+                          <Link href={targetLink} className="text-[10px] font-semibold text-[#003D82] hover:text-[#002960] flex items-center gap-0.5">
+                            View <ExternalLink className="w-2.5 h-2.5" />
+                          </Link>
+                        )}
+                      </div>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            )}
+
+            <div className="flex items-center justify-center mt-6 gap-4">
+              <Link
+                href="/feed"
+                className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl text-sm transition-all"
+              >
+                <TrendingUp className="w-4 h-4" />
+                View Full Activity Feed
+              </Link>
+              <Link
+                href="/rfq"
+                className="inline-flex items-center gap-2 px-5 py-2.5 border-2 border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl text-sm transition-all"
+              >
+                <FileText className="w-4 h-4" />
+                Browse Open RFQs
+              </Link>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Trust Indicators Bar */}
       <section className="bg-gray-50 border-y border-gray-200 py-8">

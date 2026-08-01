@@ -172,7 +172,7 @@ export default function Navigation() {
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-0.5">
-              {['Home', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ', 'Contact'].map((item, index) => (
+              {['Home', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ Feed', 'Contact'].map((item, index) => (
                 <motion.div
                   key={item}
                   initial={{ opacity: 0, y: -20 }}
@@ -180,7 +180,7 @@ export default function Navigation() {
                   transition={{ delay: index * 0.03 }}
                 >
                   <Link
-                    href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
+                    href={item === 'Home' ? '/' : item === 'RFQ Feed' ? '/rfq' : `/${item.toLowerCase()}`}
                     className="px-2.5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-[#003D82] hover:bg-blue-50 whitespace-nowrap"
                   >
                     {item}

@@ -12,8 +12,10 @@ import {
   Search, MapPin, Clock, DollarSign, Filter, X, ChevronRight,
   FileText, Wrench, Zap, Building2, Tag, Loader2, Package,
   ArrowUpDown, MessageSquare, Plus, AlertCircle, Send,
-  BarChart3, TrendingUp, Users, Layers,
+  BarChart3, TrendingUp, Users, Layers, Gavel, Eye, Award, ChevronDown, ChevronUp,
 } from 'lucide-react';
+import { AnimatePresence, motion } from 'framer-motion';
+import { toast } from 'react-hot-toast';
 
 interface RFQ {
   id: string;
@@ -31,6 +33,9 @@ interface RFQ {
   created_at: string;
   updated_at: string;
   client?: { id: string; full_name: string; company_name?: string; avatar_url?: string };
+  offers_count?: number;
+  lowest_offer?: number | null;
+  my_offer?: number | null;
 }
 
 const CATEGORIES = [
@@ -163,6 +168,8 @@ export default function RFQMarketplacePage() {
     if (!currentUserId) { router.push('/login?redirect=/rfq'); return; }
     if (rfq.client?.id) router.push(`/messages?with=${rfq.client.id}`);
   };
+
+  const refreshRFQs = () => { loadRFQs(); };
 
   const filtered = rfqs.filter(r => {
     if (selectedCategory !== 'All' && r.category !== selectedCategory) return false;
@@ -330,7 +337,7 @@ export default function RFQMarketplacePage() {
             ) : (
               <div className="space-y-3">
                 {sorted.map((rfq, i) => (
-                  <LinearRFQCard key={rfq.id} rfq={rfq} i={i} currentUserId={currentUserId} onApply={handleApply} matchScore={showForYou ? (scoredRfqs.get(rfq.id) ?? 0) : 0} />
+                  <LinearRFQCard key={rfq.id} rfq={rfq} i={i} currentUserId={currentUserId} onApply={handleApply} onOfferPlaced={refreshRFQs} matchScore={showForYou ? (scoredRfqs.get(rfq.id) ?? 0) : 0} />
                 ))}
               </div>
             )}
@@ -440,99 +447,280 @@ export default function RFQMarketplacePage() {
   );
 }
 
-function LinearRFQCard({ rfq, i, currentUserId, onApply, matchScore }: { rfq: RFQ; i: number; currentUserId: string | null; onApply: (rfq: RFQ) => void; matchScore?: number }) {
+function AvatarImg({ src, name, size = 10 }: { src?: string | null; name: string; size?: number }) {
+  const dim = `w-${size} h-${size}`;
+  if (src) {
+    return <img src={src} alt={name} className={`${dim} rounded-full object-cover flex-shrink-0 ring-2 ring-white`} />;
+  }
+  return (
+    <div className={`${dim} rounded-full flex items-center justify-center flex-shrink-0 bg-gradient-to-br from-[#003D82] to-[#0066C0] text-white font-bold text-sm ring-2 ring-white`}>
+      {name?.charAt(0)?.toUpperCase() || '?'}
+    </div>
+  );
+}
+
+function OfferModal({ rfqId, rfqTitle, rfqBudget, currentUserId, onClose, onOfferPlaced }: {
+  rfqId: string; rfqTitle: string; rfqBudget?: string | null; currentUserId: string | null; onClose: () => void; onOfferPlaced: () => void;
+}) {
+  const [amount, setAmount] = useState('');
+  const [note, setNote] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!currentUserId) { toast.error('Sign in to submit an offer'); return; }
+    if (!amount || Number(amount) <= 0) { toast.error('Enter a valid offer amount'); return; }
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/rfq/${rfqId}/offer`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ amount: Number(amount), note }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to submit offer');
+      toast.success('Offer submitted successfully!');
+      onOfferPlaced();
+      onClose();
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to submit offer');
+    } finally { setSubmitting(false); }
+  };
+
+  return (
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-jakarta" onClick={onClose}>
+      <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+          <div>
+            <h2 className="font-bold text-lg text-gray-900">Submit Offer</h2>
+            <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{rfqTitle}</p>
+          </div>
+          <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5 text-gray-500" /></button>
+        </div>
+        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+          {rfqBudget && (
+            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-center gap-3">
+              <DollarSign className="w-5 h-5 text-[#003D82] flex-shrink-0" />
+              <div>
+                <p className="text-xs font-semibold text-gray-500">Client Budget</p>
+                <p className="text-sm font-bold text-[#003D82]">{rfqBudget}</p>
+              </div>
+            </div>
+          )}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Your Offer Amount <span className="text-red-500">*</span></label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-semibold">$</span>
+              <input type="number" min="1" step="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)}
+                className="w-full pl-8 pr-4 py-3.5 border-2 border-gray-200 rounded-xl text-lg font-bold text-gray-900 focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] outline-none" autoFocus />
+          </div>
+          </div>
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Note to Client <span className="text-gray-400 font-normal">(optional)</span></label>
+            <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Describe your approach, timeline, or relevant experience..."
+              className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] outline-none resize-none" rows={3} maxLength={1000} />
+          </div>
+          <button type="submit" disabled={submitting || !amount}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#003D82] hover:bg-[#002960] text-white font-bold rounded-xl disabled:opacity-50 transition-all text-base">
+            {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+            {submitting ? 'Submitting...' : 'Submit Offer'}
+          </button>
+          <p className="text-xs text-gray-400 text-center">Your offer will be sent to the client. You can withdraw it anytime.</p>
+        </form>
+      </motion.div>
+    </motion.div>
+  );
+}
+
+function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchScore }: {
+  rfq: RFQ; i: number; currentUserId: string | null; onApply: (rfq: RFQ) => void; onOfferPlaced: () => void; matchScore?: number;
+}) {
+  const [showOfferModal, setShowOfferModal] = useState(false);
+  const [showOffers, setShowOffers] = useState(false);
+  const [offers, setOffers] = useState<any[]>([]);
+  const [loadingOffers, setLoadingOffers] = useState(false);
   const isOwn = rfq.client_id === currentUserId;
+  const isVendor = currentUserId && !isOwn;
+
+  const loadOffers = async () => {
+    setLoadingOffers(true);
+    try {
+      const res = await fetch(`/api/rfq/${rfq.id}/offer`);
+      const data = await res.json();
+      setOffers(data.offers ?? []);
+    } catch { /* silent */ }
+    setLoadingOffers(false);
+  };
+
   const hasMatch = (matchScore ?? 0) > 0;
   const isStrongMatch = (matchScore ?? 0) >= 50;
   const isGoodMatch = (matchScore ?? 0) >= 25;
   const isPartialMatch = (matchScore ?? 0) >= 10;
 
-  const matchBadge = isStrongMatch ? { label: '🔥 Strong Match', cls: 'bg-orange-100 text-orange-700 border-orange-300' }
-    : isGoodMatch ? { label: '⭐ Good Match', cls: 'bg-amber-100 text-amber-700 border-amber-300' }
-    : isPartialMatch ? { label: '📎 Partial Match', cls: 'bg-blue-100 text-blue-700 border-blue-300' }
+  const matchBadge = isStrongMatch ? { label: 'Strong Match', cls: 'bg-orange-100 text-orange-700 border-orange-300' }
+    : isGoodMatch ? { label: 'Good Match', cls: 'bg-amber-100 text-amber-700 border-amber-300' }
+    : isPartialMatch ? { label: 'Partial Match', cls: 'bg-blue-100 text-blue-700 border-blue-300' }
     : null;
 
   return (
-    <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
-      className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all ${
-        hasMatch ? 'border-orange-300 ring-1 ring-orange-200' : 'border-gray-100 hover:border-gray-200'
-      }`}>
-      <div className="p-4">
-        <div className="flex items-start gap-4">
-          {/* Left: Status + Avatar + Match Badge */}
-          <div className="flex flex-col items-center gap-2 min-w-[56px]">
-            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm">
-              {rfq.client?.full_name?.charAt(0)?.toUpperCase() || '?'}
-            </div>
-            <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[rfq.status]}`}>
-              {rfq.status === 'open' ? 'Open' : rfq.status === 'in_review' ? 'Review' : rfq.status === 'awarded' ? 'Awarded' : 'Closed'}
-            </span>
-            {matchBadge && (
-              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${matchBadge.cls}`}>
-                {matchBadge.label}
-              </span>
-            )}
-          </div>
-
-          {/* Center: Content */}
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              <span className="text-xs font-semibold text-gray-900">{rfq.client?.company_name || rfq.client?.full_name || 'Anonymous'}</span>
-              <span className="text-xs text-gray-400">{rfq.client?.company_name ? '' : ''}</span>
-              <span className="flex items-center gap-1 text-[10px] text-gray-400"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(rfq.created_at), { addSuffix: true })}</span>
-            </div>
-            <Link href={`/rfq/${rfq.slug || rfq.id}`}>
-              <h3 className="font-bold text-gray-900 text-base hover:text-[#003D82] transition-colors">{rfq.title}</h3>
-            </Link>
-            <p className="text-sm text-gray-600 mt-1 leading-relaxed line-clamp-2">{rfq.description}</p>
-
-            {/* Meta Tags */}
-            <div className="flex items-center gap-3 mt-2 flex-wrap">
-              <span className="flex items-center gap-1 text-xs text-gray-500">
-                {CATEGORY_ICONS[rfq.category] || <FileText className="w-3 h-3" />}
-                {rfq.category}
-              </span>
-              {rfq.location && (
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <MapPin className="w-3 h-3" />{rfq.location}
-                </span>
-              )}
-              {rfq.timeline && (
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <Clock className="w-3 h-3" />{rfq.timeline}
-                </span>
-              )}
-              {rfq.quantity && (
-                <span className="flex items-center gap-1 text-xs text-gray-500">
-                  <Package className="w-3 h-3" />Qty: {rfq.quantity}
-                </span>
-              )}
-            </div>
-          </div>
-
-          {/* Right: Budget + Actions */}
-          <div className="flex flex-col items-end gap-2 min-w-[120px] flex-shrink-0">
-            {rfq.budget && (
-              <div className="text-right">
-                <p className="text-xs text-gray-500">Budget</p>
-                <p className="font-bold text-gray-900 text-lg leading-tight">{rfq.budget}</p>
+    <>
+      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
+        className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all ${hasMatch ? 'border-orange-300 ring-1 ring-orange-200' : 'border-gray-100 hover:border-gray-200'}`}>
+        <div className="p-4">
+          <div className="flex items-start gap-4">
+            {/* Left: Status + Avatar + Match Badge */}
+            <div className="flex flex-col items-center gap-2 min-w-[56px]">
+              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm">
+                {rfq.client?.full_name?.charAt(0)?.toUpperCase() || '?'}
               </div>
-            )}
-            <div className="flex gap-1.5">
-              <Link href={`/rfq/${rfq.slug || rfq.id}`}
-                className="px-3 py-1.5 text-xs font-semibold text-[#003D82] border border-gray-200 hover:bg-blue-50 rounded-lg transition-colors">
-                Details
-              </Link>
-              {!isOwn && rfq.status === 'open' && (
-                <button onClick={() => onApply(rfq)}
-                  className="px-3 py-1.5 text-xs font-semibold bg-[#003D82] hover:bg-[#002960] text-white rounded-lg transition-colors flex items-center gap-1">
-                  <Send className="w-3 h-3" /> Apply
-                </button>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[rfq.status]}`}>
+                {rfq.status === 'open' ? 'Open' : rfq.status === 'in_review' ? 'Review' : rfq.status === 'awarded' ? 'Awarded' : 'Closed'}
+              </span>
+              {matchBadge && (
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${matchBadge.cls}`}>
+                  {matchBadge.label}
+                </span>
+              )}
+              {/* Offer count badge */}
+              {(rfq.offers_count ?? 0) > 0 && (
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-semibold border bg-rose-50 text-rose-600 border-rose-200">
+                  {(rfq.offers_count ?? 0)} offer{(rfq.offers_count ?? 0) !== 1 ? 's' : ''}
+                </span>
               )}
             </div>
+
+            {/* Center: Content */}
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-xs font-semibold text-gray-900">{rfq.client?.company_name || rfq.client?.full_name || 'Anonymous'}</span>
+                <span className="flex items-center gap-1 text-[10px] text-gray-400"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(rfq.created_at), { addSuffix: true })}</span>
+              </div>
+              <Link href={`/rfq/${rfq.slug || rfq.id}`}>
+                <h3 className="font-bold text-gray-900 text-base hover:text-[#003D82] transition-colors">{rfq.title}</h3>
+              </Link>
+              <p className="text-sm text-gray-600 mt-1 leading-relaxed line-clamp-2">{rfq.description}</p>
+
+              {/* Meta Tags */}
+              <div className="flex items-center gap-3 mt-2 flex-wrap">
+                <span className="flex items-center gap-1 text-xs text-gray-500">
+                  {CATEGORY_ICONS[rfq.category] || <FileText className="w-3 h-3" />}
+                  {rfq.category}
+                </span>
+                {rfq.location && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <MapPin className="w-3 h-3" />{rfq.location}
+                  </span>
+                )}
+                {rfq.timeline && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <Clock className="w-3 h-3" />{rfq.timeline}
+                  </span>
+                )}
+                {rfq.quantity && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <Package className="w-3 h-3" />Qty: {rfq.quantity}
+                  </span>
+                )}
+              </div>
+
+              {/* Offer pricing row */}
+              <div className="flex items-center gap-2 mt-2">
+                {rfq.lowest_offer && (
+                  <span className="flex items-center gap-1 text-xs text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-full font-semibold">
+                    <DollarSign className="w-3 h-3" />Lowest offer: ${Number(rfq.lowest_offer).toLocaleString()}
+                  </span>
+                )}
+                {rfq.my_offer && (
+                  <span className="flex items-center gap-1 text-xs text-[#003D82] bg-blue-50 px-2 py-0.5 rounded-full font-semibold">
+                    <Gavel className="w-3 h-3" />Your offer: ${Number(rfq.my_offer).toLocaleString()}
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Right: Budget + Actions */}
+            <div className="flex flex-col items-end gap-2 min-w-[120px] flex-shrink-0">
+              {rfq.budget && (
+                <div className="text-right">
+                  <p className="text-xs text-gray-500">Budget</p>
+                  <p className="font-bold text-gray-900 text-lg leading-tight">{rfq.budget}</p>
+                </div>
+              )}
+              <div className="flex gap-1.5 flex-wrap justify-end">
+                <Link href={`/rfq/${rfq.slug || rfq.id}`}
+                  className="px-3 py-1.5 text-xs font-semibold text-[#003D82] border border-gray-200 hover:bg-blue-50 rounded-lg transition-colors">
+                  <Eye className="w-3 h-3 inline mr-1" />Details
+                </Link>
+                {!isOwn && rfq.status === 'open' && (
+                  <button onClick={() => setShowOfferModal(true)}
+                    className="px-3 py-1.5 text-xs font-semibold bg-[#FF6B35] hover:bg-[#E55A2B] text-white rounded-lg transition-colors flex items-center gap-1">
+                    <Gavel className="w-3 h-3" /> Bid
+                  </button>
+                )}
+              </div>
+              {/* Offer toggle */}
+              <button onClick={() => { if (!showOffers && offers.length === 0) loadOffers(); setShowOffers(!showOffers); }}
+                className="text-[10px] text-gray-400 hover:text-[#003D82] font-semibold flex items-center gap-1">
+                <Gavel className="w-3 h-3" />
+                {showOffers ? 'Hide' : 'View'} offers
+                {showOffers ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+              </button>
+            </div>
           </div>
+
+          {/* Offers Panel */}
+          <AnimatePresence>
+            {showOffers && (
+              <motion.div initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }} exit={{ height: 0, opacity: 0 }} className="overflow-hidden">
+                <div className="mt-3 pt-3 border-t border-gray-100 space-y-2">
+                  {loadingOffers ? (
+                    <div className="flex justify-center py-3"><Loader2 className="w-5 h-5 animate-spin text-gray-400" /></div>
+                  ) : offers.length === 0 ? (
+                    <p className="text-sm text-gray-400 text-center py-2">No offers yet. Be the first!</p>
+                  ) : (
+                    offers.map((offer: any, oi: number) => (
+                      <div key={offer.id} className={`flex items-center justify-between p-2.5 rounded-lg ${oi === 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2.5">
+                          {oi === 0 && <Award className="w-3.5 h-3.5 text-emerald-600" />}
+                          <AvatarImg src={offer.vendor?.avatar_url} name={offer.vendor?.full_name || 'Vendor'} size={7} />
+                          <div>
+                            <p className="text-sm font-semibold text-gray-900">{offer.vendor?.full_name || 'Vendor'}</p>
+                            {offer.note && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{offer.note}</p>}
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <span className={`text-sm font-bold ${oi === 0 ? 'text-emerald-700' : 'text-gray-700'}`}>
+                            ${Number(offer.amount).toLocaleString()}
+                          </span>
+                          {offer.status !== 'pending' && (
+                            <span className={`block text-[10px] font-semibold ${offer.status === 'accepted' ? 'text-emerald-600' : 'text-red-500'}`}>
+                              {offer.status}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
-      </div>
-    </motion.div>
+      </motion.div>
+
+      <AnimatePresence>
+        {showOfferModal && (
+          <OfferModal
+            rfqId={rfq.id}
+            rfqTitle={rfq.title}
+            rfqBudget={rfq.budget}
+            currentUserId={currentUserId}
+            onClose={() => setShowOfferModal(false)}
+            onOfferPlaced={onOfferPlaced}
+          />
+        )}
+      </AnimatePresence>
+    </>
   );
 }
