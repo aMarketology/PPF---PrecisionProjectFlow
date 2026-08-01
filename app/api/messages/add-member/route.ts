@@ -16,17 +16,31 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data, error } = await supabase.rpc('add_channel_member', {
-      p_conversation_id: conversationId,
-      p_target_user_id: targetUserId,
-    });
+    console.log('[add-member] user:', user.id, 'conv:', conversationId, 'target:', targetUserId);
 
-    if (error) {
-      console.error('[add-member] RPC error:', error);
-      return NextResponse.json({ error: 'Failed to add member' }, { status: 500 });
-    }
-    if (data === 'not_admin') {
+    // First check if the user is an admin via the helper
+    const { data: isAdmin } = await supabase.rpc('is_channel_admin', {
+      p_conversation_id: conversationId,
+      p_user_id: user.id,
+    });
+    console.log('[add-member] is_channel_admin:', isAdmin);
+
+    if (!isAdmin) {
       return NextResponse.json({ error: 'Only admins and owners can add members' }, { status: 403 });
+    }
+
+    // Direct insert instead of RPC to avoid auth.uid() issues
+    const { error: insertError } = await supabase
+      .from('conversation_participants')
+      .insert({
+        conversation_id: conversationId,
+        user_id: targetUserId,
+        role: 'member',
+      });
+
+    if (insertError) {
+      console.error('[add-member] insert error:', insertError);
+      return NextResponse.json({ error: insertError.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

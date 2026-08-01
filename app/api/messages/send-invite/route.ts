@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Verify sender is a member of this company
+    // Verify sender is admin/owner of this company
     const { data: membership } = await supabase
       .from('company_members')
       .select('role')
@@ -25,7 +25,6 @@ export async function POST(request: NextRequest) {
       .eq('status', 'active')
       .maybeSingle();
 
-    // Also allow the company owner
     const { data: company } = await supabase
       .from('company_profiles')
       .select('owner_id')
@@ -39,27 +38,50 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Only admins and owners can invite' }, { status: 403 });
     }
 
-    // Call the RPC
-    const { data, error } = await supabase.rpc('send_company_invite', {
-      p_company_id: companyId,
-      p_user_id: targetUserId,
-      p_role: 'member',
-    });
+    // Check if already a member
+    const { data: existing } = await supabase
+      .from('company_members')
+      .select('status')
+      .eq('company_id', companyId)
+      .eq('user_id', targetUserId)
+      .maybeSingle();
 
-    if (error) {
-      console.error('[send-invite] RPC error:', error);
-      return NextResponse.json({ error: 'Failed to send invite' }, { status: 500 });
-    }
-
-    if (data?.startsWith('error:')) {
-      return NextResponse.json({ error: data }, { status: 400 });
-    }
-
-    if (data === 'already_member') {
+    if (existing?.status === 'active') {
       return NextResponse.json({ error: 'User is already a member' }, { status: 409 });
     }
 
-    return NextResponse.json({ status: data }, { status: 201 });
+    // Upsert as 'invited'
+    await supabase.from('company_members').upsert({
+      company_id: companyId,
+      user_id: targetUserId,
+      role: 'member',
+      status: 'invited',
+      invited_by: user.id,
+    }, { onConflict: 'company_id, user_id' });
+
+    // Get names for the DM
+    const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', companyId).single();
+    const { data: inviter } = await supabase.from('profiles').select('full_name').eq('id', user.id).single();
+
+    // Get or create DM
+    const { data: convId } = await supabase.rpc('get_or_create_conversation', {
+      user_one_id: user.id,
+      user_two_id: targetUserId,
+    });
+
+    if (convId) {
+      await supabase.from('user_messages').insert({
+        conversation_id: convId,
+        sender_id: user.id,
+        content: `📨 **INVITE:** You have been invited to join "${comp?.company_name || 'a company'}" by ${inviter?.full_name || 'Someone'}. **[Accept]** or **[Decline]**`,
+        is_system_message: true,
+        is_read: true,
+        is_paid: true,
+      });
+      await supabase.from('user_conversations').update({ last_message_at: new Date().toISOString() }).eq('id', convId);
+    }
+
+    return NextResponse.json({ status: 'invited' }, { status: 201 });
   } catch (error) {
     console.error('[send-invite] error:', error);
     return NextResponse.json({ error: 'internal_server_error' }, { status: 500 });

@@ -16,16 +16,23 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data, error } = await supabase.rpc('delete_channel', {
+    // Check owner permission (pass user ID explicitly)
+    const { data: isOwner } = await supabase.rpc('is_channel_owner', {
       p_conversation_id: conversationId,
+      p_user_id: user.id,
     });
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Only owners can delete channels' }, { status: 403 });
+    }
+
+    const { error } = await supabase
+      .from('user_conversations')
+      .delete()
+      .eq('id', conversationId);
 
     if (error) {
-      console.error('[delete-channel] RPC error:', error);
-      return NextResponse.json({ error: 'Failed to delete channel' }, { status: 500 });
-    }
-    if (data === 'not_owner') {
-      return NextResponse.json({ error: 'Only owners can delete channels' }, { status: 403 });
+      console.error('[delete-channel] error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

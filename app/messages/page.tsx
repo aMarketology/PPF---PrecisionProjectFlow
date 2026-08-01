@@ -404,17 +404,27 @@ function MessagesPageInner() {
 
   const handleAddMember = async (user: UserProfile) => {
     if (!selectedConversation) return;
-    const res = await fetch('/api/messages/add-member', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversationId: selectedConversation.id, targetUserId: user.id }),
-    });
-    if (!res.ok) { toast.error('Failed to add member'); return; }
-    setChannelParticipants(prev => [...prev, { user_id: user.id, role: 'member', profile: user }]);
-    setShowAddMemberModal(false);
-    setAddMemberSearch('');
-    setAddMemberResults([]);
-    toast.success(`${user.full_name} added`);
+    try {
+      const res = await fetch('/api/messages/add-member', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: selectedConversation.id, targetUserId: user.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        console.error('[add-member] failed:', data.error);
+        toast.error(data.error || 'Failed to add member');
+        return;
+      }
+      setChannelParticipants(prev => [...prev, { user_id: user.id, role: 'member', profile: user }]);
+      setShowAddMemberModal(false);
+      setAddMemberSearch('');
+      setAddMemberResults([]);
+      toast.success(`${user.full_name} added`);
+    } catch (err) {
+      console.error('[add-member] exception:', err);
+      toast.error('Failed to add member');
+    }
   };
 
   // ── Send typing indicator via Realtime Broadcast ──

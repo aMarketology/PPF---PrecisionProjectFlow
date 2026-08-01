@@ -1,17 +1,27 @@
 # Precision Project Flow — Session Tracker
 
 **Last updated:** August 1, 2026
-**Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock
+**Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign
 
 ---
 
 ## 📍 Current Focus
-**Company Invite System — Accept/Decline via DM.**
-Users can now be invited to a company directly from the Messages page. The invite appears as a system DM with Accept/Decline buttons. Accepting auto-joins the General channel. The one-company rule is enforced — accepting a new company removes you from your previous one.
+**Marketplace Page — Services-only redesign.**
+Stripped out all company directory entries from `/marketplace`. The page now shows only active services from the `services` table. Removed tabs, removed `DirectoryCard` interface, removed `company_profiles` fetch, simplified all filtering logic. Hero counter now accurately shows only the service count.
 
 ---
 
 ## ✅ Just Shipped (Aug 1, 2026)
+
+### Marketplace — Services Only
+| Item | Detail |
+|------|--------|
+| Removed directory entries | No more `company_profiles` fetch, no `DirectoryCard` interface, no company cards |
+| Removed tabs | No more All/Services/Companies tabs — page is services-only |
+| Fixed hero counter | Now shows `"Browse 3 professional engineering services"` (accurate count) |
+| Simplified code | Removed `_type` discriminator, `Card` union type, `industryToCategory` map, `activeTab` state |
+| Cleaner filter bar | No conditional price/sort hiding — all filters always visible |
+| Enhanced service cards | 48px tall images, "Starting at" label, provider info, description, badges, y-6 hover lift |
 
 ### Company Invite System
 | Item | Detail |

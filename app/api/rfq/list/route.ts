@@ -1,28 +1,33 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
-// GET /api/rfq/list?page=0&limit=15&category=Mechanical&search=...
-// Returns paginated open RFQs with client profiles, offer counts, and lowest offer
+// GET /api/rfq/list?page=0&limit=50&category=Mechanical&search=...&status=open
+// Returns paginated RFQs with client profiles, offer counts, and lowest offer
+// Uses service_role to bypass RLS — accessible to everyone including anon
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const page     = parseInt(searchParams.get('page') ?? '0', 10);
-    const limit    = parseInt(searchParams.get('limit') ?? '15', 10);
+    const limit    = parseInt(searchParams.get('limit') ?? '50', 10);
     const category = searchParams.get('category') ?? '';
     const search   = searchParams.get('search') ?? '';
+    const status   = searchParams.get('status') ?? '';
     const offset   = page * limit;
 
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
-    // Build query for open RFQs
+    // Build query
     let query = supabase
       .from('rfqs')
       .select('*, client:profiles!rfqs_client_id_fkey(id, full_name, avatar_url, company_name)', { count: 'exact' })
-      .eq('status', 'open')
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1);
+
+    if (status && status !== 'all') {
+      query = query.eq('status', status);
+    }
 
     if (category) {
       query = query.eq('category', category);

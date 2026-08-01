@@ -24,6 +24,14 @@ import {
 import Link from 'next/link'
 
 const engineeringCategories = [
+  'CNC Machining',
+  'Industrial Parts & Replacement',
+  'Sheet Metal & Fabrication',
+  '3D Printing / Additive Manufacturing',
+  'Injection Molding & Tooling',
+  'Electrical & Controls',
+  'Welding & Assembly',
+  'Quality & Inspection',
   'Civil Engineering',
   'Mechanical Engineering',
   'Electrical Engineering',

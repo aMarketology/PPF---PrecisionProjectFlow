@@ -16,17 +16,24 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data, error } = await supabase.rpc('remove_channel_member', {
+    // Check admin permission (pass user ID explicitly — RPC auth.uid() is NULL in server context)
+    const { data: isAdmin } = await supabase.rpc('is_channel_admin', {
       p_conversation_id: conversationId,
-      p_target_user_id: targetUserId,
+      p_user_id: user.id,
     });
+    if (!isAdmin) {
+      return NextResponse.json({ error: 'Only admins and owners can remove members' }, { status: 403 });
+    }
+
+    const { error } = await supabase
+      .from('conversation_participants')
+      .delete()
+      .eq('conversation_id', conversationId)
+      .eq('user_id', targetUserId);
 
     if (error) {
-      console.error('[remove-member] RPC error:', error);
-      return NextResponse.json({ error: 'Failed to remove member' }, { status: 500 });
-    }
-    if (data === 'not_admin') {
-      return NextResponse.json({ error: 'Only admins and owners can remove members' }, { status: 403 });
+      console.error('[remove-member] error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });

@@ -38,9 +38,12 @@ interface RFQ {
 }
 
 const CATEGORIES = [
-  'All', 'Mechanical Engineering', 'Electrical Engineering', 'Structural Engineering',
+  'All', 'CNC Machining', 'Industrial Parts & Replacement', 'Sheet Metal & Fabrication',
+  '3D Printing / Additive Manufacturing', 'Injection Molding & Tooling',
+  'Electrical & Controls', 'Welding & Assembly', 'Quality & Inspection',
+  'Mechanical Engineering', 'Electrical Engineering', 'Structural Engineering',
   'Civil Engineering', 'HVAC Systems', 'Plumbing & Piping', 'Fire Protection',
-  'Controls & Automation', 'Industrial Manufacturing', 'Material Handling', 'Software Engineering', 'Other',
+  'Controls & Automation', 'Industrial Manufacturing', 'Material Handling', 'Other',
 ];
 
 const STATUS_STYLES: Record<string, string> = {
@@ -51,6 +54,14 @@ const STATUS_STYLES: Record<string, string> = {
 };
 
 const CATEGORY_ICONS: Record<string, React.ReactNode> = {
+  'CNC Machining': <Wrench className="w-4 h-4" />,
+  'Industrial Parts & Replacement': <Package className="w-4 h-4" />,
+  'Sheet Metal & Fabrication': <Layers className="w-4 h-4" />,
+  '3D Printing / Additive Manufacturing': <Layers className="w-4 h-4" />,
+  'Injection Molding & Tooling': <Package className="w-4 h-4" />,
+  'Electrical & Controls': <Zap className="w-4 h-4" />,
+  'Welding & Assembly': <Wrench className="w-4 h-4" />,
+  'Quality & Inspection': <BarChart3 className="w-4 h-4" />,
   'Mechanical Engineering': <Wrench className="w-4 h-4" />,
   'Electrical Engineering': <Zap className="w-4 h-4" />,
   'Structural Engineering': <Building2 className="w-4 h-4" />,
@@ -61,7 +72,6 @@ const CATEGORY_ICONS: Record<string, React.ReactNode> = {
   'Controls & Automation': <Zap className="w-4 h-4" />,
   'Industrial Manufacturing': <Package className="w-4 h-4" />,
   'Material Handling': <Package className="w-4 h-4" />,
-  'Software Engineering': <FileText className="w-4 h-4" />,
 };
 
 export default function RFQMarketplacePage() {
@@ -108,34 +118,23 @@ export default function RFQMarketplacePage() {
   const loadRFQs = async () => {
     setLoading(true);
     try {
-      const supabase = createClient();
-      let query = supabase.from('rfqs').select('*').order('created_at', { ascending: false });
-      if (selectedStatus !== 'all') query = query.eq('status', selectedStatus);
-      const { data } = await query;
-      if (!data) { setRfqs([]); return; }
-
-      const clientIds = Array.from(new Set(data.map(r => r.client_id)));
-      const { data: profiles } = await supabase.from('profiles')
-        .select('id, full_name, avatar_url, company_id').in('id', clientIds);
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-      const companyIds = Array.from(new Set((profiles || []).map(p => p.company_id).filter(Boolean))) as string[];
-      const { data: companies } = companyIds.length > 0
-        ? await supabase.from('company_profiles').select('id, company_name').in('id', companyIds)
-        : { data: [] };
-      const companyMap = new Map(companies?.map(c => [c.id, c.company_name]) || []);
-
-      const enriched = data.map(r => {
-        const prof = profileMap.get(r.client_id);
-        return { ...r, client: prof ? { id: prof.id, full_name: prof.full_name, avatar_url: prof.avatar_url, company_name: prof.company_id ? companyMap.get(prof.company_id) : undefined } : undefined };
-      });
-      setRfqs(enriched);
-      setTotalRFQs(data.length);
+      const params = new URLSearchParams();
+      params.set('limit', '50');
+      if (selectedStatus !== 'all') params.set('status', selectedStatus);
+      
+      const res = await fetch(`/api/rfq/list?${params.toString()}`);
+      if (!res.ok) throw new Error('Failed to fetch RFQs');
+      
+      const json = await res.json();
+      const data: RFQ[] = json.rfqs || [];
+      
+      setRfqs(data);
+      setTotalRFQs(json.total ?? data.length);
 
       // ── Score RFQs for vendor specialty matching ──
       if (vendorSpecialties.categories.length > 0 || vendorSpecialties.tags.length > 0) {
         const scores = new Map<string, number>();
-        for (const r of enriched) {
+        for (const r of data) {
           let score = 0;
           const cat = r.category?.toLowerCase() || '';
           const desc = r.description?.toLowerCase() || '';

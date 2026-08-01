@@ -19,18 +19,24 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const { data, error } = await supabase.rpc('update_channel_member_role', {
+    // Check owner permission (pass user ID explicitly)
+    const { data: isOwner } = await supabase.rpc('is_channel_owner', {
       p_conversation_id: conversationId,
-      p_target_user_id: targetUserId,
-      p_new_role: role,
+      p_user_id: user.id,
     });
+    if (!isOwner) {
+      return NextResponse.json({ error: 'Only owners can change roles' }, { status: 403 });
+    }
+
+    const { error } = await supabase
+      .from('conversation_participants')
+      .update({ role })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', targetUserId);
 
     if (error) {
-      console.error('[update-role] RPC error:', error);
-      return NextResponse.json({ error: 'Failed to update role' }, { status: 500 });
-    }
-    if (data === 'not_owner') {
-      return NextResponse.json({ error: 'Only owners can change roles' }, { status: 403 });
+      console.error('[update-role] error:', error);
+      return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
     return NextResponse.json({ success: true });
