@@ -131,6 +131,7 @@ function MessagesPageInner() {
   const [isUnlocking, setIsUnlocking] = useState(false);
   const [replyMessage, setReplyMessage] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
+  const [currentUserFullName, setCurrentUserFullName] = useState<string>('');
   const [tokenBalance, setTokenBalance] = useState<number | null>(null);
   const [tokenPacks, setTokenPacks] = useState<Array<{ id: string; name: string; tokens: number; price_cents: number; unlocks: number }>>([]);
   const [convFilter, setConvFilter] = useState('');
@@ -162,17 +163,26 @@ function MessagesPageInner() {
   const [companyChannel, setCompanyChannel] = useState<Conversation | null>(null);
   const [teamMembers, setTeamMembers] = useState<any[]>([]);
   const realtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
+  const globalRealtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
+  const typingRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
+  const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
   const messagesEnd = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => { initializeUser(); }, []);
-  useEffect(() => { if (currentUserId) loadConversations(); }, [currentUserId]);
+  useEffect(() => { if (currentUserId) { loadConversations(); setupGlobalRealtime(); } return () => { if (globalRealtimeRef.current) { createClient().removeChannel(globalRealtimeRef.current); globalRealtimeRef.current = null; } }; }, [currentUserId]);
   useEffect(() => {
     if (!selectedConversation) return;
     loadMessages(selectedConversation.id);
     markMessagesAsRead(selectedConversation.id);
     setupRealtime(selectedConversation.id);
-    return () => { if (realtimeRef.current) { createClient().removeChannel(realtimeRef.current); realtimeRef.current = null; } };
+    return () => {
+      if (realtimeRef.current) { createClient().removeChannel(realtimeRef.current); realtimeRef.current = null; }
+      // Clear typing timers
+      typingRef.current.forEach(t => clearTimeout(t));
+      typingRef.current.clear();
+      setTypingUsers(new Map());
+    };
   }, [selectedConversation?.id]);
   useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => {
@@ -211,9 +221,81 @@ function MessagesPageInner() {
         const u = payload.new as Message;
         setMessages(prev => prev.map(m => m.id === u.id ? u : m));
       })
+      // ── Typing indicator via Realtime Broadcast ──
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        if (payload.payload.userId !== currentUserId) {
+          setTypingUsers(prev => {
+            const next = new Map(prev);
+            next.set(payload.payload.userId, payload.payload.userName || 'Someone');
+            return next;
+          });
+          // Clear typing after 2.5s of no signal
+          if (typingRef.current.has(payload.payload.userId)) {
+            clearTimeout(typingRef.current.get(payload.payload.userId)!);
+          }
+          const timeout = setTimeout(() => {
+            setTypingUsers(prev => { const n = new Map(prev); n.delete(payload.payload.userId); return n; });
+          }, 2500);
+          typingRef.current.set(payload.payload.userId, timeout);
+        }
+      })
       .subscribe();
     realtimeRef.current = channel;
   }, [currentUserId]);
+
+  // ── Global sidebar Realtime subscription ──
+  // Subscribes to user_messages + user_conversations changes to keep the
+  // conversation list order, unread badges, and last message preview live.
+  const setupGlobalRealtime = useCallback(() => {
+    const supabase = createClient();
+    if (globalRealtimeRef.current) supabase.removeChannel(globalRealtimeRef.current);
+
+    const channel = supabase.channel('sidebar:global')
+      .on('postgres_changes', {
+        event: 'INSERT', schema: 'public', table: 'user_messages',
+      }, (payload) => {
+        const newMsg = payload.new as Message;
+        // Reload conversations to update sidebar order + unread counts
+        loadConversations();
+      })
+      .on('postgres_changes', {
+        event: 'UPDATE', schema: 'public', table: 'user_conversations',
+      }, (payload) => {
+        const updated = payload.new as any;
+        // Reload if the conversation is in our list
+        setConversations(prev => {
+          const idx = prev.findIndex(c => c.id === updated.id);
+          if (idx === -1) return prev;
+          return prev.map(c => c.id === updated.id ? { ...c, ...updated } : c);
+        });
+        setSelectedConversation(prev => prev?.id === updated.id ? { ...prev, ...updated } as Conversation : prev);
+      })
+      .subscribe();
+
+    globalRealtimeRef.current = channel;
+  }, []);
+
+  // ── Send typing indicator via Realtime Broadcast ──
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const sendTypingIndicator = useCallback(() => {
+    if (!selectedConversation?.id || !currentUserId) return;
+    // Broadcast typing event (debounced to once per 2s)
+    if (typingTimeoutRef.current) return;
+    const supabase = createClient();
+    const channel = supabase.channel(`messages:${selectedConversation.id}`);
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'typing',
+          payload: { userId: currentUserId, userName: currentUserFullName || 'Someone' },
+        });
+        setTimeout(() => supabase.removeChannel(channel), 500);
+      }
+    });
+    typingTimeoutRef.current = setTimeout(() => { typingTimeoutRef.current = null; }, 2000);
+  }, [selectedConversation?.id, currentUserId, currentUserFullName]);
 
   const initializeUser = async () => {
     try {
@@ -222,9 +304,10 @@ function MessagesPageInner() {
       if (!user) { router.push('/login'); return; }
 
       // Fetch profile FIRST so we can set both id and company_id together
-      const { data: profile } = await supabase.from('profiles').select('token_balance, company_id').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('token_balance, company_id, full_name').eq('id', user.id).single();
       if (profile) {
         setTokenBalance(profile.token_balance ?? 0);
+        setCurrentUserFullName(profile.full_name || '');
         if (profile.company_id) {
           setUserCompanyId(profile.company_id);
           const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', profile.company_id).single();
@@ -363,6 +446,17 @@ function MessagesPageInner() {
     if ((!replyMessage.trim() && !selectedFile) || !selectedConversation || !currentUserId) return;
     if (!isFreeConversation(selectedConversation)) { setShowUnlockModal(true); return; }
     setIsSending(true);
+
+    // ── Optimistic UI: insert a temp message immediately ──
+    const tempId = `temp-${Date.now()}`;
+    const optimisticMsg: Message = {
+      id: tempId, conversation_id: selectedConversation.id, sender_id: currentUserId,
+      content: replyMessage.trim(), is_read: false, read_at: null, created_at: new Date().toISOString(),
+    };
+    setMessages(prev => [...prev, optimisticMsg]);
+    const optimisticText = replyMessage;
+    setReplyMessage('');
+
     try {
       let attachmentUrl: string | undefined, attachmentName: string | undefined, attachmentType: string | undefined;
       if (selectedFile) {
@@ -376,15 +470,27 @@ function MessagesPageInner() {
       }
       const res = await fetch('/api/messages/send', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ conversationId: selectedConversation.id, content: replyMessage.trim(), ...(attachmentUrl && { attachmentUrl, attachmentName, attachmentType }) }),
+        body: JSON.stringify({ conversationId: selectedConversation.id, content: optimisticText, ...(attachmentUrl && { attachmentUrl, attachmentName, attachmentType }) }),
       });
-      if (res.status === 402) { setShowUnlockModal(true); return; }
+      if (res.status === 402) {
+        // Optimistic message was wrong — remove it and show unlock
+        setMessages(prev => prev.filter(m => m.id !== tempId));
+        setReplyMessage(optimisticText);
+        setShowUnlockModal(true);
+        return;
+      }
       if (!res.ok) throw new Error((await res.json()).error || 'Failed to send');
       const data = await res.json();
-      setMessages(prev => prev.some(m => m.id === data.message.id) ? prev : [...prev, data.message]);
-      setReplyMessage('');
+      // Replace optimistic message with real one
+      setMessages(prev => prev.map(m => m.id === tempId ? { ...data.message, created_at: m.created_at } : m));
       await loadConversations();
-    } catch (err: any) { console.error('handleSendMessage:', err); toast.error(err.message || 'Failed to send message'); }
+    } catch (err: any) {
+      // On error, remove optimistic message and show the text again
+      setMessages(prev => prev.filter(m => m.id !== tempId));
+      setReplyMessage(optimisticText);
+      console.error('handleSendMessage:', err);
+      toast.error(err.message || 'Failed to send message');
+    }
     finally { setIsSending(false); setIsUploading(false); }
   };
 
@@ -675,6 +781,15 @@ function MessagesPageInner() {
                       }
                     </div>
 
+                    {/* Typing indicator */}
+                    {selectedConversation.conversation_type === 'direct' && typingUsers.size > 0 && (
+                      <div className="px-5 py-1.5">
+                        <p className="text-xs text-gray-400 italic">
+                          {Array.from(typingUsers.values()).join(' and ')} typing{typingUsers.size > 1 ? '' : 's'}…
+                        </p>
+                      </div>
+                    )}
+
                     {/* Compose or Lock bar */}
                     {isFreeConversation(selectedConversation) ? (
                       <form onSubmit={handleSendMessage} className="p-3 border-t border-gray-100 bg-gray-50">
@@ -692,7 +807,7 @@ function MessagesPageInner() {
                           </button>
                           <input ref={fileInputRef} type="file" className="hidden" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv,.dxf,.dwg"
                             onChange={e => setSelectedFile(e.target.files?.[0] || null)} />
-                          <textarea value={replyMessage} onChange={e => setReplyMessage(e.target.value)}
+                          <textarea value={replyMessage} onChange={e => { setReplyMessage(e.target.value); sendTypingIndicator(); }}
                             onKeyDown={e => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(e as any); } }}
                             placeholder="Type a message… (Enter to send)"
                             className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] resize-none text-sm"
