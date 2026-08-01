@@ -38,7 +38,8 @@ export async function POST(
     if (client?.email) {
       sendRFQAlertEmail({
         to: client.email,
-        name: client.full_name,
+        engineerName: offer.vendor?.full_name || 'An engineer',
+        clientName: client.full_name,
         rfqTitle: offer.rfq.title,
         rfqCategory: 'Offer',
         budget: offer.rfq.budget,

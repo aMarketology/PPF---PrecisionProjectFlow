@@ -1,13 +1,41 @@
 # Precision Project Flow — Session Tracker
 
 **Last updated:** August 1, 2026
-**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign
+**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace + Offers · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign · 🏠 Home Activity Feed
 
 ---
 
 ## 📍 Current Focus
-**Marketplace Page Redesign — Design & UX polish.**
-Complete overhaul of `/marketplace` page: fixed count mismatch (was showing only 3 services but 300+ results), added Services/Companies tabs for filtering, enhanced hero with glow orbs + pill badges, redesigned filter bar with backdrop blur + inline search, and upgraded both service + directory cards with better hover effects, typography, and spacing.
+**RFQ Feed with Offers System & Home Page Blockchain Activity Feed.**
+Vendors can now browse open RFQs in the `/rfq` feed, submit competitive offers (bids), and see blockchain-verified activity on the home page when logged in. The RFQ feed features category-based filtering, search, match scoring (For You tab), and a live offer panel that shows real-time bidding.
+
+---
+
+## ✅ Just Shipped (Aug 1, 2026)
+
+### RFQ Feed & Offer System
+| Item | Detail |
+|------|--------|
+| `rfq_offers` DB table | New table with `rfq_id`, `vendor_id`, `amount`, `note`, `status` (pending/accepted/rejected/withdrawn), + RLS + auto-hashing trigger |
+| `RFQ_OFFERS.sql` migration | Creates table, indexes, RLS policies, auto-`updated_at` trigger, blockchain activity logger for `offer_submitted` |
+| `GET /api/rfq/list` | Paginated endpoint returning open RFQs with client profiles, offer counts, lowest offer amount, and current user's own offer (my_offer) |
+| `GET /api/rfq/[id]/offer` | Returns all pending offers for an RFQ, sorted by amount ascending |
+| `POST /api/rfq/[id]/offer` | Vendors submit offers with amount + note; validates RFQ is open, prevents self-offers, dedupes existing pending offers |
+| `POST /api/rfq/[id]/notify-offer` | Fire-and-forget email notification to client when new offer arrives |
+| `/rfq` enhanced feed page | Full redesign with hero search, sticky category/tag filter bar, grid layout (1-2-3 cols), each card shows client avatar + title + description + budget + timeline + offer toggle |
+| Offer Modal | Clean slide-in modal with budget hint, amount input, note textarea, and submit button |
+| Offer Panel Accordion | Click "View offers" on any RFQ card to expand a live panel showing all offers with vendor avatars, lowest-bid highlighting |
+| "For You" tab | Category-match scoring system that prioritizes RFQs matching the vendor's own service categories |
+| Navigation | "RFQ Feed" link added to main nav bar (points to `/rfq`) |
+
+### Home Page Blockchain Activity Feed
+| Item | Detail |
+|------|--------|
+| Authenticated activity feed | When a user is logged in, the home page shows a "Live Activity Feed" section below the hero with the 6 most recent `site_activities` |
+| Blockchain hash display | Each activity card shows the SHA256 `row_hash` (truncated) and links through to the full `/feed` page |
+| Activity type icons | Color-coded icons for `rfq_posted`, `rfq_awarded`, `offer_submitted`, `order_placed`, `social_post_created`, `company_joined`, `team_member_added` |
+| "View Full Feed" link | CTA button linking to `/feed` for the complete blockchain-verified activity log |
+| `offer_submitted` added to `site_activities` | New activity type logged by DB trigger when a vendor submits an offer, includes RFQ title + amount in metadata |
 
 ---
 
@@ -94,9 +122,10 @@ Complete overhaul of `/marketplace` page: fixed count mismatch (was showing only
 ---
 
 ## 🔴 Action Required (YOU)
-1. **Run end-to-end dry-run** — sign up → list service → buy tokens → DM → unlock → send messages → checkout
-2. **Resend domain DNS** — add `precisionprojectflow.com` at resend.com/domains
+1. **Run RFQ_OFFERS.sql in Supabase Dashboard** — Open https://supabase.com/dashboard/project/ifrxzmemiihxfdimwvcw/sql/new and paste the contents of `supabase/RFQ_OFFERS.sql`. This creates the `rfq_offers` table, RLS policies, and blockchain triggers. (The table was already created in a prior session, but verify it's there.)
+2. **Run SITE_ACTIVITIES_LEDGER.sql if not already done** — Adds `offer_submitted` activity type for logging vendor offers to the blockchain.
 3. **Recruit first 5 real vendors** — share `/get-started/vendors`
+4. **Test flow** — Sign up as client → post RFQ → sign up as vendor → browse `/rfq` → submit offer → check activity on home page
 
 ---
 
