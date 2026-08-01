@@ -1,23 +1,36 @@
 # Precision Project Flow — Session Tracker
 
 **Last updated:** August 1, 2026
-**Status:** ✅ LIVE · 💬 Slack-style messaging 🛡️ Channel Permissions · 📋 RFQ Marketplace + Offers · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign · 🏠 Home Activity Feed
+**Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock
 
 ---
 
 ## 📍 Current Focus
-**Channel/Project Permissions + Role-Based Access Control.**
-Channels and Projects now have full role-based permissions (owner > admin > member). Owners can manage all members, promote/demote admins, and delete channels. Admins can add/remove members and update channel settings. The sidebar now shows "Projects" instead of "Groups" — project conversations are auto-created when bids/offers are accepted.
+**Company Invite System — Accept/Decline via DM.**
+Users can now be invited to a company directly from the Messages page. The invite appears as a system DM with Accept/Decline buttons. Accepting auto-joins the General channel. The one-company rule is enforced — accepting a new company removes you from your previous one.
 
 ---
 
 ## ✅ Just Shipped (Aug 1, 2026)
 
+### Company Invite System
+| Item | Detail |
+|------|--------|
+| `send_company_invite()` RPC | Owner/admin sends invite → creates `invited` row + system DM with Accept/Decline |
+| `accept_company_invite()` RPC | User clicks Accept → status='active' → joins General channel → updates `profiles.company_id` |
+| `decline_company_invite()` RPC | User clicks Decline → status='declined' → inviter notified |
+| `get_pending_invites()` RPC | Returns all pending invites for a user |
+| One-company rule | Accepting a new company auto-removes (`status='removed'`) from previous company |
+| Invite badge in sidebar | "Invite" button (orange) next to "Manage" in company panel |
+| Invite modal | Search users by name, send invite from messages page |
+| Accept/Decline card | Rendered as styled cards in the DM thread — green Accept + gray Decline buttons |
+| System message for accept | "✅ ACCEPTED: User has joined 'Company'!" sent to inviter |
+| System message for decline | "❌ DECLINED: User declined the invitation" sent to inviter |
+| API route | `POST /api/messages/send-invite` — validates admin/owner role, calls RPC |
+
 ### Channel/Project Permissions
 | Item | Detail |
 |------|--------|
-| Role hierarchy | `owner` (founder) > `admin` (manager) > `member` (read/write) |
-| Owner actions | Delete channel, manage all roles, promote/demote admins |
 | Admin actions | Add/remove members, rename channel, update description/settings |
 | Member actions | Read and send messages only |
 | `is_channel_owner()` helper | SECURITY DEFINER function to check owner role (bypasses RLS) |

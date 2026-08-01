@@ -171,6 +171,13 @@ function MessagesPageInner() {
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const [myChannelRole, setMyChannelRole] = useState<string | null>(null);
+  // ── Company Invite ──
+  const [showInviteMemberModal, setShowInviteMemberModal] = useState(false);
+  const [inviteMemberSearch, setInviteMemberSearch] = useState('');
+  const [inviteMemberResults, setInviteMemberResults] = useState<UserProfile[]>([]);
+  const [isInviteSending, setIsInviteSending] = useState(false);
+  const [pendingInvites, setPendingInvites] = useState<Array<{company_id: string; company_name: string; invited_by_name: string; created_at: string}>>([]);
+  const [showInviteActions, setShowInviteActions] = useState<{[key: string]: boolean}>({});
   const realtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const globalRealtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
   const typingRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
@@ -194,7 +201,6 @@ function MessagesPageInner() {
       setTypingUsers(new Map());
     };
   }, [selectedConversation?.id]);
-  useEffect(() => { messagesEnd.current?.scrollIntoView({ behavior: 'smooth' }); }, [messages]);
   useEffect(() => {
     const withId = searchParams.get('with');
     if (!withId || !currentUserId || isLoadingConversations) return;
@@ -454,12 +460,72 @@ function MessagesPageInner() {
       // NOW set currentUserId — this will trigger loadConversations with company_id already in state
       setCurrentUserId(user.id);
 
+      // Load pending invites (for users not in a company)
+      if (!profile?.company_id) {
+        loadPendingInvites(user.id);
+      }
+
       setTokenPacks([
         { id: 'starter', name: 'Starter', tokens: 100, price_cents: 1000, unlocks: 1 },
         { id: 'pro', name: 'Pro', tokens: 500, price_cents: 4500, unlocks: 5 },
         { id: 'business', name: 'Business', tokens: 1200, price_cents: 9900, unlocks: 12 },
       ]);
     } catch (err: any) { console.error('initializeUser:', err); toast.error('Failed to load profile'); }
+  };
+
+  const loadPendingInvites = async (userId: string) => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('get_pending_invites', { p_user_id: userId });
+      if (!error && data) setPendingInvites(data);
+    } catch {}
+  };
+
+  const handleAcceptInvite = async (companyId: string) => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('accept_company_invite', { p_company_id: companyId });
+      if (error) { toast.error('Failed to accept invite'); return; }
+      if (data === 'active') {
+        toast.success('You joined the company! 🎉');
+        setPendingInvites(prev => prev.filter(p => p.company_id !== companyId));
+        // Reload user state
+        initializeUser();
+      } else {
+        toast.error(data || 'Failed to accept invite');
+      }
+    } catch { toast.error('Failed to accept invite'); }
+  };
+
+  const handleDeclineInvite = async (companyId: string) => {
+    try {
+      const supabase = createClient();
+      const { data, error } = await supabase.rpc('decline_company_invite', { p_company_id: companyId });
+      if (error) { toast.error('Failed to decline invite'); return; }
+      if (data === 'declined') {
+        toast.success('Invite declined');
+        setPendingInvites(prev => prev.filter(p => p.company_id !== companyId));
+      }
+    } catch { toast.error('Failed to decline invite'); }
+  };
+
+  const handleSendInvite = async (targetUser: UserProfile) => {
+    if (!userCompanyId) return;
+    setIsInviteSending(true);
+    try {
+      const res = await fetch('/api/messages/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: userCompanyId, targetUserId: targetUser.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to send invite'); return; }
+      toast.success(`Invite sent to ${targetUser.full_name}!`);
+      setShowInviteMemberModal(false);
+      setInviteMemberSearch('');
+      setInviteMemberResults([]);
+    } catch { toast.error('Failed to send invite'); }
+    finally { setIsInviteSending(false); }
   };
 
   const loadConversations = async () => {
@@ -900,11 +966,54 @@ function MessagesPageInner() {
                         : <>
                           {messages.map(msg => {
                             const isOwn = msg.sender_id === currentUserId;
-                            if (msg.is_system_message) return (
-                              <div key={msg.id} className="flex justify-center my-2">
-                                <span className="text-xs bg-gray-100 text-gray-500 px-4 py-1.5 rounded-full border border-gray-200">{msg.content}</span>
-                              </div>
-                            );
+                            if (msg.is_system_message) {
+                              // Check if this is a company invite
+                              const isInvite = msg.content?.includes('INVITE') && (msg.content?.includes('[Accept]') || msg.content?.includes('**[Accept]**'));
+                              const isAccepted = msg.content?.includes('ACCEPTED');
+                              const isDeclined = msg.content?.includes('DECLINED');
+                              if (isInvite) {
+                                return (
+                                  <div key={msg.id} className="flex justify-center my-3">
+                                    <div className="bg-white border-2 border-[#FF6B35]/30 rounded-2xl p-4 max-w-sm shadow-md text-center">
+                                      <div className="text-2xl mb-2">📨</div>
+                                      <p className="text-sm text-gray-700 leading-relaxed">
+                                        {msg.content?.replace(/\*\*\[Accept\]\*\*|\*\*\[Decline\]\*\*|\[Accept\]|\[Decline\]/g, '')}
+                                      </p>
+                                      <div className="flex gap-3 mt-3 justify-center">
+                                        <button
+                                          onClick={async () => {
+                                            // Find the company ID from the invite - extract from pendingInvites or content
+                                            const companyName = msg.content?.match(/"([^"]+)"/)?.[1];
+                                            const invite = pendingInvites.find(p => p.company_name === companyName);
+                                            if (invite) await handleAcceptInvite(invite.company_id);
+                                            else toast.error('Could not find invite');
+                                          }}
+                                          className="px-5 py-2 bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-bold rounded-xl transition-colors flex items-center gap-1.5">
+                                          <Check className="w-4 h-4" /> Accept
+                                        </button>
+                                        <button
+                                          onClick={async () => {
+                                            const companyName = msg.content?.match(/"([^"]+)"/)?.[1];
+                                            const invite = pendingInvites.find(p => p.company_name === companyName);
+                                            if (invite) await handleDeclineInvite(invite.company_id);
+                                            else toast.error('Could not find invite');
+                                          }}
+                                          className="px-5 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 text-sm font-semibold rounded-xl transition-colors flex items-center gap-1.5">
+                                          <X className="w-4 h-4" /> Decline
+                                        </button>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div key={msg.id} className="flex justify-center my-2">
+                                  <span className={`text-xs ${isAccepted || isDeclined ? 'bg-gray-50 border-gray-200' : 'bg-gray-100 border-gray-200'} text-gray-500 px-4 py-1.5 rounded-full border`}>
+                                    {msg.content?.replace(/^\*\*(.*?)\*\*:/, '$1:')}
+                                  </span>
+                                </div>
+                              );
+                            }
                             return (
                               <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
                                 <div className={`max-w-[68%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
@@ -1001,10 +1110,16 @@ function MessagesPageInner() {
                           <p className="text-xs text-gray-500">Your Company</p>
                         </div>
                       </div>
-                      <Link href={`/dashboard/company/${userCompanyId}`}
-                        className="flex items-center justify-center gap-1.5 w-full px-3 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-xs font-semibold rounded-lg transition-colors">
-                        <Settings2 className="w-3.5 h-3.5" /> Manage Company
-                      </Link>
+                      <div className="flex gap-2">
+                        <Link href={`/dashboard/company/${userCompanyId}`}
+                          className="flex items-center justify-center gap-1.5 flex-1 px-3 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-xs font-semibold rounded-lg transition-colors">
+                          <Settings2 className="w-3.5 h-3.5" /> Manage
+                        </Link>
+                        <button onClick={() => setShowInviteMemberModal(true)}
+                          className="flex items-center justify-center gap-1.5 px-3 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white text-xs font-semibold rounded-lg transition-colors">
+                          <UserPlus className="w-3.5 h-3.5" /> Invite
+                        </button>
+                      </div>
                     </div>
 
                     {/* Company Channel */}
@@ -1404,6 +1519,54 @@ function MessagesPageInner() {
                     </button>
                   </div>
                 )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Invite Member to Company Modal */}
+      <AnimatePresence>
+        {showInviteMemberModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl shadow-2xl max-w-md w-full overflow-hidden" onClick={e => e.stopPropagation()}>
+              <div className="p-5 border-b border-gray-100">
+                <h3 className="text-lg font-bold text-gray-900 flex items-center gap-2"><UserPlus className="w-5 h-5 text-[#FF6B35]" /> Invite to Company</h3>
+                <p className="text-gray-500 text-sm mt-0.5">They will get a DM with Accept/Decline buttons</p>
+              </div>
+              <div className="p-5">
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input type="text" value={inviteMemberSearch} onChange={e => {
+                    setInviteMemberSearch(e.target.value);
+                    if (e.target.value.length >= 2) {
+                      const supabase = createClient();
+                      supabase.from('profiles').select('id, full_name, email, user_type, avatar_url')
+                        .neq('id', currentUserId!).ilike('full_name', `%${e.target.value}%`).limit(10)
+                        .then(({ data }) => setInviteMemberResults(data || []));
+                    } else { setInviteMemberResults([]); }
+                  }} placeholder="Search by name..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                </div>
+                <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg divide-y divide-gray-100">
+                  {inviteMemberResults.length === 0 ? (
+                    <p className="text-center text-xs text-gray-400 py-4">{inviteMemberSearch.length < 2 ? 'Type at least 2 characters' : 'No users found'}</p>
+                  ) : (
+                    inviteMemberResults.map(u => (
+                      <button key={u.id} type="button" onClick={() => handleSendInvite(u)} disabled={isInviteSending}
+                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left disabled:opacity-50">
+                        <Avatar user={u} size="sm" />
+                        <div className="min-w-0 flex-1">
+                          <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
+                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                        </div>
+                        {isInviteSending ? <Loader className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4 text-[#FF6B35] flex-shrink-0" />}
+                      </button>
+                    ))
+                  )}
+                </div>
+                <button onClick={() => { setShowInviteMemberModal(false); setInviteMemberSearch(''); setInviteMemberResults([]); }}
+                  className="mt-3 w-full px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
               </div>
             </motion.div>
           </motion.div>

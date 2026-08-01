@@ -1,16 +1,36 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Suspense } from 'react';
 import { motion } from 'framer-motion';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader, KeyRound } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import Navigation from '@/app/components/Navigation';
 import Footer from '@/app/components/Footer';
 
 export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50">
+        <Navigation />
+        <div className="pt-24 pb-12 px-4">
+          <div className="max-w-md mx-auto text-center py-24">
+            <Loader className="h-10 w-10 animate-spin text-[#003D82] mx-auto" />
+            <p className="text-gray-500 font-medium mt-4">Loading...</p>
+          </div>
+        </div>
+        <Footer />
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
+  );
+}
+
+function ResetPasswordForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -22,13 +42,19 @@ export default function ResetPasswordPage() {
   const [isValidToken, setIsValidToken] = useState(false);
 
   useEffect(() => {
-    // Check if we have a valid recovery token
     const checkToken = async () => {
       try {
         const supabase = createClient();
+
+        // Exchange the code from the URL for a session
+        const code = searchParams.get('code');
+        if (code) {
+          const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
+          if (exchangeError) throw exchangeError;
+        }
+
         const { data: { session } } = await supabase.auth.getSession();
-        
-        // If there's a session, the token is valid
+
         if (session) {
           setIsValidToken(true);
         } else {
@@ -38,14 +64,14 @@ export default function ResetPasswordPage() {
       } catch (error) {
         console.error('Token validation error:', error);
         setIsValidToken(false);
-        setError('Invalid reset link. Please request a new one.');
+        setError('Invalid or expired reset link. Please request a new one.');
       } finally {
         setValidating(false);
       }
     };
 
     checkToken();
-  }, []);
+  }, [searchParams]);
 
   const validatePassword = (pwd: string): string | null => {
     if (pwd.length < 8) {
