@@ -1,33 +1,27 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** July 30, 2026
-**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock
+**Last updated:** August 1, 2026
+**Status:** ✅ LIVE · 💬 Slack-style messaging · 📋 RFQ Marketplace · 🔗 Blockchain Ledger · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign
 
 ---
 
 ## 📍 Current Focus
-**Contract-to-Unlock Messaging Integration — Phase 4a.**
-When an order moves to `in_progress` (vendor accepted, work began), the DM between buyer and vendor is automatically unlocked. Uses a **Postgres DB trigger** as source of truth + application-layer enhancement for realtime capability.
+**Marketplace Page Redesign — Design & UX polish.**
+Complete overhaul of `/marketplace` page: fixed count mismatch (was showing only 3 services but 300+ results), added Services/Companies tabs for filtering, enhanced hero with glow orbs + pill badges, redesigned filter bar with backdrop blur + inline search, and upgraded both service + directory cards with better hover effects, typography, and spacing.
 
 ---
 
-## ✅ Just Shipped (July 19–24, 2026)
+## ✅ Just Shipped (Aug 1, 2026)
 
-### Blog System (Organic Growth)
+### Marketplace Redesign
 | Item | Detail |
 |------|--------|
-| Blog listing page | `/blog` — server component with full SEO metadata, featured post, grid layout |
-| Blog post page | `/blog/[slug]` — `generateMetadata`, `generateStaticParams`, JSON-LD structured data, breadcrumbs, related posts, CTAs |
-| 3 SEO posts published | Targeting `hire structural engineer online` (1,200/mo), `PE stamped drawings online` (720/mo), `engineering services marketplace` (590/mo) |
-| `@tailwindcss/typography` | Added for rich prose styling on blog posts |
-| Blog in navigation | "Blog" added to desktop nav + mobile menu |
-| Blog in sitemap | All posts auto-included in `sitemap.ts` (priority 0.8) |
-| `lib/blog.ts` | Central blog post registry — add new posts by appending to the array |
-
-### Messaging Bug Fixes
-| Item | Detail |
-|------|--------|
-| DB schema patched | Added `is_system_message`, `is_paid`, `payment_id`, `read_at`, `attachment_url/name/type` to `user_messages`; `is_unlocked` to `user_conversations` |
+| Fixed count mismatch | Header now shows `"300+ total results — 3 services · 303 companies"` instead of only `"3 listed services"` |
+| Tabs (All / Services / Companies) | Toggle between all results, only services, or only directory companies; counts shown on each tab |
+| Enhanced hero section | Added glow orbs, backdrop-blur pill badges for "Engineering Marketplace" + total listing count, better heading copy |
+| Redesigned filter bar | Sticky with backdrop-blur; inline search input, category dropdown, conditional price range, improved sort options, result count pill, subtle "Clear" button |
+| Upgraded service cards | 48px taller images (h-48), better gradient overlays, "Starting at" label + delivery time on image, provider info + location, description text, improved badges, y-6 hover lift |
+| Upgraded directory cards | Same h-48 treatment, verified/unclaimed pill inline with name, rating placeholder, up to 3 specialties shown with "+N more" overflow, better CTA button with shadow |
 | Unlock route rewritten | No longer calls broken `unlock_conversation` RPC — does everything inline in TypeScript using `spend_tokens` + direct `is_unlocked` update |
 | Send route hardened | Removed all `is_contracted` references (column doesn't exist in live DB); RPC calls (`are_friends`, `same_company`) wrapped in try/catch |
 | Messages page fixed | `isFreeConversation` uses only `is_unlocked`; `markMessagesAsRead` no longer writes to `read_at` |

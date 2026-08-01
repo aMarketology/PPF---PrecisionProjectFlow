@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { createClient } from '@/lib/supabase/client';
 import Navigation from '@/app/components/Navigation';
 import Footer from '@/app/components/Footer';
@@ -14,7 +14,6 @@ import {
   ArrowUpDown, MessageSquare, Plus, AlertCircle, Send,
   BarChart3, TrendingUp, Users, Layers, Gavel, Eye, Award, ChevronDown, ChevronUp,
 } from 'lucide-react';
-import { AnimatePresence, motion } from 'framer-motion';
 import { toast } from 'react-hot-toast';
 
 interface RFQ {
