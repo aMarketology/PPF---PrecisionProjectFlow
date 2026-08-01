@@ -296,7 +296,7 @@ function MarketplaceInner() {
                             </p>
                           )}
                         </div>
-                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" title="Verified" />
+                        <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" aria-label="Verified" />
                       </div>
                       <h3 className="font-bold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-[#003D82] transition-colors">{service.title}</h3>
                       <p className="text-xs text-gray-500 line-clamp-2 mb-3">{service.description}</p>

@@ -2,6 +2,11 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function updateSession(request: NextRequest) {
+  // Skip auth checks on reset-password — don't burn the single-use code
+  if (request.nextUrl.pathname.startsWith('/reset-password')) {
+    return NextResponse.next()
+  }
+
   let response = NextResponse.next({
     request: {
       headers: request.headers,
@@ -54,6 +59,8 @@ export async function updateSession(request: NextRequest) {
     }
   )
 
+  // Don't exchange codes in middleware — PKCE verifier is in browser localStorage.
+  // Password reset codes are handled by the page via verifyOtp.
   await supabase.auth.getUser()
 
   return response

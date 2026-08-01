@@ -176,6 +176,7 @@ function MessagesPageInner() {
   const [inviteMemberSearch, setInviteMemberSearch] = useState('');
   const [inviteMemberResults, setInviteMemberResults] = useState<UserProfile[]>([]);
   const [isInviteSending, setIsInviteSending] = useState(false);
+  const [invitedUserIds, setInvitedUserIds] = useState<Set<string>>(new Set());
   const [pendingInvites, setPendingInvites] = useState<Array<{company_id: string; company_name: string; invited_by_name: string; created_at: string}>>([]);
   const [showInviteActions, setShowInviteActions] = useState<{[key: string]: boolean}>({});
   const realtimeRef = useRef<ReturnType<ReturnType<typeof createClient>['channel']> | null>(null);
@@ -520,21 +521,27 @@ function MessagesPageInner() {
   };
 
   const handleSendInvite = async (targetUser: UserProfile) => {
-    if (!userCompanyId) return;
+    if (!userCompanyId) { toast.error('No company found'); return; }
     setIsInviteSending(true);
     try {
+      console.log('[invite] sending to:', targetUser.full_name, 'companyId:', userCompanyId);
       const res = await fetch('/api/messages/send-invite', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId: userCompanyId, targetUserId: targetUser.id }),
       });
       const data = await res.json();
+      console.log('[invite] response:', res.status, data);
       if (!res.ok) { toast.error(data.error || 'Failed to send invite'); return; }
       toast.success(`Invite sent to ${targetUser.full_name}!`);
-      setShowInviteMemberModal(false);
+      setInvitedUserIds(prev => new Set(prev).add(targetUser.id));
+      // Don't close modal — let them invite more people
       setInviteMemberSearch('');
       setInviteMemberResults([]);
-    } catch { toast.error('Failed to send invite'); }
+    } catch (err) {
+      console.error('[invite] exception:', err);
+      toast.error('Failed to send invite');
+    }
     finally { setIsInviteSending(false); }
   };
 
@@ -1562,21 +1569,29 @@ function MessagesPageInner() {
                   {inviteMemberResults.length === 0 ? (
                     <p className="text-center text-xs text-gray-400 py-4">{inviteMemberSearch.length < 2 ? 'Type at least 2 characters' : 'No users found'}</p>
                   ) : (
-                    inviteMemberResults.map(u => (
-                      <button key={u.id} type="button" onClick={() => handleSendInvite(u)} disabled={isInviteSending}
-                        className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left disabled:opacity-50">
+                    inviteMemberResults.map(u => {
+                      const alreadyInvited = invitedUserIds.has(u.id);
+                      return (
+                      <button key={u.id} type="button" onClick={() => !alreadyInvited && handleSendInvite(u)} disabled={isInviteSending || alreadyInvited}
+                        className={`w-full flex items-center gap-2 px-3 py-2 text-left disabled:opacity-50 ${alreadyInvited ? 'bg-green-50' : 'hover:bg-blue-50'}`}>
                         <Avatar user={u} size="sm" />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
                           <p className="text-xs text-gray-500 truncate">{u.email}</p>
                         </div>
-                        {isInviteSending ? <Loader className="w-4 h-4 animate-spin" /> : <UserPlus className="w-4 h-4 text-[#FF6B35] flex-shrink-0" />}
+                        {alreadyInvited ? (
+                          <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Check className="w-4 h-4" /> Invited</span>
+                        ) : isInviteSending ? (
+                          <Loader className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <UserPlus className="w-4 h-4 text-[#FF6B35] flex-shrink-0" />
+                        )}
                       </button>
-                    ))
+                    )})
                   )}
                 </div>
-                <button onClick={() => { setShowInviteMemberModal(false); setInviteMemberSearch(''); setInviteMemberResults([]); }}
-                  className="mt-3 w-full px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
+                <button onClick={() => { setShowInviteMemberModal(false); setInviteMemberSearch(''); setInviteMemberResults([]); setInvitedUserIds(new Set()); }}
+                  className="mt-3 w-full px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Done</button>
               </div>
             </motion.div>
           </motion.div>
