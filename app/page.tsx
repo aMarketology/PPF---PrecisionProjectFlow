@@ -277,11 +277,11 @@ export default function HomePage() {
                 <p className="text-sm text-gray-500">Real-time platform activity — cryptographically chained</p>
               </div>
               <Link
-                href="/feed"
+                href="/activity"
                 className="hidden sm:inline-flex items-center gap-1.5 px-4 py-2 bg-white border border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl text-sm transition-all"
               >
                 <TrendingUp className="w-4 h-4" />
-                View Full Feed
+                View Full Activity
               </Link>
             </div>
 
@@ -321,7 +321,7 @@ export default function HomePage() {
                   const targetLink = activity.target_type === 'rfq' && activity.target_id
                     ? `/rfq/${activity.target_id}`
                     : activity.target_type === 'feed_post' && activity.target_id
-                    ? `/feed`
+                    ? `/activity`
                     : null;
 
                   return (
@@ -378,7 +378,7 @@ export default function HomePage() {
 
             <div className="flex items-center justify-center mt-6 gap-4">
               <Link
-                href="/feed"
+                href="/activity"
                 className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl text-sm transition-all"
               >
                 <TrendingUp className="w-4 h-4" />

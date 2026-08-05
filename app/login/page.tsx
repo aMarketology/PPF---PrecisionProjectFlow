@@ -43,11 +43,11 @@ export default function LoginPage() {
             .eq('id', user.id)
             .single();
           if (profile?.user_type === 'engineer') {
-            router.push('/feed');
+            router.push('/activity');
           } else if (profile?.user_type === 'client') {
             router.push('/dashboard/engineer');
           } else {
-            router.push('/feed');
+            router.push('/activity');
           }
         } else {
           router.push('/');

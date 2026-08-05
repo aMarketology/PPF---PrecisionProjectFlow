@@ -34,9 +34,9 @@ const SECTIONS = [
     color: 'from-blue-500 to-blue-600',
     bg: 'bg-blue-50',
     text: 'text-blue-700',
-    href: '/feed',
+    href: '/activity',
     items: [
-      { title: 'What Is the Feed?', desc: 'The feed (/feed) is a real-time, searchable ledger of everything happening on the platform — new RFQs, awarded projects, companies joining, team additions, orders, and community posts.' },
+      { title: 'What Is the Activity Feed?', desc: 'The activity feed (/activity) is a real-time, searchable ledger of everything happening on the platform — new RFQs, awarded projects, companies joining, team additions, orders, and community posts.' },
       { title: 'Filter by Activity Type', desc: 'Use the pill buttons to filter: All Activity, RFQs Posted, RFQs Awarded, Community Posts, Orders, New Companies, or Team Joins.' },
       { title: 'Search All Activity', desc: 'Click the search icon to search across all summaries. Find specific RFQs, companies, or keywords.' },
       { title: 'Post an Update', desc: 'Click "Post Update" to share a project showcase, milestone, job post, or parts request. It appears instantly on the feed.' },
@@ -67,9 +67,9 @@ const SECTIONS = [
     color: 'from-rose-500 to-rose-600',
     bg: 'bg-rose-50',
     text: 'text-rose-700',
-    href: '/rfq/feed',
+    href: '/rfq',
     items: [
-      { title: 'Browse Open RFQs', href: '/rfq/feed', desc: 'View all open Requests for Quote — part requests, repairs, engineering services. Filter by category, status, and sort by newest or budget.' },
+      { title: 'Browse Open RFQs', href: '/rfq', desc: 'View all open Requests for Quote — part requests, repairs, engineering services. Filter by category, status, and sort by newest or budget.' },
       { title: 'Post an RFQ', href: '/rfq/create', desc: 'Need a part or service? Submit an RFQ with title, category, description, budget, timeline, location, and attachments. It appears instantly in the feed.' },
       { title: 'View RFQ Details', desc: 'Click any RFQ card to see the full description, client info, attachments, and a "Message Client" button to ask questions or submit a quote.' },
       { title: 'Message the Client', desc: 'Interested in an RFQ? Click "Message Client" to start a direct conversation — free if same company, or use tokens to unlock cross-company.' },
@@ -251,7 +251,7 @@ export default function FeaturesPage() {
               className="inline-flex items-center gap-2 px-6 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg">
               <LogIn className="w-4 h-4" /> Sign Up Free
             </Link>
-            <Link href="/feed"
+            <Link href="/activity"
               className="inline-flex items-center gap-2 px-6 py-3 bg-white/10 hover:bg-white/20 text-white font-semibold rounded-xl transition-all border border-white/20">
               <TrendingUp className="w-4 h-4" /> View Activity Feed
             </Link>

@@ -176,6 +176,7 @@ function MessagesPageInner() {
   const [inviteMemberSearch, setInviteMemberSearch] = useState('');
   const [inviteMemberResults, setInviteMemberResults] = useState<UserProfile[]>([]);
   const [isInviteSending, setIsInviteSending] = useState(false);
+  const [invitingUserId, setInvitingUserId] = useState<string | null>(null);
   const [invitedUserIds, setInvitedUserIds] = useState<Set<string>>(new Set());
   const [pendingInvites, setPendingInvites] = useState<Array<{company_id: string; company_name: string; invited_by_name: string; created_at: string}>>([]);
   const [showInviteActions, setShowInviteActions] = useState<{[key: string]: boolean}>({});
@@ -320,7 +321,8 @@ function MessagesPageInner() {
     try {
       const { data: parts } = await supabase
         .from('conversation_participants')
-        .select('user_id, role');
+        .select('user_id, role')
+        .eq('conversation_id', conversationId);
       if (!parts) return;
       const withProfiles = await Promise.all(parts.map(async (p: any) => {
         const { data: prof } = await supabase
@@ -522,7 +524,7 @@ function MessagesPageInner() {
 
   const handleSendInvite = async (targetUser: UserProfile) => {
     if (!userCompanyId) { toast.error('No company found'); return; }
-    setIsInviteSending(true);
+    setInvitingUserId(targetUser.id);
     try {
       console.log('[invite] sending to:', targetUser.full_name, 'companyId:', userCompanyId);
       const res = await fetch('/api/messages/send-invite', {
@@ -532,17 +534,19 @@ function MessagesPageInner() {
       });
       const data = await res.json();
       console.log('[invite] response:', res.status, data);
-      if (!res.ok) { toast.error(data.error || 'Failed to send invite'); return; }
+      if (!res.ok) {
+        toast.error(data.error || 'Failed to send invite');
+        return;
+      }
       toast.success(`Invite sent to ${targetUser.full_name}!`);
       setInvitedUserIds(prev => new Set(prev).add(targetUser.id));
-      // Don't close modal — let them invite more people
       setInviteMemberSearch('');
       setInviteMemberResults([]);
     } catch (err) {
       console.error('[invite] exception:', err);
-      toast.error('Failed to send invite');
+      toast.error('Network error — is the dev server running?');
     }
-    finally { setIsInviteSending(false); }
+    finally { setInvitingUserId(null); }
   };
 
   const loadConversations = async () => {
@@ -1033,15 +1037,35 @@ function MessagesPageInner() {
                             }
                             return (
                               <motion.div key={msg.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                <div className={`max-w-[68%] flex flex-col ${isOwn ? 'items-end' : 'items-start'}`}>
-                                  <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-[#003D82] text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'}`}>
-                                    {msg.content && <MentionRenderer content={msg.content} isOwn={isOwn} />}
-                                    <AttachmentDisplay msg={msg} isOwn={isOwn} />
-                                  </div>
-                                  <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${isOwn ? 'justify-end' : 'justify-start'}`}>
-                                    <Clock className="w-3 h-3" />
-                                    <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
-                                    {isOwn && (msg.is_read ? <CheckCheck className="w-3.5 h-3.5 text-blue-400" /> : <Check className="w-3.5 h-3.5" />)}
+                                <div className={`max-w-[68%] flex ${isOwn ? 'flex-col items-end' : 'flex-row items-end gap-2'}`}>
+                                  {/* Sender avatar for non-own messages in channels/groups */}
+                                  {!isOwn && selectedConversation?.conversation_type !== 'direct' && (
+                                    <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mb-1">
+                                      {(() => {
+                                        const sender = channelParticipants.find(p => p.user_id === msg.sender_id);
+                                        return sender?.profile?.full_name?.charAt(0)?.toUpperCase() || '?';
+                                      })()}
+                                    </div>
+                                  )}
+                                  <div className="flex flex-col">
+                                    {/* Sender name for non-own messages in channels/groups */}
+                                    {!isOwn && selectedConversation?.conversation_type !== 'direct' && (
+                                      <p className="text-[10px] font-semibold text-gray-500 mb-0.5 ml-0.5">
+                                        {(() => {
+                                          const sender = channelParticipants.find(p => p.user_id === msg.sender_id);
+                                          return sender?.profile?.full_name || 'Unknown';
+                                        })()}
+                                      </p>
+                                    )}
+                                    <div className={`rounded-2xl px-4 py-2.5 ${isOwn ? 'bg-[#003D82] text-white rounded-br-sm' : 'bg-gray-100 text-gray-900 rounded-bl-sm'}`}>
+                                      {msg.content && <MentionRenderer content={msg.content} isOwn={isOwn} />}
+                                      <AttachmentDisplay msg={msg} isOwn={isOwn} />
+                                    </div>
+                                    <div className={`flex items-center gap-1 mt-1 text-xs text-gray-400 ${isOwn ? 'justify-end' : 'justify-start ml-0.5'}`}>
+                                      <Clock className="w-3 h-3" />
+                                      <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
+                                      {isOwn && (msg.is_read ? <CheckCheck className="w-3.5 h-3.5 text-blue-400" /> : <Check className="w-3.5 h-3.5" />)}
+                                    </div>
                                   </div>
                                 </div>
                               </motion.div>
@@ -1571,8 +1595,9 @@ function MessagesPageInner() {
                   ) : (
                     inviteMemberResults.map(u => {
                       const alreadyInvited = invitedUserIds.has(u.id);
+                      const isThisLoading = invitingUserId === u.id;
                       return (
-                      <button key={u.id} type="button" onClick={() => !alreadyInvited && handleSendInvite(u)} disabled={isInviteSending || alreadyInvited}
+                      <button key={u.id} type="button" onClick={() => !alreadyInvited && !isThisLoading && handleSendInvite(u)} disabled={alreadyInvited || isThisLoading}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-left disabled:opacity-50 ${alreadyInvited ? 'bg-green-50' : 'hover:bg-blue-50'}`}>
                         <Avatar user={u} size="sm" />
                         <div className="min-w-0 flex-1">
@@ -1581,8 +1606,8 @@ function MessagesPageInner() {
                         </div>
                         {alreadyInvited ? (
                           <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Check className="w-4 h-4" /> Invited</span>
-                        ) : isInviteSending ? (
-                          <Loader className="w-4 h-4 animate-spin" />
+                        ) : isThisLoading ? (
+                          <Loader className="w-4 h-4 animate-spin text-[#003D82]" />
                         ) : (
                           <UserPlus className="w-4 h-4 text-[#FF6B35] flex-shrink-0" />
                         )}

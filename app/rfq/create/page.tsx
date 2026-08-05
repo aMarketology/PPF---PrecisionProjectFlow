@@ -20,6 +20,8 @@ import {
   CheckCircle2,
   Send,
   Loader2,
+  BookOpen,
+  Info,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -56,6 +58,7 @@ export default function CreateRFQPage() {
     budget: '',
     timeline: '',
     location: '',
+    material: '',
     specifications: [] as File[],
     selectedSuppliers: [] as string[],
   })
@@ -108,6 +111,7 @@ export default function CreateRFQPage() {
           budget: formData.budget || null,
           timeline: formData.timeline || null,
           location: formData.location || null,
+          material: formData.material || null,
           slug: formData.title.toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '') + '-' + crypto.randomUUID().substring(0, 8),
@@ -218,12 +222,47 @@ export default function CreateRFQPage() {
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">
-            Request a Quote
-          </h1>
-          <p className="text-lg text-gray-600">
-            Get quotes from multiple verified suppliers. It's free and takes just a few minutes.
-          </p>
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h1 className="text-4xl font-bold text-gray-900 mb-2">
+                Request a Quote
+              </h1>
+              <p className="text-lg text-gray-600">
+                Get quotes from multiple verified suppliers. It's free and takes just a few minutes.
+              </p>
+            </div>
+            <Link
+              href="/docs/MANIFESTO.md"
+              target="_blank"
+              className="flex items-center gap-2 px-4 py-2.5 bg-white border-2 border-[#003D82] text-[#003D82] hover:bg-[#003D82] hover:text-white font-semibold rounded-xl transition-all text-sm flex-shrink-0"
+            >
+              <BookOpen className="w-4 h-4" /> Our Manifesto
+            </Link>
+          </div>
+        </div>
+
+        {/* What makes a great RFQ? */}
+        <div className="mb-8 bg-gradient-to-r from-[#001f4d] via-[#003D82] to-[#005BB5] rounded-2xl p-6 text-white">
+          <div className="flex items-start gap-3">
+            <Info className="w-6 h-6 text-blue-200 flex-shrink-0 mt-0.5" />
+            <div>
+              <h3 className="font-bold text-lg mb-2">What makes a great RFQ?</h3>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm text-blue-100">
+                <div>
+                  <p className="font-semibold text-white mb-1">📐 Be Specific</p>
+                  <p>Include materials, tolerances, quantities, finishes, and any certifications required (ISO, ASME, etc.)</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-white mb-1">📎 Attach Files</p>
+                  <p>CAD files, drawings, specs, and reference images help vendors quote accurately</p>
+                </div>
+                <div>
+                  <p className="font-semibold text-white mb-1">⏱️ Set Realistic Timelines</p>
+                  <p>Clear deadlines help vendors assess capacity and prioritize your project</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Progress Steps */}
@@ -361,6 +400,23 @@ export default function CreateRFQPage() {
                         <option value="flexible">Flexible</option>
                       </select>
                     </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Material / Specifications
+                    </label>
+                    <input
+                      type="text"
+                      name="material"
+                      value={formData.material}
+                      onChange={handleInputChange}
+                      placeholder="e.g., 6061-T6 Aluminum, A36 Steel, ABS Plastic, etc."
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent"
+                    />
+                    <p className="text-sm text-gray-500 mt-1">
+                      Specify materials, grades, finishes, or any special requirements
+                    </p>
                   </div>
                 </div>
               </motion.div>

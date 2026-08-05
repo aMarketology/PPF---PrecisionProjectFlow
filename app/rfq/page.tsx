@@ -375,7 +375,7 @@ export default function RFQMarketplacePage() {
                     className="flex items-center gap-2.5 w-full px-3 py-2.5 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold rounded-xl transition-all text-sm">
                     <Plus className="w-4 h-4" /> Post a New RFQ
                   </Link>
-                  <Link href="/feed"
+                  <Link href="/activity"
                     className="flex items-center gap-2.5 w-full px-3 py-2.5 border border-gray-200 hover:border-gray-300 text-gray-700 font-semibold rounded-xl transition-all text-sm">
                     <TrendingUp className="w-4 h-4" /> View Activity Feed
                   </Link>

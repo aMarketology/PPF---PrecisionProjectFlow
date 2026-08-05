@@ -34,11 +34,11 @@ CREATE INDEX IF NOT EXISTS idx_sa_metadata    ON public.site_activities USING gi
 
 ALTER TABLE public.site_activities ENABLE ROW LEVEL SECURITY;
 
--- Anyone authenticated can view activities (read-only)
+-- Anyone (including anonymous) can view activities — it's a public feed
 DROP POLICY IF EXISTS "Anyone can view activities" ON public.site_activities;
 CREATE POLICY "Anyone can view activities"
   ON public.site_activities FOR SELECT
-  USING (auth.role() = 'authenticated');
+  USING (true);
 
 -- ── 3. Hash generation function ─────────────────────────────────────
 -- Generates a SHA256 hash that chains to the previous row.

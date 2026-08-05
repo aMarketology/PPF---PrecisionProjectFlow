@@ -44,7 +44,7 @@ const FEATURES = [
     title: 'Activity Feed',
     desc: 'A real-time, searchable ledger of everything happening on the platform. New RFQs, awarded projects, companies joining, team additions, orders, and community posts in one unified stream.',
     icon: TrendingUp,
-    href: '/feed',
+    href: '/activity',
   },
   {
     title: 'Company Teams & Channels',
