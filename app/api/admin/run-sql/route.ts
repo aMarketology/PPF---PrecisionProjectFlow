@@ -18,8 +18,8 @@ export async function POST(request: NextRequest) {
     // Split by semicolons and run each statement
     const statements = sql
       .split(';')
-      .map(s => s.trim())
-      .filter(s => s.length > 0);
+      .map((s: string) => s.trim())
+      .filter((s: string) => s.length > 0);
 
     const results: string[] = [];
 

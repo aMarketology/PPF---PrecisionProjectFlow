@@ -1,13 +1,16 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 1, 2026
+**Last updated:** August 7, 2026
 **Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign
 
 ---
 
 ## 📍 Current Focus
-**Marketplace Page — Services-only redesign.**
-Stripped out all company directory entries from `/marketplace`. The page now shows only active services from the `services` table. Removed tabs, removed `DirectoryCard` interface, removed `company_profiles` fetch, simplified all filtering logic. Hero counter now accurately shows only the service count.
+**Build verified; awaiting the next product task.**
+
+On August 7, the pending TypeScript build fix in `app/api/admin/run-sql/route.ts` was verified with a successful `npm run build`. The change explicitly types the callbacks used while splitting SQL statements. The working tree currently contains only this uncommitted two-line fix.
+
+> Note: the older Aug. 1 marketplace entries below conflict: one describes a services-only redesign while another describes the earlier combined service/company design. Confirm the desired marketplace direction before making further marketplace changes.
 
 ---
 
