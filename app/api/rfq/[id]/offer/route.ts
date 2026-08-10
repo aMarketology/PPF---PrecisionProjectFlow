@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,7 +11,7 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     const { data: offers, error } = await supabase
       .from('rfq_offers')
@@ -29,14 +29,17 @@ export async function GET(
 }
 
 // POST /api/rfq/[id]/offer
-// Vendor submits an offer on an RFQ
+// Vendor submits an offer on an RFQ. Costs 50 tokens.
+// Uses the token-gated submit_rfq_offer RPC for atomic token spend + insert.
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const { id } = await params;
-    const supabase = await createClient();
+    const supabase = createServiceClient();
+
+    // Get current user via service client (still respects auth)
     const { data: { user }, error: authError } = await supabase.auth.getUser();
 
     if (authError || !user) {
@@ -44,70 +47,55 @@ export async function POST(
     }
 
     const body = await request.json();
-    const { amount, note } = body;
+    const { amount, note, deliveryDays } = body;
 
     if (!amount || amount <= 0) {
       return NextResponse.json({ error: 'Invalid offer amount' }, { status: 400 });
     }
 
-    // Verify RFQ exists and is open
-    const { data: rfq, error: rfqError } = await supabase
-      .from('rfqs')
-      .select('id, client_id, status, title')
-      .eq('id', id)
+    // Check user is an engineer
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('user_type, token_balance')
+      .eq('id', user.id)
       .single();
 
-    if (rfqError || !rfq) {
-      return NextResponse.json({ error: 'RFQ not found' }, { status: 404 });
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    if (rfq.status !== 'open') {
-      return NextResponse.json({ error: 'This RFQ is no longer accepting offers' }, { status: 400 });
+    if (profile.user_type !== 'engineer') {
+      return NextResponse.json({ error: 'Only engineers / vendors can submit offers' }, { status: 403 });
     }
 
-    // Can't offer on your own RFQ
-    if (rfq.client_id === user.id) {
-      return NextResponse.json({ error: 'You cannot submit an offer on your own RFQ' }, { status: 400 });
+    // Call the token-gated RPC (spends 50 tokens + inserts offer atomically)
+    const { data: result, error: rpcError } = await supabase.rpc('submit_rfq_offer', {
+      p_rfq_id: id,
+      p_vendor_id: user.id,
+      p_amount: amount,
+      p_note: note || null,
+      p_delivery_days: deliveryDays || null,
+    });
+
+    if (rpcError) {
+      console.error('[offer/submit] RPC error:', rpcError);
+      return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
-    // Check if vendor already has a pending offer
-    const { data: existing } = await supabase
-      .from('rfq_offers')
-      .select('id')
-      .eq('rfq_id', id)
-      .eq('vendor_id', user.id)
-      .eq('status', 'pending')
-      .maybeSingle();
-
-    if (existing) {
-      return NextResponse.json({ error: 'You already have a pending offer on this RFQ' }, { status: 409 });
+    if (!result?.success) {
+      return NextResponse.json({ error: result?.error || 'Failed to submit offer' }, { status: 400 });
     }
-
-    // Insert the offer
-    const { data: offer, error: insertError } = await supabase
-      .from('rfq_offers')
-      .insert({
-        rfq_id: id,
-        vendor_id: user.id,
-        amount,
-        note: note || null,
-        status: 'pending',
-      })
-      .select('*, vendor:profiles!rfq_offers_vendor_id_fkey(id, full_name, avatar_url, company_name)')
-      .single();
-
-    if (insertError) throw insertError;
 
     // Fire-and-forget: notify client about new offer
     fetch(`${request.nextUrl.origin}/api/rfq/${id}/notify-offer`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ offerId: offer.id }),
+      body: JSON.stringify({ offerId: result.offer_id }),
     }).catch(e => console.error('[offer notify]', e));
 
-    return NextResponse.json({ offer }, { status: 201 });
+    return NextResponse.json({ success: true, offerId: result.offer_id }, { status: 201 });
   } catch (error: any) {
     console.error('Offer POST error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });
   }
 }

@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 // POST /api/feed/[id]/like  — toggle like on a post
 export async function POST(
   _request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const supabase = await createClient();
@@ -15,7 +15,7 @@ export async function POST(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const postId = params.id;
+    const { id: postId } = await params;
 
     // Check if already liked
     const { data: existing } = await supabase

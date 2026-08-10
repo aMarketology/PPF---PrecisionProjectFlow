@@ -22,6 +22,8 @@ interface RFQ {
   description: string; quantity: string | null; budget: string | null;
   timeline: string | null; location: string | null;
   attachment_urls: string[] | null; status: string;
+  rfq_type?: string; nda_required?: boolean; is_asap?: boolean;
+  inventory_status: string | null; lead_time_days: number | null; estimated_ship_date: string | null;
   created_at: string; updated_at: string;
   client?: { id: string; full_name: string; email: string; avatar_url?: string; company_name?: string };
 }
@@ -297,6 +299,18 @@ export default function RFQDetailPage() {
                 <span className="flex items-center gap-1 text-xs text-blue-200">{CATEGORY_ICONS[rfq.category] || <FileText className="w-3.5 h-3.5" />}{rfq.category}</span>
                 {rfq.location && <span className="flex items-center gap-1 text-xs text-blue-200"><MapPin className="w-3.5 h-3.5" />{rfq.location}</span>}
               </div>
+              <div className="flex flex-wrap items-center gap-2 mt-3">
+                {rfq.nda_required && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-500/20 text-blue-200 border border-blue-400/30 rounded-full text-[11px] font-semibold">
+                    <Shield className="w-3 h-3" /> NDA Required
+                  </span>
+                )}
+                {rfq.is_asap && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-orange-500/20 text-orange-200 border border-orange-400/30 rounded-full text-[11px] font-semibold">
+                    <Zap className="w-3 h-3" /> ASAP / Next Day Air
+                  </span>
+                )}
+              </div>
             </div>
             {canBid && !myPendingOffer && (
               <button onClick={() => setShowOfferForm(true)}
@@ -336,6 +350,43 @@ export default function RFQDetailPage() {
                   <p className="text-xs text-gray-500 font-medium">Quantity</p>
                   <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Package className="w-3.5 h-3.5 text-gray-400" />{rfq.quantity}</p>
                 </div>
+              )}
+              {rfq.inventory_status && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Inventory</p>
+                  <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    rfq.inventory_status === 'in_stock' ? 'bg-emerald-100 text-emerald-700' :
+                    rfq.inventory_status === 'out_of_stock' ? 'bg-red-100 text-red-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {rfq.inventory_status === 'in_stock' ? '🟢 In Stock' :
+                     rfq.inventory_status === 'out_of_stock' ? '🔴 Out of Stock' : '🟡 Back Order'}
+                  </span>
+                </div>
+              )}
+              {rfq.lead_time_days && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Lead Time</p>
+                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Clock className="w-3.5 h-3.5 text-gray-400" />{rfq.lead_time_days} days</p>
+                </div>
+              )}
+              {rfq.estimated_ship_date && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Est. Ship Date</p>
+                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-gray-400" />{new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                </div>
+              )}
+            </div>
+            <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-gray-100">
+              {rfq.nda_required && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-semibold">
+                  <Shield className="w-3 h-3" /> NDA Required
+                </span>
+              )}
+              {rfq.is_asap && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-[11px] font-semibold">
+                  <Zap className="w-3 h-3" /> ASAP / Next Day Air
+                </span>
               )}
             </div>
           </div>

@@ -1,16 +1,21 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 7, 2026
-**Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign
+**Last updated:** August 8, 2026
+**Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign · 💰 Token-Gated Bidding
 
 ---
 
 ## 📍 Current Focus
-**Build verified; awaiting the next product task.**
+**RFQ Offer Submission — token-gated + engineer-only.**
 
-On August 7, the pending TypeScript build fix in `app/api/admin/run-sql/route.ts` was verified with a successful `npm run build`. The change explicitly types the callbacks used while splitting SQL statements. The working tree currently contains only this uncommitted two-line fix.
+Fixed two bugs in the offer flow:
+1. **Route `POST /api/rfq/[id]/offer` was un-gated**: It inserted offers raw into `rfq_offers` without checking engineer role or charging tokens. Rewritten to use `createServiceClient` + the `submit_rfq_offer` RPC (which spends 50 tokens atomically).
+2. **Submit button appeared dead**: The modal's catch block silently swallowed HTTP errors. Now it shows the server's error message via toast, logs to console, and doesn't unset `submitting` until the toast is shown.
+3. **Added `delivery_days` field** to the OfferModal, wired through to the RPC.
+4. **Token cost notice** now visible in the modal (amber banner + button label "Submit Offer — 50 Tokens").
 
-> Note: the older Aug. 1 marketplace entries below conflict: one describes a services-only redesign while another describes the earlier combined service/company design. Confirm the desired marketplace direction before making further marketplace changes.
+### ⚠️ Prerequisite before testing
+The `submit_rfq_offer` RPC (in `supabase/RFQ_TOKEN_SYSTEM.sql`) must be deployed to the live Supabase DB. If it already exists, verify the `delivery_days` column exists on `rfq_offers` (both `RFQ_TOKEN_SYSTEM.sql` and `RFQ_OFFERS.sql` create it). Run one of those SQL files in the Supabase Dashboard if needed. The vendor account also needs ≥ 50 tokens.
 
 ---
 

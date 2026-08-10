@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -16,13 +17,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'rfqId and amount are required' }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Use server client (cookie-based auth) to get the current user
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // Use service client for RPC calls (bypasses RLS for token operations)
+    const supabase = createServiceClient();
 
     // Check user is an engineer
     const { data: profile } = await supabase.from('profiles')
@@ -74,12 +77,15 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'action must be accept or reject' }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Auth via cookie-based client
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // DB operations via service client (bypasses RLS)
+    const supabase = createServiceClient();
 
     // Fetch the offer with RFQ info
     const { data: offer, error: offerError } = await supabase
@@ -191,12 +197,15 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: 'offerId is required' }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Auth via cookie-based client
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // DB operation via service client (bypasses RLS)
+    const supabase = createServiceClient();
 
     const { error } = await supabase
       .from('rfq_offers')

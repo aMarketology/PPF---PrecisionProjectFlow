@@ -14,6 +14,7 @@ import {
   X, 
   Building2,
   Calendar,
+  Clock,
   DollarSign,
   MapPin,
   AlertCircle,
@@ -22,6 +23,9 @@ import {
   Loader2,
   BookOpen,
   Info,
+  Shield,
+  Zap,
+  Package,
 } from 'lucide-react'
 import Link from 'next/link'
 
@@ -59,6 +63,11 @@ export default function CreateRFQPage() {
     timeline: '',
     location: '',
     material: '',
+    nda_required: false,
+    is_asap: false,
+    inventoryStatus: '' as '' | 'in_stock' | 'out_of_stock' | 'back_order',
+    leadTimeDays: '',
+    estimatedShipDate: '',
     specifications: [] as File[],
     selectedSuppliers: [] as string[],
   })
@@ -68,7 +77,9 @@ export default function CreateRFQPage() {
   const [rfqSlug, setRfqSlug] = useState<string | null>(null)
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
-    const { name, value } = e.target
+    const target = e.target
+    const name = target.name
+    const value = target.type === 'checkbox' ? (target as HTMLInputElement).checked : target.value
     setFormData(prev => ({ ...prev, [name]: value }))
   }
 
@@ -112,6 +123,11 @@ export default function CreateRFQPage() {
           timeline: formData.timeline || null,
           location: formData.location || null,
           material: formData.material || null,
+          nda_required: formData.nda_required,
+          is_asap: formData.is_asap,
+          inventory_status: formData.inventoryStatus || null,
+          lead_time_days: formData.leadTimeDays ? parseInt(formData.leadTimeDays) : null,
+          estimated_ship_date: formData.estimatedShipDate || null,
           slug: formData.title.toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '') + '-' + crypto.randomUUID().substring(0, 8),
@@ -418,6 +434,69 @@ export default function CreateRFQPage() {
                       Specify materials, grades, finishes, or any special requirements
                     </p>
                   </div>
+
+                  {/* ── NDA & ASAP Toggles ── */}
+                  <div className="flex flex-col sm:flex-row gap-4 pt-2">
+                    <label className={`flex items-center gap-3 px-5 py-3.5 border-2 rounded-xl cursor-pointer transition-all flex-1 ${
+                      formData.nda_required
+                        ? 'border-[#003D82] bg-blue-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        name="nda_required"
+                        checked={formData.nda_required}
+                        onChange={handleInputChange}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
+                        formData.nda_required ? 'border-[#003D82] bg-[#003D82]' : 'border-gray-300'
+                      }`}>
+                        {formData.nda_required && (
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Shield className="w-4 h-4 text-gray-500" />
+                          <span className="font-semibold text-gray-900 text-sm">NDA Required</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">Vendors must sign before viewing details</p>
+                      </div>
+                    </label>
+
+                    <label className={`flex items-center gap-3 px-5 py-3.5 border-2 rounded-xl cursor-pointer transition-all flex-1 ${
+                      formData.is_asap
+                        ? 'border-[#FF6B35] bg-orange-50'
+                        : 'border-gray-200 bg-white hover:border-gray-300'
+                    }`}>
+                      <input
+                        type="checkbox"
+                        name="is_asap"
+                        checked={formData.is_asap}
+                        onChange={handleInputChange}
+                        className="sr-only"
+                      />
+                      <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center flex-shrink-0 ${
+                        formData.is_asap ? 'border-[#FF6B35] bg-[#FF6B35]' : 'border-gray-300'
+                      }`}>
+                        {formData.is_asap && (
+                          <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        )}
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <Zap className="w-4 h-4 text-orange-500" />
+                          <span className="font-semibold text-gray-900 text-sm">ASAP / Next Day Air</span>
+                        </div>
+                        <p className="text-[11px] text-gray-500 mt-0.5">Need this right away — urgent turnaround required</p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               </motion.div>
             )}
@@ -518,6 +597,86 @@ export default function CreateRFQPage() {
                     )}
                   </div>
 
+                  {/* ── Inventory & Shipping ── */}
+                  <div className="border-t border-gray-200 pt-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center gap-2">
+                      <Package className="w-5 h-5 text-[#003D82]" />
+                      Inventory &amp; Shipping
+                    </h3>
+
+                    {/* Inventory Status — radio buttons */}
+                    <div className="mb-5">
+                      <label className="block text-sm font-medium text-gray-700 mb-3">Inventory Status</label>
+                      <div className="flex flex-wrap gap-3">
+                        {[
+                          { value: 'in_stock', label: 'In Stock', desc: 'Items available now', icon: '🟢' },
+                          { value: 'out_of_stock', label: 'Out of Stock', desc: 'Currently unavailable', icon: '🔴' },
+                          { value: 'back_order', label: 'Back Order', desc: 'Accepting orders, delayed fulfillment', icon: '🟡' },
+                        ].map(opt => (
+                          <label
+                            key={opt.value}
+                            className={`flex-1 min-w-[140px] cursor-pointer rounded-xl border-2 p-4 transition-all ${
+                              formData.inventoryStatus === opt.value
+                                ? 'border-[#003D82] bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300 bg-white'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name="inventoryStatus"
+                              value={opt.value}
+                              checked={formData.inventoryStatus === opt.value}
+                              onChange={handleInputChange}
+                              className="sr-only"
+                            />
+                            <div className="flex flex-col items-center text-center gap-1">
+                              <span className="text-xl">{opt.icon}</span>
+                              <span className="font-semibold text-gray-900 text-sm">{opt.label}</span>
+                              <span className="text-[10px] text-gray-500 leading-tight">{opt.desc}</span>
+                            </div>
+                          </label>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                      {/* Lead Time */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Clock className="w-4 h-4 inline mr-1 text-gray-400" />
+                          Lead Time (days)
+                        </label>
+                        <input
+                          type="number"
+                          name="leadTimeDays"
+                          value={formData.leadTimeDays}
+                          onChange={handleInputChange}
+                          min="0"
+                          placeholder="e.g. 14"
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Number of days to manufacture/procure before shipping</p>
+                      </div>
+
+                      {/* Estimated Ship Date */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          <Calendar className="w-4 h-4 inline mr-1 text-gray-400" />
+                          Estimated Ship Date
+                        </label>
+                        <input
+                          type="date"
+                          name="estimatedShipDate"
+                          value={formData.estimatedShipDate}
+                          onChange={handleInputChange}
+                          min={new Date().toISOString().split('T')[0]}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-gray-700"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">Select the date you expect the order to ship</p>
+                      </div>
+                    </div>
+                  </div>
+
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-start">
                       <AlertCircle className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -574,6 +733,49 @@ export default function CreateRFQPage() {
                         <h3 className="text-sm font-medium text-gray-500 mb-1">Budget</h3>
                         <p className="text-gray-900">{formData.budget || 'To be discussed'}</p>
                       </div>
+                    </div>
+
+                    {formData.inventoryStatus && (
+                      <div className="grid grid-cols-3 gap-4">
+                        <div>
+                          <h3 className="text-sm font-medium text-gray-500 mb-1">Inventory</h3>
+                          <span className={`inline-flex px-2.5 py-0.5 rounded-full text-xs font-semibold ${
+                            formData.inventoryStatus === 'in_stock' ? 'bg-emerald-100 text-emerald-700' :
+                            formData.inventoryStatus === 'out_of_stock' ? 'bg-red-100 text-red-700' :
+                            'bg-amber-100 text-amber-700'
+                          }`}>
+                            {formData.inventoryStatus === 'in_stock' ? '🟢 In Stock' :
+                             formData.inventoryStatus === 'out_of_stock' ? '🔴 Out of Stock' : '🟡 Back Order'}
+                          </span>
+                        </div>
+                        {formData.leadTimeDays && (
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-500 mb-1">Lead Time</h3>
+                            <p className="text-gray-900">{formData.leadTimeDays} days</p>
+                          </div>
+                        )}
+                        {formData.estimatedShipDate && (
+                          <div>
+                            <h3 className="text-sm font-medium text-gray-500 mb-1">Ship Date</h3>
+                            <p className="text-gray-900">{new Date(formData.estimatedShipDate + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    <div className="flex flex-wrap gap-3">
+                      {formData.nda_required && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-semibold">
+                          <Shield className="w-3.5 h-3.5" />
+                          NDA Required
+                        </span>
+                      )}
+                      {formData.is_asap && (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-xs font-semibold">
+                          <Zap className="w-3.5 h-3.5" />
+                          ASAP / Next Day Air
+                        </span>
+                      )}
                     </div>
 
                     <div>

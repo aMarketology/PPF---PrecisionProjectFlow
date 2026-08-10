@@ -11,8 +11,8 @@ import { formatDistanceToNow } from 'date-fns';
 import {
   Search, MapPin, Clock, DollarSign, Filter, X, ChevronRight,
   FileText, Wrench, Zap, Building2, Tag, Loader2, Package,
-  ArrowUpDown, MessageSquare, Plus, AlertCircle, Send,
-  BarChart3, TrendingUp, Users, Layers, Gavel, Eye, Award, ChevronDown, ChevronUp,
+  ArrowUpDown, MessageSquare, Plus, AlertCircle, Send, Calendar,
+  BarChart3, TrendingUp, Users, Layers, Gavel, Eye, Award, ChevronDown, ChevronUp, Shield,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -28,6 +28,11 @@ interface RFQ {
   timeline: string | null;
   location: string | null;
   attachment_urls: string[] | null;
+  inventory_status?: string | null;
+  lead_time_days?: number | null;
+  estimated_ship_date?: string | null;
+  nda_required?: boolean;
+  is_asap?: boolean;
   status: 'open' | 'in_review' | 'awarded' | 'closed';
   created_at: string;
   updated_at: string;
@@ -621,6 +626,42 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                   </span>
                 )}
               </div>
+
+              {/* Inventory / Shipping row */}
+              {(rfq.inventory_status || rfq.lead_time_days || rfq.estimated_ship_date) && (
+                <div className="flex items-center gap-3 mt-1.5 flex-wrap">
+                  {rfq.inventory_status && (
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold ${
+                      rfq.inventory_status === 'in_stock' ? 'bg-emerald-100 text-emerald-700' :
+                      rfq.inventory_status === 'out_of_stock' ? 'bg-red-100 text-red-700' :
+                      'bg-amber-100 text-amber-700'
+                    }`}>
+                      {rfq.inventory_status === 'in_stock' ? '🟢 In Stock' :
+                       rfq.inventory_status === 'out_of_stock' ? '🔴 Out of Stock' : '🟡 Back Order'}
+                    </span>
+                  )}
+                  {rfq.lead_time_days && (
+                    <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                      <Clock className="w-3 h-3" />{rfq.lead_time_days}d lead
+                    </span>
+                  )}
+                  {rfq.estimated_ship_date && (
+                    <span className="flex items-center gap-1 text-[10px] text-gray-500">
+                      <Calendar className="w-3 h-3" />Ships {new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                    </span>
+                  )}
+                  {rfq.nda_required && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[9px] font-semibold">
+                      <Shield className="w-2.5 h-2.5" />NDA
+                    </span>
+                  )}
+                  {rfq.is_asap && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-[9px] font-semibold">
+                      <Zap className="w-2.5 h-2.5" />ASAP
+                    </span>
+                  )}
+                </div>
+              )}
 
               {/* Offer pricing row */}
               <div className="flex items-center gap-2 mt-2">

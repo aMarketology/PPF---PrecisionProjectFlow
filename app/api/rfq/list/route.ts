@@ -14,6 +14,7 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get('category') ?? '';
     const search   = searchParams.get('search') ?? '';
     const status   = searchParams.get('status') ?? '';
+    const rfqType  = searchParams.get('rfq_type') ?? '';
     const offset   = page * limit;
 
     const supabase = createServiceClient();
@@ -31,6 +32,10 @@ export async function GET(request: NextRequest) {
 
     if (category) {
       query = query.eq('category', category);
+    }
+
+    if (rfqType) {
+      query = query.eq('rfq_type', rfqType);
     }
 
     if (search) {
