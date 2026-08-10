@@ -8,6 +8,7 @@ import { toast } from 'react-hot-toast';
 import {
   Shield, Users, Package, FileText, Building2, Loader2,
   Search, Trash2, Eye, ExternalLink, Layers, ChevronRight,
+  Mail, UserPlus, Globe,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -22,6 +23,9 @@ export default function AdminPage() {
   const [data, setData] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
   const [search, setSearch] = useState('');
+  const [inviteModal, setInviteModal] = useState<{ companyId: string; companyName: string } | null>(null);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviting, setInviting] = useState(false);
   const [stats, setStats] = useState({ users: 0, companies: 0, products: 0, services: 0, rfqs: 0 });
 
   useEffect(() => {
@@ -29,9 +33,14 @@ export default function AdminPage() {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) { router.push('/login'); return; }
       setUser(user);
-      const { data: profile } = await supabase.from('profiles').select('is_admin, full_name').eq('id', user.id).single();
-      if (!profile?.is_admin) { router.push('/'); toast.error('Access denied'); return; }
+      // Use RPC instead of direct profiles read (more reliable through RLS)
+      const { data: isAdminResult } = await supabase.rpc('is_admin', { user_id: user.id });
+      if (!isAdminResult) { router.push('/'); toast.error('Access denied'); return; }
       setIsAdmin(true);
+      
+      // Also fetch profile for display
+      const { data: profile } = await supabase.from('profiles').select('full_name, is_admin').eq('id', user.id).single();
+      if (profile) setUser((prev: any) => ({ ...prev, profile }));
       setLoading(false);
     });
   }, []);
@@ -105,6 +114,30 @@ export default function AdminPage() {
     if (error) { toast.error(error.message); return; }
     toast.success(`Toggled to ${!current ? 'active' : 'inactive'}`);
     setData(prev => prev.map(d => d.id === id ? { ...d, [col]: !current } : d));
+  };
+
+  const handleSendInvite = async () => {
+    if (!inviteModal || !inviteEmail.trim()) return;
+    setInviting(true);
+    try {
+      // Find user by email
+      const supabase = createClient();
+      const { data: targetUser } = await supabase.from('profiles').select('id').eq('email', inviteEmail.trim().toLowerCase()).single();
+      
+      if (!targetUser) { toast.error('User not found with that email'); return; }
+
+      const res = await fetch('/api/messages/send-invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: inviteModal.companyId, targetUserId: targetUser.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to send invite'); return; }
+      toast.success(`Invite sent to ${inviteEmail} for ${inviteModal.companyName}`);
+      setInviteModal(null);
+      setInviteEmail('');
+    } catch { toast.error('Failed to send invite'); }
+    finally { setInviting(false); }
   };
 
   const filtered = data.filter(d => {
@@ -243,6 +276,12 @@ export default function AdminPage() {
                           </td>
                           <td className="px-4 py-3 text-right">
                             <div className="flex items-center justify-end gap-1">
+                              {activeTab === 'companies' && (
+                                <button onClick={() => setInviteModal({ companyId: item.id, companyName: item.company_name || item.name })}
+                                  className="p-1.5 hover:bg-green-50 rounded-lg text-gray-400 hover:text-green-600" title="Invite to claim">
+                                  <Mail className="w-4 h-4" />
+                                </button>
+                              )}
                               {(activeTab === 'products' || activeTab === 'services') && (
                                 <button onClick={() => handleToggleActive(item.id, item.active ?? item.is_active ?? true, activeTab === 'products' ? 'product' : 'service')}
                                   className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400" title="Toggle">
@@ -266,6 +305,32 @@ export default function AdminPage() {
           )}
         </div>
       </div>
+
+      {/* Invite Modal */}
+      {inviteModal && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
+            <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+              <Mail className="w-5 h-5 text-[#FF6B35]" /> Send Claim Invite
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              Invite a user to claim <span className="font-semibold text-gray-800">{inviteModal.companyName}</span>. They'll get a DM with Accept/Decline buttons.
+            </p>
+            <label className="block text-sm font-semibold text-gray-700 mb-1">User Email</label>
+            <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+              placeholder="user@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm mb-4" />
+            <div className="flex gap-3">
+              <button onClick={() => { setInviteModal(null); setInviteEmail(''); }}
+                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
+              <button onClick={handleSendInvite} disabled={inviting || !inviteEmail.trim()}
+                className="flex-1 px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                Send Invite
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

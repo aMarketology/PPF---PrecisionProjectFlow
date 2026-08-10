@@ -172,18 +172,25 @@ export default function Navigation() {
 
             {/* Desktop Menu */}
             <div className="hidden md:flex items-center gap-0.5">
-              {['Home', 'Activity', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'RFQ Feed', 'Contact'].map((item, index) => (
+              {[
+                { label: 'Home', href: '/' },
+                { label: 'Marketplace', href: '/marketplace' },
+                { label: 'RFQ Feed', href: '/rfq' },
+                { label: 'Companies', href: '/companies' },
+                { label: 'Blog', href: '/blog' },
+                { label: 'Contact', href: '/contact' },
+              ].map((item, index) => (
                 <motion.div
-                  key={item}
+                  key={item.label}
                   initial={{ opacity: 0, y: -20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: index * 0.03 }}
                 >
                   <Link
-                    href={item === 'Home' ? '/' : item === 'RFQ Feed' ? '/rfq' : `/${item.toLowerCase()}`}
+                    href={item.href}
                     className="px-2.5 py-2 text-sm font-medium rounded-lg transition-all text-gray-600 hover:text-[#003D82] hover:bg-blue-50 whitespace-nowrap"
                   >
-                    {item}
+                    {item.label}
                   </Link>
                 </motion.div>
               ))}
@@ -546,19 +553,26 @@ export default function Navigation() {
               className="md:hidden overflow-hidden"
             >
               <div className="py-4 space-y-1 bg-white/95 backdrop-blur-lg rounded-lg mt-4 shadow-xl">
-                {['Home', 'Features', 'Marketplace', 'Companies', 'Profiles', 'Blog', 'Contact'].map((item, index) => (
+                {[
+                  { label: 'Home', href: '/' },
+                  { label: 'Marketplace', href: '/marketplace' },
+                  { label: 'RFQ Feed', href: '/rfq' },
+                  { label: 'Companies', href: '/companies' },
+                  { label: 'Blog', href: '/blog' },
+                  { label: 'Contact', href: '/contact' },
+                ].map((item, index) => (
                   <motion.div
-                    key={item}
+                    key={item.label}
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.1 }}
                   >
                     <Link
-                      href={item === 'Home' ? '/' : `/${item.toLowerCase()}`}
+                      href={item.href}
                       className="block px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      {item}
+                      {item.label}
                     </Link>
                   </motion.div>
                 ))}
