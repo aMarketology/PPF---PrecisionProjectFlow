@@ -14,7 +14,7 @@ import {
   Building2, User, Calendar, Loader2, MessageSquare, Send,
   ExternalLink, Paperclip, AlertCircle, CheckCircle2, Wrench, Zap,
   Shield, Coins, Gavel, XCircle, CheckCircle, Eye, TrendingUp,
-  ChevronDown, ChevronUp, Plus,
+  ChevronDown, ChevronUp, Plus, Info,
 } from 'lucide-react';
 
 interface RFQ {
@@ -68,6 +68,7 @@ export default function RFQDetailPage() {
   const [offerAmount, setOfferAmount] = useState('');
   const [offerNote, setOfferNote] = useState('');
   const [offerDelivery, setOfferDelivery] = useState('');
+  const [offerStartDate, setOfferStartDate] = useState('');
   const [submittingOffer, setSubmittingOffer] = useState(false);
 
   // Accept/reject state
@@ -183,6 +184,7 @@ export default function RFQDetailPage() {
       setOfferAmount('');
       setOfferNote('');
       setOfferDelivery('');
+      setOfferStartDate('');
       setTokenBalance(prev => prev - 50);
       await loadOffers();
     } catch (err: any) {
@@ -422,53 +424,184 @@ export default function RFQDetailPage() {
                 exit={{ opacity: 0, height: 0 }}
                 className="overflow-hidden"
               >
-                <div className="bg-white rounded-2xl border-2 border-[#FF6B35] shadow-lg p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                      <Gavel className="w-5 h-5 text-[#FF6B35]" /> Submit Your Offer
-                    </h2>
-                    <button onClick={() => setShowOfferForm(false)} className="text-gray-400 hover:text-gray-600">
-                      <XCircle className="w-5 h-5" />
-                    </button>
-                  </div>
-
-                  {/* Token cost notice */}
-                  <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-4 flex items-center gap-3">
-                    <Coins className="w-5 h-5 text-amber-600 flex-shrink-0" />
-                    <div>
-                      <p className="text-sm font-semibold text-amber-800">Cost: 50 tokens</p>
-                      <p className="text-xs text-amber-700">Your balance: <span className="font-bold">{tokenBalance} tokens</span></p>
+                <div className="bg-white rounded-2xl border-2 border-[#FF6B35] shadow-xl overflow-hidden">
+                  {/* Header */}
+                  <div className="bg-gradient-to-r from-[#FF6B35] to-[#E55A2B] px-6 py-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
+                          <Gavel className="w-5 h-5 text-white" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-bold text-white">Submit Your Offer</h2>
+                          <p className="text-sm text-orange-100">Send your proposal to the client</p>
+                        </div>
+                      </div>
+                      <button onClick={() => setShowOfferForm(false)} className="text-white/80 hover:text-white transition-colors">
+                        <XCircle className="w-6 h-6" />
+                      </button>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Offer Amount ($)</label>
-                      <div className="relative">
-                        <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                        <input type="number" value={offerAmount} onChange={e => setOfferAmount(e.target.value)}
-                          placeholder="e.g. 5000" min="1" step="0.01"
-                          className="w-full pl-10 pr-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all font-semibold" />
+                  <div className="p-6 space-y-6">
+                    {/* ── RFQ Summary Card ── */}
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">RFQ Summary</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-medium">Budget</p>
+                          <p className="text-sm font-bold text-gray-900">{rfq.budget || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-medium">Timeline</p>
+                          <p className="text-sm font-semibold text-gray-900">{rfq.timeline || 'Not specified'}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-medium">Category</p>
+                          <p className="text-sm font-semibold text-gray-900">{rfq.category}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-gray-400 font-medium">Location</p>
+                          <p className="text-sm font-semibold text-gray-900">{rfq.location || 'N/A'}</p>
+                        </div>
+                      </div>
+                      {rfq.description && (
+                        <p className="text-xs text-gray-500 mt-2 line-clamp-2 italic">
+                          &ldquo;{rfq.description.slice(0, 200)}{rfq.description.length > 200 ? '...' : ''}&rdquo;
+                        </p>
+                      )}
+                    </div>
+
+                    {/* ── Token Cost Notice ── */}
+                    <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
+                        <Coins className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div className="flex-1">
+                        <p className="text-sm font-bold text-amber-900">This offer costs 50 tokens to submit</p>
+                        <p className="text-xs text-amber-700">
+                          Your balance: <span className="font-bold">{tokenBalance.toLocaleString()} tokens</span>
+                          {tokenBalance < 50 && (
+                            <span className="ml-2 text-red-600 font-semibold">— Insufficient! <Link href="/tokens" className="underline">Buy tokens</Link></span>
+                          )}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <span className="text-2xl font-black text-amber-600">50</span>
+                        <span className="text-xs text-amber-500 block leading-tight">tokens</span>
                       </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Estimated Delivery (days)</label>
-                      <input type="number" value={offerDelivery} onChange={e => setOfferDelivery(e.target.value)}
-                        placeholder="e.g. 14" min="1"
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all" />
+
+                    {/* ── Form Fields ── */}
+                    <div className="space-y-5">
+                      {/* Offer Amount */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          <DollarSign className="w-4 h-4 inline mr-1 text-[#FF6B35]" />
+                          Your Offer Amount <span className="text-red-500">*</span>
+                        </label>
+                        <div className="relative">
+                          <div className="absolute inset-y-0 left-0 flex items-center pl-4 pointer-events-none">
+                            <span className="text-gray-400 font-bold text-lg">$</span>
+                          </div>
+                          <input
+                            type="number"
+                            value={offerAmount}
+                            onChange={e => setOfferAmount(e.target.value)}
+                            placeholder="0.00"
+                            min="1"
+                            step="0.01"
+                            className="w-full pl-10 pr-4 py-4 text-2xl font-extrabold text-gray-900 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all"
+                          />
+                        </div>
+                        {rfq.budget && (
+                          <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
+                            <Info className="w-3 h-3" />
+                            Client budget: <span className="font-semibold text-gray-700">{rfq.budget}</span>
+                          </p>
+                        )}
+                      </div>
+
+                      {/* Delivery + Timeline side by side */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">
+                            <Clock className="w-4 h-4 inline mr-1 text-[#FF6B35]" />
+                            Estimated Delivery
+                          </label>
+                          <div className="relative">
+                            <input
+                              type="number"
+                              value={offerDelivery}
+                              onChange={e => setOfferDelivery(e.target.value)}
+                              placeholder="14"
+                              min="1"
+                              className="w-full px-4 py-3.5 pr-16 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all font-semibold"
+                            />
+                            <span className="absolute inset-y-0 right-0 flex items-center pr-4 text-sm text-gray-400 font-medium">days</span>
+                          </div>
+                        </div>
+                        <div>
+                          <label className="block text-sm font-bold text-gray-700 mb-2">
+                            <Calendar className="w-4 h-4 inline mr-1 text-[#FF6B35]" />
+                            Start Date
+                          </label>
+                          <input
+                            type="date"
+                            value={offerStartDate}
+                            onChange={e => setOfferStartDate(e.target.value)}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all text-gray-700 font-semibold"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Note to Client */}
+                      <div>
+                        <label className="block text-sm font-bold text-gray-700 mb-2">
+                          <MessageSquare className="w-4 h-4 inline mr-1 text-[#FF6B35]" />
+                          Note to Client
+                        </label>
+                        <textarea
+                          value={offerNote}
+                          onChange={e => setOfferNote(e.target.value)}
+                          placeholder="Describe your approach, relevant experience, materials you'll use, and why you're the best fit for this project..."
+                          rows={4}
+                          className="w-full px-4 py-3.5 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all resize-none text-sm"
+                        />
+                        <p className="text-xs text-gray-400 mt-1.5 flex items-center gap-1">
+                          <Info className="w-3 h-3" />
+                          A detailed note increases your chances of being selected by {rfq.client?.full_name || 'the client'}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <label className="block text-sm font-semibold text-gray-700 mb-1">Note to Client</label>
-                      <textarea value={offerNote} onChange={e => setOfferNote(e.target.value)}
-                        placeholder="Describe your approach, materials, experience, etc."
-                        rows={3}
-                        className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#FF6B35] focus:ring-4 focus:ring-[#FF6B35]/10 outline-none transition-all resize-none" />
+
+                    {/* ── Submit Button ── */}
+                    <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+                      <div className="flex items-center justify-between gap-4">
+                        <div className="flex-1">
+                          <p className="text-xs text-gray-500 font-medium">By submitting, you agree to:</p>
+                          <ul className="text-[11px] text-gray-400 mt-1 space-y-0.5">
+                            <li>• 50 tokens will be deducted from your wallet</li>
+                            <li>• Your offer is binding for 30 days</li>
+                            <li>• You can withdraw your offer anytime</li>
+                          </ul>
+                        </div>
+                        <button
+                          onClick={handleSubmitOffer}
+                          disabled={submittingOffer || tokenBalance < 50 || !offerAmount}
+                          className="flex items-center gap-2 px-8 py-3.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 whitespace-nowrap"
+                        >
+                          {submittingOffer ? (
+                            <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
+                          ) : tokenBalance < 50 ? (
+                            <><Coins className="w-5 h-5" /> Insufficient Tokens</>
+                          ) : (
+                            <><Send className="w-5 h-5" /> Submit Offer — 50 Tokens</>
+                          )}
+                        </button>
+                      </div>
                     </div>
-                    <button onClick={handleSubmitOffer} disabled={submittingOffer || tokenBalance < 50}
-                      className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg">
-                      {submittingOffer ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-                      {tokenBalance < 50 ? 'Insufficient Tokens (Need 50)' : submittingOffer ? 'Submitting...' : 'Submit Offer (50 tokens)'}
-                    </button>
                   </div>
                 </div>
               </motion.div>
