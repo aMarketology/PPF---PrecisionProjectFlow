@@ -1,28 +1,196 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 8, 2026
-**Status:** ✅ LIVE · 💬 Messaging 🛡️ Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 🔓 Contract-to-Unlock · 🎨 Marketplace Redesign · 💰 Token-Gated Bidding
+**Last updated:** August 10, 2026
+**Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🤝 Contract-to-Unlock
 
 ---
 
 ## 📍 Current Focus
-**RFQ Offer Submission — token-gated + engineer-only.**
+**Pre-Launch Polish — Navigation cleanup, branding consistency, RFQ flow testing.**
 
-Fixed two bugs in the offer flow:
-1. **Route `POST /api/rfq/[id]/offer` was un-gated**: It inserted offers raw into `rfq_offers` without checking engineer role or charging tokens. Rewritten to use `createServiceClient` + the `submit_rfq_offer` RPC (which spends 50 tokens atomically).
-2. **Submit button appeared dead**: The modal's catch block silently swallowed HTTP errors. Now it shows the server's error message via toast, logs to console, and doesn't unset `submitting` until the toast is shown.
-3. **Added `delivery_days` field** to the OfferModal, wired through to the RPC.
-4. **Token cost notice** now visible in the modal (amber banner + button label "Submit Offer — 50 Tokens").
-
-### ⚠️ Prerequisite before testing
-The `submit_rfq_offer` RPC (in `supabase/RFQ_TOKEN_SYSTEM.sql`) must be deployed to the live Supabase DB. If it already exists, verify the `delivery_days` column exists on `rfq_offers` (both `RFQ_TOKEN_SYSTEM.sql` and `RFQ_OFFERS.sql` create it). Run one of those SQL files in the Supabase Dashboard if needed. The vendor account also needs ≥ 50 tokens.
+The platform is functionally complete. Remaining work is UX/branding polish and end-to-end testing of the RFQ → bid → contract → messaging loop between two real accounts.
 
 ---
 
-## ✅ Just Shipped (Aug 1, 2026)
+## 🗺️ Site Map (All Routes)
 
-### Marketplace — Services Only
-| Item | Detail |
+### Public Pages
+| Route | Page | Status |
+|-------|------|--------|
+| `/` | Homepage | ✅ Live |
+| `/features` | Platform guide / how-it-works | ✅ Live |
+| `/get-started` | Onboarding landing | ✅ Live |
+| `/blog` | SEO blog (3 posts) | ✅ Live |
+| `/blog/[slug]` | Blog post detail | ✅ Live |
+| `/contact` | Contact page | ✅ Live |
+| `/about` | About page | ✅ Live |
+| `/login` | Login | ✅ Live |
+| `/signup` | Sign up | ✅ Live |
+| `/forgot-password` | Password reset | ✅ Live |
+| `/reset-password` | Set new password | ✅ Live |
+| `/privacy-policy` | Privacy policy | ✅ Live |
+| `/terms-of-service` | Terms of service | ✅ Live |
+| `/marketplace` | Services marketplace | ✅ Live |
+| `/marketplace/service/[id]` | Service detail | ✅ Live |
+| `/marketplace/products` | Products listing | ✅ Live |
+| `/profiles` | Engineer directory | ✅ Live |
+| `/profiles/[id]` | Engineer profile | ✅ Live |
+| `/companies` | Company directory | ✅ Live |
+| `/companies/[slug]` | Company profile | ✅ Live |
+| `/companies/create` | Create company | ✅ Live |
+| `/claim-company` | Claim company | ✅ Live |
+| `/rfq` | RFQ feed | ✅ Live |
+| `/rfq/[slug]` | RFQ detail | ✅ Live |
+| `/rfq/create` | Multi-step RFQ form | ✅ Live |
+| `/feed` | Activity ledger (3,980+ events) | ✅ Live |
+| `/activity` | Activity feed | ✅ Live |
+
+### Authenticated Pages
+| Route | Page | Status |
+|-------|------|--------|
+| `/messages` | Full messaging (channels + DMs + company panel) | ✅ Live |
+| `/dashboard/engineer` | Vendor dashboard | ✅ Live |
+| `/dashboard/client` | Client dashboard | ✅ Live |
+| `/dashboard/company/[id]` | Company dashboard + team mgmt | ✅ Live |
+| `/orders` | Order management | ✅ Live |
+| `/orders/[id]` | Order detail | ✅ Live |
+| `/orders/sales` | Sales management | ✅ Live |
+| `/settings` | User settings | ✅ Live |
+| `/profile` | Edit profile | ✅ Live |
+| `/tokens` | Token store | ✅ Live |
+| `/checkout/[id]` | Product checkout | ✅ Live |
+| `/checkout/service/[id]` | Service checkout | ✅ Live |
+| `/services/create` | Create service listing | ✅ Live |
+
+### API Routes
+| Route | Purpose |
+|-------|---------|
+| `/api/messages/send` | Send message (token-gated for cross-company) |
+| `/api/messages/unlock` | Unlock DM (100 tokens) |
+| `/api/messages/upload` | File upload |
+| `/api/messages/credit-tokens` | Post-Stripe token credit |
+| `/api/messages/add-member` | Add user to channel (also adds to company) |
+| `/api/messages/remove-member` | Remove user from channel |
+| `/api/messages/update-role` | Change member role (owner only) |
+| `/api/messages/update-channel` | Rename/update channel (admin+) |
+| `/api/messages/delete-channel` | Delete channel (owner only) |
+| `/api/messages/send-invite` | Send company invite via DM |
+| `/api/messages/transfer-tokens` | Peer-to-peer token transfer |
+| `/api/rfq/[id]/offer` | Submit offer on RFQ (token-gated) |
+| `/api/rfq/notify` | Notify matching engineers |
+| `/api/rfq/list` | List RFQs with filters |
+| `/api/orders/[id]/update-status` | Update order status (contract-to-unlock) |
+| `/api/stripe/buy-tokens` | Stripe token purchase flow |
+| `/api/stripe/webhooks` | Stripe webhook handler |
+
+---
+
+## 🗄️ DB Functions Deployed (Supabase)
+
+| Function | Purpose |
+|----------|---------|
+| `get_or_create_conversation` | Find/create DM between two users |
+| `spend_tokens` | Debit wallet + log ledger |
+| `add_tokens` | Credit wallet + log ledger |
+| `is_channel_owner` | Check if user owns a channel |
+| `is_channel_admin` | Check if user is admin/owner of a channel |
+| `is_conversation_member` | SECURITY DEFINER — check channel membership |
+| `add_channel_member` | Add user to channel (admin+) |
+| `remove_channel_member` | Remove user from channel (admin+) |
+| `update_channel_member_role` | Change role (owner only) |
+| `update_channel` | Rename/update channel (admin+) |
+| `delete_channel` | Delete channel (owner only) |
+| `send_company_invite` | Invite user to company via DM |
+| `accept_company_invite` | Accept invite → join company + General channel |
+| `decline_company_invite` | Decline invite → notify inviter |
+| `get_pending_invites` | List pending invites for user |
+| `transfer_tokens` | P2P token transfer (same company only) |
+| `get_company_balance` | Total tokens across company |
+| `ensure_company_channel` | Create/find General channel |
+| `on_company_member_activated` | TRIGGER — auto-join General + welcome message |
+| `auto_unlock_conversation_on_contract` | TRIGGER — unlock DM on in_progress order |
+| `submit_rfq_offer` | Token-gated RFQ offer submission |
+| `are_friends` | Check if two users are friends |
+| `same_company` | Check if two users share a company |
+
+---
+
+## ⚠️ Pre-Launch Issues
+
+### 🔴 Navigation — Too Crowded
+Current desktop nav has **9 items**: Home, Activity, Features, Marketplace, Companies, Profiles, Blog, RFQ Feed, Contact. This is overwhelming.
+
+**Proposed simplification (5-6 items):**
+- Home
+- Marketplace (services + products)
+- RFQ Feed
+- Companies
+- Blog
+- Contact
+
+Move Features, Activity, Profiles into a "More" dropdown or consolidate.
+
+### 🟡 Branding Inconsistency
+Several pages need brand colors updated:
+- Login/signup pages use generic `bg-blue-600` instead of `bg-[#003D82]`
+- Password reset page uses `text-blue-600` instead of brand colors
+- Checkout pages may have inconsistent styling
+- Some pages use `bg-gray-50` instead of `bg-[#F8FAFC]`
+
+### 🟢 RFQ Flow — Needs End-to-End Test
+1. Project2Flow posts RFQ → MAXIMMILLION applies with offer
+2. DM unlocks via token spend or contract
+3. Order created → status to in_progress → DM auto-unlocks
+4. System messages fire in General channel
+
+### 🟢 Features Page — Dynamic Route Fix
+Fixed 2026-08-10: `/dashboard/company/[id]` → `/dashboard/engineer`
+
+---
+
+## 🚀 Launch Readiness Checklist
+
+### 🔴 Blockers
+| # | Issue | Fix |
+|---|-------|-----|
+| 1 | Navigation too crowded (9 links) | Simplify to 5-6 items: Home, Marketplace, RFQ Feed, Companies, Blog, Contact |
+| 2 | Branding inconsistency across pages | Sweep login, signup, reset-password, features, checkout for `bg-[#003D82]` / `bg-[#F8FAFC]` instead of generic Tailwind blues/grays |
+| 3 | RFQ end-to-end flow not tested | Project2Flow posts RFQ → MAXIMMILLION submits offer → DM unlocks → order created |
+| 4 | Features page needs `[id]` → real route fix (done Aug 10) | Verify deployed live |
+
+### 🟡 Polish
+| # | Issue |
+|---|-------|
+| 5 | Message avatars only show initials, not real `avatar_url` |
+| 6 | No mobile-responsive messaging sidebar |
+| 7 | No message search within conversations |
+| 8 | No delete/edit message |
+| 9 | No online/offline status indicators |
+| 10 | No email notifications for new messages |
+| 11 | Blog needs more SEO posts (5 planned) |
+| 12 | "Projects" sidebar section still empty — needs contract/bid-auto-create trigger |
+
+### 🟢 Done
+| Feature | When |
+|---------|------|
+| Channel permissions (owner/admin/member) | Aug 1 |
+| Company invite via DM w/ Accept/Decline | Aug 1 |
+| Auto-join General + welcome message trigger | Aug 4 |
+| Token transfers (P2P, same-company) | Aug 4 |
+| Add-to-channel also adds to company | Aug 4 |
+| Channel settings panel (rename, members, delete) | Aug 1 |
+| Sender avatars + names in channel messages | Aug 4 |
+| RFQ create form (material field, manifesto button, tips) | Aug 5 |
+| Features page dynamic route fix | Aug 10 |
+
+---
+
+## 📋 Next Session Plan
+
+1. **Simplify Navigation** — collapse 9 links to 5-6
+2. **Branding Sweep** — fix generic colors on login/signup/reset-password/features pages
+3. **End-to-End RFQ Test** — Project2Flow posts → MAXIMMILLION applies → DM → order
+4. **Deploy all latest changes live**
 |------|--------|
 | Removed directory entries | No more `company_profiles` fetch, no `DirectoryCard` interface, no company cards |
 | Removed tabs | No more All/Services/Companies tabs — page is services-only |

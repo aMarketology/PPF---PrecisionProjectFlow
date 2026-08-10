@@ -87,8 +87,8 @@ const SECTIONS = [
       { title: 'Company Directory', href: '/companies', desc: 'Browse 3,900+ engineering companies. Search by name, city, or specialty.' },
       { title: 'Create Your Company', href: '/companies/create', desc: 'Set up your business page with name, industry, description, website, and specialties. You become the owner.' },
       { title: 'Claim an Existing Company', href: '/claim-company', desc: 'Found your company in the directory? Submit a claim request to verify ownership.' },
-      { title: 'Manage Your Team', href: '/dashboard/company/[id]', desc: 'Invite teammates by searching their name. Assign roles: Owner, Admin (can invite/remove), or Member.' },
-      { title: 'Company Dashboard', href: '/dashboard/company/[id]', desc: 'View company details, manage team members, access the General channel, and see your public profile.' },
+      { title: 'Manage Your Team', href: '/dashboard/engineer', desc: 'Invite teammates by searching their name. Assign roles: Owner, Admin (can invite/remove), or Member. Visit your dashboard to manage your company.' },
+      { title: 'Company Dashboard', href: '/dashboard/engineer', desc: 'View company details, manage team members, access the General channel, and see your public profile.' },
     ],
   },
   {
@@ -130,7 +130,7 @@ const SECTIONS = [
     items: [
       { title: 'Engineer Dashboard', href: '/dashboard/engineer', desc: 'Overview of orders, services listed, open RFQs, and earnings. Manage your portfolio and respond to inquiries.' },
       { title: 'Client Dashboard', href: '/dashboard/client', desc: 'Track your orders, manage RFQs you\'ve posted, view order status, and review project history.' },
-      { title: 'Company Dashboard', href: '/dashboard/company/[id]', desc: 'Company overview and team management. View members, invite new ones, and manage roles.' },
+      { title: 'Company Dashboard', href: '/dashboard/engineer', desc: 'Company overview and team management. View members, invite new ones, and manage roles.' },
       { title: 'Order Tracking', href: '/orders', desc: 'Track all your orders — active, completed, and pending. See order status, deadlines, and sales.' },
     ],
   },

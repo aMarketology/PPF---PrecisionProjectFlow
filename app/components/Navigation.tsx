@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins } from 'lucide-react'
+import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins, Layers, Shield } from 'lucide-react'
 import { getUser, signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
 
@@ -191,7 +191,7 @@ export default function Navigation() {
           </div>
 
           {/* Right: Search + User */}
-          <div className="flex items-center gap-1 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
             {/* ── Search Bar ── */}
             <div ref={searchRef} className="relative">
               <AnimatePresence mode="wait">
@@ -353,15 +353,15 @@ export default function Navigation() {
 
                   <motion.button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-medium text-sm px-3 py-1.5 rounded-lg transition-all"
+                    className="flex items-center gap-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-medium text-sm px-3 py-1.5 rounded-lg transition-all min-w-[140px]"
                     whileHover={{ scale: 1.02 }}
                     whileTap={{ scale: 0.98 }}
                   >
                     <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white text-[11px] font-bold flex-shrink-0">
                       {user.profile?.full_name?.charAt(0)?.toUpperCase() || 'U'}
                     </div>
-                    <span className="truncate max-w-[100px]">{user.profile?.full_name || 'User'}</span>
-                    <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform ${userMenuOpen ? 'rotate-180' : ''}`} />
+                    <span className="truncate max-w-[140px]">{user.profile?.full_name || 'User'}</span>
+                    <ChevronDown className={`h-3.5 w-3.5 text-gray-400 transition-transform flex-shrink-0 ${userMenuOpen ? 'rotate-180' : ''}`} />
                   </motion.button>
 
                   <AnimatePresence>
@@ -431,6 +431,24 @@ export default function Navigation() {
                               </span>
                             )}
                           </Link>
+                          <Link
+                            href="/my-listings"
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Layers className="h-4 w-4" />
+                            <span>My Listings</span>
+                          </Link>
+                          {user.profile?.is_admin && (
+                            <Link
+                              href="/admin"
+                              className="flex items-center gap-3 px-4 py-2.5 text-amber-700 hover:bg-amber-50 transition-colors"
+                              onClick={() => setUserMenuOpen(false)}
+                            >
+                              <Shield className="h-4 w-4" />
+                              <span>Admin Panel</span>
+                            </Link>
+                          )}
                           <Link
                             href="/tokens"
                             className="flex items-center gap-3 px-4 py-2.5 text-yellow-700 hover:bg-yellow-50 transition-colors"

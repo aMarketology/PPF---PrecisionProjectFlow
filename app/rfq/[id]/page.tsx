@@ -20,7 +20,7 @@ import {
 interface RFQ {
   id: string; client_id: string; title: string; category: string;
   description: string; quantity: string | null; budget: string | null;
-  timeline: string | null; location: string | null;
+  timeline: string | null; location: string | null; material: string | null;
   attachment_urls: string[] | null; status: string;
   rfq_type?: string; nda_required?: boolean; is_asap?: boolean;
   inventory_status: string | null; lead_time_days: number | null; estimated_ship_date: string | null;
@@ -297,6 +297,16 @@ export default function RFQDetailPage() {
               <h1 className="text-2xl md:text-3xl font-extrabold text-white">{rfq.title}</h1>
               <div className="flex items-center gap-3 mt-2">
                 <span className="flex items-center gap-1 text-xs text-blue-200">{CATEGORY_ICONS[rfq.category] || <FileText className="w-3.5 h-3.5" />}{rfq.category}</span>
+                {rfq.rfq_type && (
+                  <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
+                    rfq.rfq_type === 'product'
+                      ? 'bg-purple-500/20 text-purple-200 border-purple-400/30'
+                      : 'bg-sky-500/20 text-sky-200 border-sky-400/30'
+                  }`}>
+                    {rfq.rfq_type === 'product' ? <Package className="w-3 h-3" /> : <FileText className="w-3 h-3" />}
+                    {rfq.rfq_type === 'product' ? 'Product' : 'Service'}
+                  </span>
+                )}
                 {rfq.location && <span className="flex items-center gap-1 text-xs text-blue-200"><MapPin className="w-3.5 h-3.5" />{rfq.location}</span>}
               </div>
               <div className="flex flex-wrap items-center gap-2 mt-3">
@@ -349,6 +359,12 @@ export default function RFQDetailPage() {
                 <div>
                   <p className="text-xs text-gray-500 font-medium">Quantity</p>
                   <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Package className="w-3.5 h-3.5 text-gray-400" />{rfq.quantity}</p>
+                </div>
+              )}
+              {rfq.material && (
+                <div>
+                  <p className="text-xs text-gray-500 font-medium">Material</p>
+                  <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Tag className="w-3.5 h-3.5 text-gray-400" />{rfq.material}</p>
                 </div>
               )}
               {rfq.inventory_status && (

@@ -21,12 +21,14 @@ interface RFQ {
   slug?: string | null;
   client_id: string;
   title: string;
+  rfq_type?: string;
   category: string;
   description: string;
   quantity: string | null;
   budget: string | null;
   timeline: string | null;
   location: string | null;
+  material: string | null;
   attachment_urls: string[] | null;
   inventory_status?: string | null;
   lead_time_days?: number | null;
@@ -86,6 +88,7 @@ export default function RFQMarketplacePage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedStatus, setSelectedStatus] = useState('open');
+  const [rfqType, setRfqType] = useState<'all' | 'product' | 'service'>('all');
   const [sortBy, setSortBy] = useState<'newest' | 'budget'>('newest');
   const [showFilters, setShowFilters] = useState(false);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -176,6 +179,7 @@ export default function RFQMarketplacePage() {
 
   const filtered = rfqs.filter(r => {
     if (selectedCategory !== 'All' && r.category !== selectedCategory) return false;
+    if (rfqType !== 'all' && r.rfq_type !== rfqType) return false;
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
       return r.title.toLowerCase().includes(q) || r.description.toLowerCase().includes(q) || r.category.toLowerCase().includes(q) || r.location?.toLowerCase().includes(q) || r.budget?.toLowerCase().includes(q);
@@ -255,6 +259,14 @@ export default function RFQMarketplacePage() {
                 <button key={s} onClick={() => setSelectedStatus(s)}
                   className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all capitalize ${selectedStatus === s ? 'bg-white text-[#003D82] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                   {s === 'all' ? 'All' : s.replace('_', ' ')}
+                </button>
+              ))}
+            </div>
+            <div className="flex bg-gray-100 rounded-lg p-0.5">
+              {(['all', 'product', 'service'] as const).map(t => (
+                <button key={t} onClick={() => setRfqType(t)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all capitalize ${rfqType === t ? 'bg-white text-[#003D82] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  {t === 'all' ? 'All' : t}
                 </button>
               ))}
             </div>
@@ -623,6 +635,11 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                 {rfq.quantity && (
                   <span className="flex items-center gap-1 text-xs text-gray-500">
                     <Package className="w-3 h-3" />Qty: {rfq.quantity}
+                  </span>
+                )}
+                {rfq.material && (
+                  <span className="flex items-center gap-1 text-xs text-gray-500">
+                    <Tag className="w-3 h-3" />{rfq.material}
                   </span>
                 )}
               </div>

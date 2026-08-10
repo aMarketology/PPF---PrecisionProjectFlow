@@ -1,11 +1,11 @@
 # 🚀 PRECISION PROJECT FLOW — ROADMAP
 
-> **🟢 CURRENT STATE — July 30, 2026**
+> **🟢 CURRENT STATE — August 10, 2026**
 >
 > The platform is **live in production** at https://www.precisionprojectflow.com.
 > **Supabase project:** `ifrxzmemiihxfdimwvcw`
 >
-> Auth, marketplace, messaging w/ token paywall + channels/groups, RFQs, dashboards, Stripe, company teams, activity ledger, and blog are all live. Contract-to-Unlock integration just shipped.
+> Fully functional engineering marketplace: messaging with channels/DMs, RFQ marketplace, token economy, company teams, permissions system, and activity ledger. Focus is on pre-launch polish and end-to-end testing.
 
 ## Current Architecture
 
@@ -14,11 +14,13 @@
 | Frontend | Next.js 14.2.35, React 18, Tailwind CSS, Framer Motion | ✅ Live |
 | Database | Supabase PostgreSQL (ifrxzmemiihxfdimwvcw) | ✅ Live |
 | Auth | Supabase Auth + RLS | ✅ Live |
-| Messaging | Custom with channels/groups/DMs + token paywall | ✅ Live |
-| Contract-to-Unlock | DB trigger auto-unlocks DM on `in_progress` order | ✅ Shipped July 30 |
-| RFQ Marketplace | Feed, detail pages, DM-based applications | ✅ Live |
+| Messaging | Channels + Projects + DMs, token paywall, file sharing, @mentions | ✅ Live |
+| Permissions | owner > admin > member RBAC on channels | ✅ Live |
+| Company Teams | `company_members`, auto-join General, one-company rule, invites via DM | ✅ Live |
+| Contract-to-Unlock | DB trigger auto-unlocks DM on `in_progress` order | ✅ Live |
+| RFQ Marketplace | Feed, detail pages, token-gated offer submission | ✅ Live |
 | Activity Ledger | SHA256 hash-chained site_activities table | ✅ Live |
-| Company Teams | company_members, company channels, team management | ✅ Live |
+| Token Economy | P2P transfers, purchase packs, unlock DMs, bid on RFQs | ✅ Live |
 | Payments | Stripe (token packs + product purchases) | ✅ Live |
 | Blog | 3 SEO posts on `/blog` | ✅ Live |
 
