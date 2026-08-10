@@ -29,21 +29,23 @@ export default function AdminPage() {
   const [stats, setStats] = useState({ users: 0, companies: 0, products: 0, services: 0, rfqs: 0 });
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data: { user } }) => {
-      if (!user) { router.push('/login'); return; }
-      setUser(user);
-      // Use RPC instead of direct profiles read (more reliable through RLS)
-      const { data: isAdminResult } = await supabase.rpc('is_admin', { user_id: user.id });
-      if (!isAdminResult) { router.push('/'); toast.error('Access denied'); return; }
-      setIsAdmin(true);
-      
-      // Also fetch profile for display
-      const { data: profile } = await supabase.from('profiles').select('full_name, is_admin').eq('id', user.id).single();
-      if (profile) setUser((prev: any) => ({ ...prev, profile }));
-      setLoading(false);
-    });
+    checkAdmin();
   }, []);
+
+  const checkAdmin = async () => {
+    try {
+      const res = await fetch('/api/admin?action=check');
+      if (!res.ok) { router.push('/'); toast.error('Access denied'); return; }
+      const json = await res.json();
+      if (!json.isAdmin) { router.push('/'); toast.error('Access denied'); return; }
+      setIsAdmin(true);
+      setUser((prev: any) => ({ ...prev, profile: json.profile }));
+      setLoading(false);
+    } catch {
+      router.push('/');
+      toast.error('Access denied');
+    }
+  };
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -56,64 +58,45 @@ export default function AdminPage() {
   }, [activeTab, isAdmin]);
 
   const loadStats = async () => {
-    const supabase = createClient();
-    const tables = ['profiles', 'company_profiles', 'products', 'services', 'rfqs'];
-    const results = await Promise.all(
-      tables.map(t => supabase.from(t).select('*', { count: 'exact', head: true }))
-    );
-    setStats({
-      users: results[0].count || 0,
-      companies: results[1].count || 0,
-      products: results[2].count || 0,
-      services: results[3].count || 0,
-      rfqs: results[4].count || 0,
-    });
+    try {
+      const res = await fetch('/api/admin?action=stats');
+      const json = await res.json();
+      if (json.users !== undefined) setStats(json);
+    } catch (e) { console.error(e); }
   };
 
   const loadData = async (tab: Tab) => {
     setDataLoading(true);
-    const supabase = createClient();
     try {
-      let result;
-      switch (tab) {
-        case 'users':
-          const { data: profiles } = await supabase.from('profiles').select('*').order('created_at', { ascending: false }).limit(50);
-          setData(profiles as any[] || []); break;
-        case 'products':
-          const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false }).limit(50);
-          setData(products as any[] || []); break;
-        case 'companies':
-          const { data: companies } = await supabase.from('company_profiles').select('*').order('created_at', { ascending: false }).limit(50);
-          setData(companies as any[] || []); break;
-        case 'rfqs':
-          const { data: rfqs } = await supabase.from('rfqs').select('*, profiles!client_id(full_name)').order('created_at', { ascending: false }).limit(50);
-          setData(rfqs as any[] || []); break;
-        case 'services':
-          const { data: services } = await supabase.from('services').select('*').order('created_at', { ascending: false }).limit(50);
-          setData(services as any[] || []); break;
-      }
-    } catch (e) { console.error(e); } finally { setDataLoading(false); }
+      const res = await fetch(`/api/admin?action=data&tab=${tab}`);
+      const json = await res.json();
+      setData(json.data || []);
+    } catch (e) { console.error(e); }
+    finally { setDataLoading(false); }
   };
 
   const handleDelete = async (tab: Tab, id: string) => {
     if (!confirm('Delete this item permanently?')) return;
-    const supabase = createClient();
-    const table = tab === 'companies' ? 'company_profiles' : tab === 'rfqs' ? 'rfqs' : tab === 'users' ? 'profiles' : tab;
-    const { error } = await supabase.from(table).delete().eq('id', id);
-    if (error) { toast.error(error.message); return; }
-    toast.success('Deleted');
-    setData(prev => prev.filter(d => d.id !== id));
-    loadStats();
+    try {
+      const res = await fetch(`/api/admin?action=delete&tab=${tab}&id=${id}`, { method: 'POST' });
+      if (!res.ok) { const j = await res.json(); toast.error(j.error || 'Delete failed'); return; }
+      toast.success('Deleted');
+      setData(prev => prev.filter(d => d.id !== id));
+      loadStats();
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleToggleActive = async (id: string, current: boolean, type: 'product' | 'service') => {
-    const supabase = createClient();
-    const table = type === 'product' ? 'products' : 'services';
-    const col = type === 'product' ? 'is_active' : 'active';
-    const { error } = await supabase.from(table).update({ [col]: !current }).eq('id', id);
-    if (error) { toast.error(error.message); return; }
-    toast.success(`Toggled to ${!current ? 'active' : 'inactive'}`);
-    setData(prev => prev.map(d => d.id === id ? { ...d, [col]: !current } : d));
+    try {
+      const res = await fetch(`/api/admin?action=toggle&tab=${type}s&id=${id}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ active: !current }),
+      });
+      if (!res.ok) { const j = await res.json(); toast.error(j.error || 'Toggle failed'); return; }
+      toast.success(`Toggled to ${!current ? 'active' : 'inactive'}`);
+      setData(prev => prev.map(d => d.id === id ? { ...d, [type === 'product' ? 'is_active' : 'active']: !current } : d));
+    } catch (e: any) { toast.error(e.message); }
   };
 
   const handleSendInvite = async () => {
