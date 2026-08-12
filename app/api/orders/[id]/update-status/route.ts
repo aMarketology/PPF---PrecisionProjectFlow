@@ -9,11 +9,13 @@ export const dynamic = 'force-dynamic';
 const VALID_TRANSITIONS: Record<string, string[]> = {
   pending_payment: ['paid', 'cancelled'],
   paid: ['in_progress', 'refunded', 'cancelled'],
-  in_progress: ['delivered', 'cancelled'],
+  in_progress: ['shipped', 'delivered', 'cancelled'],
+  shipped: ['delivered', 'cancelled'],
   delivered: ['completed', 'in_progress'], // Can go back if revision needed
   completed: [], // Final state
   cancelled: [], // Final state
   refunded: [], // Final state
+  disputed: ['refunded', 'cancelled'], // Can resolve from disputed
 };
 
 export async function POST(
@@ -39,7 +41,7 @@ export async function POST(
 
     // Parse request body
     const body = await request.json();
-    const { status: newStatus } = body;
+    const { status: newStatus, shipping } = body;
 
     if (!newStatus) {
       return NextResponse.json(
@@ -109,6 +111,17 @@ export async function POST(
         // Don't update if already set (revision case)
         if (!order.in_progress_at) {
           updates.in_progress_at = new Date().toISOString();
+        }
+        break;
+      case 'shipped':
+        updates.shipped_at = new Date().toISOString();
+        // Attach shipping info if provided
+        if (shipping) {
+          if (shipping.carrier) updates.shipping_carrier = shipping.carrier;
+          if (shipping.tracking) updates.shipping_tracking = shipping.tracking;
+          if (shipping.labelUrl) updates.shipping_label_url = shipping.labelUrl;
+          if (shipping.address) updates.shipping_address = shipping.address;
+          if (shipping.estimatedDelivery) updates.estimated_delivery = shipping.estimatedDelivery;
         }
         break;
       case 'delivered':

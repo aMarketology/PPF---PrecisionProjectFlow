@@ -72,9 +72,9 @@ export default function LoginPage() {
             className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden"
           >
             {/* Header */}
-            <div className="bg-gradient-to-br from-blue-600 to-blue-700 p-8 text-center">
+            <div className="bg-gradient-to-br from-[#003D82] to-[#002960] p-8 text-center">
               <h1 className="text-3xl font-bold text-white mb-2">Welcome Back</h1>
-              <p className="text-blue-100">Sign in to your Precision Product Flow account</p>
+              <p className="text-blue-200">Sign in to your Precision Product Flow account</p>
             </div>
 
             {/* Form */}
@@ -138,13 +138,13 @@ export default function LoginPage() {
                     <input
                       id="remember"
                       type="checkbox"
-                      className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                      className="h-4 w-4 text-[#003D82] focus:ring-[#003D82] border-gray-300 rounded"
                     />
                     <label htmlFor="remember" className="ml-2 block text-sm text-gray-700">
                       Remember me
                     </label>
                   </div>
-                  <Link href="/forgot-password" className="text-sm font-medium text-blue-600 hover:text-blue-700">
+                  <Link href="/forgot-password" className="text-sm font-medium text-[#003D82] hover:text-[#002960]">
                     Forgot password?
                   </Link>
                 </div>
@@ -153,7 +153,7 @@ export default function LoginPage() {
                 <motion.button
                   type="submit"
                   disabled={isLoading}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white font-bold py-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="w-full bg-gradient-to-r from-[#003D82] to-[#002960] hover:from-[#002960] hover:to-[#001f4d] text-white font-bold py-4 rounded-xl transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   whileHover={!isLoading ? { scale: 1.02 } : {}}
                   whileTap={!isLoading ? { scale: 0.98 } : {}}
                 >

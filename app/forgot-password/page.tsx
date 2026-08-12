@@ -63,8 +63,8 @@ export default function ForgotPasswordPage() {
 
               {/* Header */}
               <div className="text-center mb-8">
-                <div className="w-16 h-16 bg-blue-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                  <Mail className="w-8 h-8 text-blue-600" />
+                <div className="w-16 h-16 bg-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Mail className="w-8 h-8 text-[#003D82]" />
                 </div>
                 <h1 className="text-3xl font-bold text-gray-900 mb-2">
                   Forgot Password?
@@ -129,7 +129,7 @@ export default function ForgotPasswordPage() {
               <div className="mt-6 text-center">
                 <p className="text-sm text-gray-600">
                   Remember your password?{' '}
-                  <Link href="/login" className="text-blue-600 hover:text-blue-700 font-semibold">
+                  <Link href="/login" className="text-[#003D82] hover:text-[#002960] font-semibold">
                     Sign in
                   </Link>
                 </p>
@@ -156,26 +156,26 @@ export default function ForgotPasswordPage() {
                 </p>
                 
                 <div className="bg-blue-50 rounded-xl p-4 mb-8">
-                  <p className="font-semibold text-blue-900">{email}</p>
+                  <p className="font-semibold text-[#003D82]">{email}</p>
                 </div>
 
                 <div className="space-y-4 text-left bg-gray-50 rounded-xl p-6 mb-8">
                   <h3 className="font-semibold text-gray-900">What's next?</h3>
                   <ol className="space-y-3 text-sm text-gray-600">
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-50 text-[#003D82] rounded-full flex items-center justify-center font-semibold text-xs">
                         1
                       </span>
                       <span>Check your email inbox (and spam folder)</span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-50 text-[#003D82] rounded-full flex items-center justify-center font-semibold text-xs">
                         2
                       </span>
                       <span>Click the reset link in the email</span>
                     </li>
                     <li className="flex gap-3">
-                      <span className="flex-shrink-0 w-6 h-6 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-semibold text-xs">
+                      <span className="flex-shrink-0 w-6 h-6 bg-blue-50 text-[#003D82] rounded-full flex items-center justify-center font-semibold text-xs">
                         3
                       </span>
                       <span>Create a new password</span>
@@ -189,7 +189,7 @@ export default function ForgotPasswordPage() {
                       setSubmitted(false);
                       setEmail('');
                     }}
-                    className="w-full px-6 py-3 text-blue-600 hover:bg-blue-50 font-semibold rounded-xl transition-all"
+                    className="w-full px-6 py-3 text-[#003D82] hover:bg-blue-50 font-semibold rounded-xl transition-all"
                   >
                     Try a different email
                   </button>

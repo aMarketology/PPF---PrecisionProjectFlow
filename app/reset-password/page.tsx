@@ -133,7 +133,7 @@ function ResetPasswordForm() {
   if (validating) {
     return (
       <div className="flex flex-col items-center justify-center space-y-4 py-12">
-        <Loader2 className="h-8 w-8 animate-spin text-blue-600" />
+        <Loader2 className="h-8 w-8 animate-spin text-[#003D82]" />
         <p className="text-sm text-gray-500">Verifying security token...</p>
       </div>
     );
@@ -146,7 +146,7 @@ function ResetPasswordForm() {
         <h3 className="mt-2 text-lg font-semibold text-red-800">Invalid Reset Link</h3>
         <p className="mt-1 text-sm text-red-600">{error || 'This password reset link is invalid or has expired.'}</p>
         <div className="mt-6">
-          <Link href="/forgot-password" className="inline-flex items-center rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 transition">
+          <Link href="/forgot-password" className="inline-flex items-center rounded-lg bg-[#003D82] px-4 py-2 text-sm font-medium text-white hover:bg-[#002960] transition">
             Request New Reset Link
           </Link>
         </div>
@@ -185,7 +185,7 @@ function ResetPasswordForm() {
             <Lock className="h-5 w-5 text-gray-400" />
           </div>
           <input type={showPassword ? 'text' : 'password'} value={password} onChange={(e) => setPassword(e.target.value)}
-            className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-[#003D82] text-sm"
             placeholder="••••••••" required />
           <button type="button" onClick={() => setShowPassword(!showPassword)}
             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
@@ -212,7 +212,7 @@ function ResetPasswordForm() {
             <Lock className="h-5 w-5 text-gray-400" />
           </div>
           <input type={showConfirmPassword ? 'text' : 'password'} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-            className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
+            className="block w-full pl-10 pr-10 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-[#003D82] text-sm"
             placeholder="••••••••" required />
           <button type="button" onClick={() => setShowConfirmPassword(!showConfirmPassword)}
             className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600">
@@ -244,7 +244,7 @@ function ResetPasswordForm() {
       </div>
 
       <button type="submit" disabled={!isFormValid}
-        className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed transition">
+        className="w-full flex justify-center py-2.5 px-4 border border-transparent rounded-lg shadow-sm text-sm font-medium text-white bg-[#003D82] hover:bg-[#002960] focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#003D82] disabled:opacity-50 disabled:cursor-not-allowed transition">
         {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : 'Update Password'}
       </button>
     </form>
@@ -253,13 +253,13 @@ function ResetPasswordForm() {
 
 export default function ResetPasswordPage() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-[#F8FAFC] py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
         <div>
           <h2 className="mt-2 text-center text-2xl font-bold tracking-tight text-gray-900">Reset Your Password</h2>
           <p className="mt-2 text-center text-sm text-gray-600">Please enter your new password below.</p>
         </div>
-        <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-blue-600" /></div>}>
+        <Suspense fallback={<div className="flex justify-center py-8"><Loader2 className="h-6 w-6 animate-spin text-[#003D82]" /></div>}>
           <ResetPasswordForm />
         </Suspense>
       </div>

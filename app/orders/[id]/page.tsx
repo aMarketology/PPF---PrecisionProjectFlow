@@ -36,10 +36,16 @@ interface OrderDetail {
   status: string;
   created_at: string;
   paid_at: string | null;
+  shipped_at: string | null;
   delivered_at: string | null;
   completed_at: string | null;
   buyer_notes: string | null;
   company_notes: string | null;
+  shipping_carrier: string | null;
+  shipping_tracking: string | null;
+  shipping_label_url: string | null;
+  shipping_address: any;
+  estimated_delivery: string | null;
   products: {
     id: string;
     name: string;
@@ -159,6 +165,12 @@ export default function OrderDetailPage() {
         color: 'text-purple-600',
         bg: 'bg-purple-100',
         label: 'In Progress',
+      },
+      shipped: {
+        icon: Truck,
+        color: 'text-blue-600',
+        bg: 'bg-blue-100',
+        label: 'Shipped',
       },
       delivered: {
         icon: Truck,
@@ -356,6 +368,59 @@ export default function OrderDetailPage() {
                   </div>
                 </div>
               </motion.div>
+
+              {/* Shipping & Tracking */}
+              {(order.shipping_carrier || order.shipping_tracking || order.shipped_at) && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.25 }}
+                  className="bg-white rounded-2xl shadow-lg p-6"
+                >
+                  <h2 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-2">
+                    <Truck className="w-5 h-5 text-blue-600" />
+                    Shipping & Tracking
+                  </h2>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {order.shipping_carrier && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Carrier</p>
+                        <p className="font-bold text-gray-900">{order.shipping_carrier}</p>
+                      </div>
+                    )}
+                    {order.shipping_tracking && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Tracking Number</p>
+                        <p className="font-mono font-bold text-[#003D82]">{order.shipping_tracking}</p>
+                      </div>
+                    )}
+                    {order.shipped_at && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Shipped On</p>
+                        <p className="font-semibold text-gray-900">{formatDate(order.shipped_at)}</p>
+                      </div>
+                    )}
+                    {order.estimated_delivery && (
+                      <div className="bg-gray-50 rounded-xl p-4">
+                        <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-1">Est. Delivery</p>
+                        <p className="font-semibold text-gray-900">
+                          {new Date(order.estimated_delivery + 'T00:00:00').toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                  {order.shipping_label_url && (
+                    <a
+                      href={order.shipping_label_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="mt-4 inline-flex items-center gap-2 px-4 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-colors text-sm"
+                    >
+                      <Download className="w-4 h-4" /> View Shipping Label
+                    </a>
+                  )}
+                </motion.div>
+              )}
 
               {/* Payment Details */}
               <motion.div

@@ -14,6 +14,7 @@ import {
   Clock,
   CheckCircle,
   Truck,
+  Send,
   Search,
   Filter,
   Download,
@@ -22,6 +23,8 @@ import {
   MoreVertical,
   Calendar,
   BarChart3,
+  X,
+  Loader2,
 } from 'lucide-react';
 
 // Force dynamic rendering
@@ -52,6 +55,7 @@ interface Order {
 const statusConfig = {
   paid: { color: 'bg-blue-100 text-blue-700', label: 'Paid' },
   in_progress: { color: 'bg-purple-100 text-purple-700', label: 'In Progress' },
+  shipped: { color: 'bg-indigo-100 text-indigo-700', label: 'Shipped' },
   delivered: { color: 'bg-orange-100 text-orange-700', label: 'Delivered' },
   completed: { color: 'bg-green-100 text-green-700', label: 'Completed' },
   cancelled: { color: 'bg-red-100 text-red-700', label: 'Cancelled' },
@@ -68,6 +72,46 @@ export default function SalesDashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+
+  // Shipping modal
+  const [shipModal, setShipModal] = useState<{ open: boolean; orderId: string; orderNumber: string }>({ open: false, orderId: '', orderNumber: '' });
+  const [shipForm, setShipForm] = useState({ carrier: '', tracking: '', estDelivery: '' });
+  const [shipping, setShipping] = useState(false);
+
+  const openShipModal = (order: Order) => {
+    setShipModal({ open: true, orderId: order.id, orderNumber: order.order_number });
+    setShipForm({ carrier: '', tracking: '', estDelivery: '' });
+  };
+
+  const handleShip = async () => {
+    if (!shipForm.carrier && !shipForm.tracking) {
+      alert('Please enter at least a carrier or tracking number');
+      return;
+    }
+    setShipping(true);
+    try {
+      const res = await fetch(`/api/orders/${shipModal.orderId}/update-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          status: 'shipped',
+          shipping: {
+            carrier: shipForm.carrier || null,
+            tracking: shipForm.tracking || null,
+            estimatedDelivery: shipForm.estDelivery || null,
+          },
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to ship order');
+      setShipModal({ open: false, orderId: '', orderNumber: '' });
+      await loadData();
+    } catch (err: any) {
+      alert(err.message);
+    } finally {
+      setShipping(false);
+    }
+  };
 
   // Stats
   const [stats, setStats] = useState({
@@ -484,14 +528,14 @@ export default function SalesDashboard() {
                               
                               {order.status === 'in_progress' && (
                                 <button
-                                  onClick={() => updateOrderStatus(order.id, 'delivered')}
-                                  className="px-3 py-1 text-xs bg-orange-100 text-orange-700 rounded-lg hover:bg-orange-200 transition-colors"
+                                  onClick={() => openShipModal(order)}
+                                  className="px-3 py-1 text-xs bg-indigo-100 text-indigo-700 rounded-lg hover:bg-indigo-200 transition-colors flex items-center gap-1"
                                 >
-                                  Mark Delivered
+                                  <Truck className="w-3 h-3" /> Ship
                                 </button>
                               )}
                               
-                              {order.status === 'delivered' && (
+                              {order.status === 'shipped' && (
                                 <button
                                   onClick={() => updateOrderStatus(order.id, 'completed')}
                                   className="px-3 py-1 text-xs bg-green-100 text-green-700 rounded-lg hover:bg-green-200 transition-colors"
@@ -509,6 +553,53 @@ export default function SalesDashboard() {
               </table>
             </div>
           </motion.div>
+
+          {/* ── Shipping Modal ── */}
+          {shipModal.open && (
+            <div className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setShipModal({ open: false, orderId: '', orderNumber: '' })}>
+              <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden" onClick={e => e.stopPropagation()}>
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <div>
+                    <h2 className="font-bold text-lg text-gray-900">Ship Order</h2>
+                    <p className="text-sm text-gray-500">{shipModal.orderNumber}</p>
+                  </div>
+                  <button onClick={() => setShipModal({ open: false, orderId: '', orderNumber: '' })} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5 text-gray-500" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Carrier</label>
+                    <select value={shipForm.carrier} onChange={e => setShipForm(p => ({ ...p, carrier: e.target.value }))}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#003D82] focus:ring-2 focus:ring-[#003D82]/20 outline-none">
+                      <option value="">Select carrier...</option>
+                      <option value="UPS">UPS</option>
+                      <option value="FedEx">FedEx</option>
+                      <option value="USPS">USPS</option>
+                      <option value="DHL">DHL</option>
+                      <option value="Freight">Freight / LTL</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tracking Number</label>
+                    <input type="text" value={shipForm.tracking} onChange={e => setShipForm(p => ({ ...p, tracking: e.target.value }))}
+                      placeholder="e.g. 1Z999AA10123456784"
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#003D82] focus:ring-2 focus:ring-[#003D82]/20 outline-none font-mono text-sm" />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-1.5">Estimated Delivery Date</label>
+                    <input type="date" value={shipForm.estDelivery} onChange={e => setShipForm(p => ({ ...p, estDelivery: e.target.value }))}
+                      min={new Date().toISOString().split('T')[0]}
+                      className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-[#003D82] focus:ring-2 focus:ring-[#003D82]/20 outline-none" />
+                  </div>
+                  <button onClick={handleShip} disabled={shipping || (!shipForm.carrier && !shipForm.tracking)}
+                    className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#003D82] hover:bg-[#002960] text-white font-bold rounded-xl disabled:opacity-50 transition-all text-base">
+                    {shipping ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
+                    {shipping ? 'Shipping...' : 'Mark as Shipped'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       <Footer />

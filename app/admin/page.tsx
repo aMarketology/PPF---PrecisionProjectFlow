@@ -19,6 +19,7 @@ export default function AdminPage() {
   const [user, setUser] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [authChecked, setAuthChecked] = useState(false);
   const [activeTab, setActiveTab] = useState<Tab>('overview');
   const [data, setData] = useState<any[]>([]);
   const [dataLoading, setDataLoading] = useState(false);
@@ -35,15 +36,28 @@ export default function AdminPage() {
   const checkAdmin = async () => {
     try {
       const res = await fetch('/api/admin?action=check');
-      if (!res.ok) { router.push('/'); toast.error('Access denied'); return; }
+      if (res.status === 401) {
+        // Not logged in — show login prompt
+        setAuthChecked(true);
+        setLoading(false);
+        return;
+      }
+      if (res.status === 403) {
+        // Logged in but not admin — show access denied
+        setAuthChecked(true);
+        setLoading(false);
+        return;
+      }
       const json = await res.json();
-      if (!json.isAdmin) { router.push('/'); toast.error('Access denied'); return; }
-      setIsAdmin(true);
-      setUser((prev: any) => ({ ...prev, profile: json.profile }));
+      if (json.isAdmin) {
+        setIsAdmin(true);
+        setUser((prev: any) => ({ ...prev, profile: json.profile }));
+      }
+      setAuthChecked(true);
       setLoading(false);
     } catch {
-      router.push('/');
-      toast.error('Access denied');
+      setAuthChecked(true);
+      setLoading(false);
     }
   };
 
@@ -139,7 +153,60 @@ export default function AdminPage() {
   ];
 
   if (loading) {
-    return <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>;
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta flex items-center justify-center">
+        <div className="text-center">
+          <Loader2 className="w-8 h-8 animate-spin text-[#003D82] mx-auto mb-3" />
+          <p className="text-gray-500 text-sm">Checking access...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Not logged in ──
+  if (!user && !isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center mx-auto mb-5">
+              <Shield className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Admin Access</h1>
+            <p className="text-gray-500 mb-6">Sign in with an admin account to access the admin panel.</p>
+            <Link
+              href="/login?redirect=/admin"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all"
+            >
+              Sign In
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ── Logged in but not admin ──
+  if (!isAdmin) {
+    return (
+      <div className="min-h-screen bg-[#F8FAFC] font-jakarta flex items-center justify-center">
+        <div className="max-w-md w-full mx-4">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+            <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-5">
+              <Shield className="w-8 h-8 text-red-500" />
+            </div>
+            <h1 className="text-2xl font-extrabold text-gray-900 mb-2">Access Denied</h1>
+            <p className="text-gray-500 mb-6">Your account does not have admin privileges.</p>
+            <Link
+              href="/"
+              className="inline-flex items-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all"
+            >
+              Go Home
+            </Link>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

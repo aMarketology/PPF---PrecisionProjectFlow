@@ -1,14 +1,20 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 10, 2026
-**Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🤝 Contract-to-Unlock
+**Last updated:** August 12, 2026
+**Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🚚 Shipping &amp; Tracking · 🤝 Contract-to-Unlock
 
 ---
 
 ## 📍 Current Focus
-**Pre-Launch Polish — Navigation cleanup, branding consistency, RFQ flow testing.**
+**Deal Flow — Shipping &amp; Delivery Tracking.**
 
-The platform is functionally complete. Remaining work is UX/branding polish and end-to-end testing of the RFQ → bid → contract → messaging loop between two real accounts.
+Added full shipping lifecycle to the order pipeline: vendor marks order as shipped with carrier/tracking/estimated delivery → buyer sees shipping info on order detail → order progresses to delivered → completed.
+
+### Deal Flow Status Pipeline
+```
+pending_payment → paid → in_progress → shipped → delivered → completed
+                                                    ↘ cancelled / refunded / disputed
+```
 
 ---
 
