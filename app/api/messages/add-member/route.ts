@@ -61,9 +61,10 @@ export async function POST(request: NextRequest) {
     // ── If it's a company channel, also add to company_members ──
     if (conv?.company_id && conv?.conversation_type === 'channel') {
       console.log('[add-member] also adding to company:', conv.company_id);
+      const svc = createServiceClient();
 
       // Check if target already has another company (one-company rule)
-      const { data: existingMembership } = await supabase
+      const { data: existingMembership } = await svc
         .from('company_members')
         .select('company_id, status')
         .eq('user_id', targetUserId)
@@ -72,8 +73,7 @@ export async function POST(request: NextRequest) {
       if (existingMembership && existingMembership.length > 0) {
         const otherCompany = existingMembership.find(m => m.company_id !== conv.company_id);
         if (otherCompany) {
-          // Remove from other company first
-          await supabase.from('company_members')
+          await svc.from('company_members')
             .update({ status: 'removed', updated_at: new Date().toISOString() })
             .eq('user_id', targetUserId)
             .eq('company_id', otherCompany.company_id)
@@ -82,7 +82,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Add/update as active member in this company
-      const { error: compErr } = await supabase.from('company_members').upsert({
+      const { error: compErr } = await svc.from('company_members').upsert({
         company_id: conv.company_id,
         user_id: targetUserId,
         role: 'member',
