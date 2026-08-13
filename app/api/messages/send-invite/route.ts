@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -21,8 +22,11 @@ export async function POST(request: NextRequest) {
     console.log('[send-invite] auth user:', user?.id, user?.email);
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
+    // Use service client to bypass recursive RLS on company_members
+    const svc = createServiceClient();
+
     // Verify sender is admin/owner of this company
-    const { data: membership } = await supabase
+    const { data: membership } = await svc
       .from('company_members')
       .select('role')
       .eq('company_id', companyId)
@@ -31,7 +35,7 @@ export async function POST(request: NextRequest) {
       .maybeSingle();
     console.log('[send-invite] membership:', membership);
 
-    const { data: company } = await supabase
+    const { data: company } = await svc
       .from('company_profiles')
       .select('owner_id')
       .eq('id', companyId)
@@ -47,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if already a member
-    const { data: existing } = await supabase
+    const { data: existing } = await svc
       .from('company_members')
       .select('status')
       .eq('company_id', companyId)
@@ -60,7 +64,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert as 'invited'
-    const { error: upsertErr } = await supabase.from('company_members').upsert({
+    const { error: upsertErr } = await svc.from('company_members').upsert({
       company_id: companyId,
       user_id: targetUserId,
       role: 'member',
