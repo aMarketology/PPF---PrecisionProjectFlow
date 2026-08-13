@@ -8,7 +8,7 @@ import { toast } from 'react-hot-toast';
 import {
   Shield, Users, Package, FileText, Building2, Loader2,
   Search, Trash2, Eye, ExternalLink, Layers, ChevronRight,
-  Mail, UserPlus, Globe,
+  Mail, UserPlus, Globe, CheckCircle2,
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -27,6 +27,7 @@ export default function AdminPage() {
   const [inviteModal, setInviteModal] = useState<{ companyId: string; companyName: string } | null>(null);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviting, setInviting] = useState(false);
+  const [inviteSuccess, setInviteSuccess] = useState<string | null>(null);
   const [stats, setStats] = useState({ users: 0, companies: 0, products: 0, services: 0, rfqs: 0 });
 
   useEffect(() => {
@@ -116,6 +117,7 @@ export default function AdminPage() {
   const handleSendInvite = async () => {
     if (!inviteModal || !inviteEmail.trim()) return;
     setInviting(true);
+    setInviteSuccess(null);
     try {
       // Find user by email
       const supabase = createClient();
@@ -130,8 +132,8 @@ export default function AdminPage() {
       });
       const data = await res.json();
       if (!res.ok) { toast.error(data.error || 'Failed to send invite'); return; }
+      setInviteSuccess(`✅ Invite sent to ${inviteEmail} for ${inviteModal.companyName}`);
       toast.success(`Invite sent to ${inviteEmail} for ${inviteModal.companyName}`);
-      setInviteModal(null);
       setInviteEmail('');
     } catch { toast.error('Failed to send invite'); }
     finally { setInviting(false); }
@@ -360,24 +362,42 @@ export default function AdminPage() {
       {inviteModal && (
         <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-6">
-            <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
-              <Mail className="w-5 h-5 text-[#FF6B35]" /> Send Claim Invite
-            </h3>
-            <p className="text-sm text-gray-500 mb-4">
-              Invite a user to claim <span className="font-semibold text-gray-800">{inviteModal.companyName}</span>. They'll get a DM with Accept/Decline buttons.
-            </p>
-            <label className="block text-sm font-semibold text-gray-700 mb-1">User Email</label>
-            <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
-              placeholder="user@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm mb-4" />
-            <div className="flex gap-3">
-              <button onClick={() => { setInviteModal(null); setInviteEmail(''); }}
-                className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
-              <button onClick={handleSendInvite} disabled={inviting || !inviteEmail.trim()}
-                className="flex-1 px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg text-sm disabled:opacity-50 flex items-center justify-center gap-2">
-                {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
-                Send Invite
-              </button>
-            </div>
+            {inviteSuccess ? (
+              <>
+                <div className="text-center py-4">
+                  <div className="w-16 h-16 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <CheckCircle2 className="w-8 h-8 text-emerald-600" />
+                  </div>
+                  <h3 className="text-lg font-bold text-gray-900 mb-2">Invite Sent!</h3>
+                  <p className="text-sm text-gray-600 mb-6">{inviteSuccess}</p>
+                  <button onClick={() => { setInviteModal(null); setInviteEmail(''); setInviteSuccess(null); }}
+                    className="px-6 py-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg text-sm">
+                    Done
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <h3 className="text-lg font-bold text-gray-900 mb-1 flex items-center gap-2">
+                  <Mail className="w-5 h-5 text-[#FF6B35]" /> Send Claim Invite
+                </h3>
+                <p className="text-sm text-gray-500 mb-4">
+                  Invite a user to claim <span className="font-semibold text-gray-800">{inviteModal.companyName}</span>. They'll get a DM with Accept/Decline buttons.
+                </p>
+                <label className="block text-sm font-semibold text-gray-700 mb-1">User Email</label>
+                <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                  placeholder="user@example.com" className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm mb-4" />
+                <div className="flex gap-3">
+                  <button onClick={() => { setInviteModal(null); setInviteEmail(''); setInviteSuccess(null); }}
+                    className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50 text-sm">Cancel</button>
+                  <button onClick={handleSendInvite} disabled={inviting || !inviteEmail.trim()}
+                    className="flex-1 px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                    {inviting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Mail className="w-4 h-4" />}
+                    Send Invite
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

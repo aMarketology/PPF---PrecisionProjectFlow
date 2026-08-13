@@ -446,8 +446,8 @@ export default function RFQDetailPage() {
                   <div className="p-6 space-y-6">
                     {/* ── RFQ Summary Card ── */}
                     <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">RFQ Summary</h3>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">RFQ Requirements</h3>
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                         <div>
                           <p className="text-[10px] text-gray-400 font-medium">Budget</p>
                           <p className="text-sm font-bold text-gray-900">{rfq.budget || 'Not specified'}</p>
@@ -464,11 +464,61 @@ export default function RFQDetailPage() {
                           <p className="text-[10px] text-gray-400 font-medium">Location</p>
                           <p className="text-sm font-semibold text-gray-900">{rfq.location || 'N/A'}</p>
                         </div>
+                        {rfq.quantity && (
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-medium">Quantity</p>
+                            <p className="text-sm font-semibold text-gray-900">{rfq.quantity}</p>
+                          </div>
+                        )}
+                        {rfq.material && (
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-medium">Material / Specs</p>
+                            <p className="text-sm font-semibold text-gray-900 line-clamp-1">{rfq.material}</p>
+                          </div>
+                        )}
+                        {rfq.inventory_status && (
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-medium">Inventory Status</p>
+                            <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                              rfq.inventory_status === 'in_stock' ? 'bg-emerald-100 text-emerald-700' :
+                              rfq.inventory_status === 'out_of_stock' ? 'bg-red-100 text-red-700' :
+                              'bg-amber-100 text-amber-700'
+                            }`}>
+                              {rfq.inventory_status === 'in_stock' ? '🟢 In Stock' :
+                               rfq.inventory_status === 'out_of_stock' ? '🔴 Out of Stock' : '🟡 Back Order'}
+                            </span>
+                          </div>
+                        )}
+                        {rfq.lead_time_days && (
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-medium">Required Lead Time</p>
+                            <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Clock className="w-3 h-3 text-gray-400" />{rfq.lead_time_days} days</p>
+                          </div>
+                        )}
+                        {rfq.estimated_ship_date && (
+                          <div>
+                            <p className="text-[10px] text-gray-400 font-medium">Required Ship Date</p>
+                            <p className="text-sm font-semibold text-gray-900 flex items-center gap-1"><Calendar className="w-3 h-3 text-gray-400" />{new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</p>
+                          </div>
+                        )}
                       </div>
                       {rfq.description && (
-                        <p className="text-xs text-gray-500 mt-2 line-clamp-2 italic">
-                          &ldquo;{rfq.description.slice(0, 200)}{rfq.description.length > 200 ? '...' : ''}&rdquo;
+                        <p className="text-xs text-gray-500 mt-3 line-clamp-3 italic leading-relaxed">
+                          &ldquo;{rfq.description}&rdquo;
                         </p>
+                      )}
+                      {rfq.attachment_urls && rfq.attachment_urls.length > 0 && (
+                        <div className="mt-3 pt-3 border-t border-gray-200">
+                          <p className="text-[10px] text-gray-400 font-medium mb-1.5 flex items-center gap-1"><Paperclip className="w-3 h-3" />Attached Files ({rfq.attachment_urls.length})</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {rfq.attachment_urls.map((url, i) => (
+                              <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-white border border-gray-200 rounded-lg text-xs text-[#003D82] hover:bg-blue-50 transition-colors">
+                                <FileText className="w-3 h-3" /> File {i + 1}
+                              </a>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </div>
 

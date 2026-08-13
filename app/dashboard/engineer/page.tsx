@@ -462,12 +462,40 @@ export default function EngineerDashboard() {
                 <h2 className="text-lg font-bold text-gray-900">Open RFQs</h2>
                 <p className="text-sm text-gray-500">Client requests actively looking for engineering vendors</p>
               </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/rfq"
+                  className="inline-flex items-center gap-2 px-4 py-2 border border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl transition-all text-sm"
+                >
+                  <FileText className="w-4 h-4" /> Browse RFQs
+                </Link>
+                <Link
+                  href="/rfq/create"
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold rounded-xl transition-all text-sm shadow-sm"
+                >
+                  <Plus className="w-4 h-4" /> Post RFQ
+                </Link>
+              </div>
             </div>
             {rfqs.length === 0 ? (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-16 text-center">
                 <FileText className="w-10 h-10 text-gray-200 mx-auto mb-3" />
                 <p className="text-gray-500 text-sm font-semibold">No open RFQs right now</p>
                 <p className="text-gray-400 text-xs mt-1">Check back soon — new requests are posted regularly</p>
+                <div className="flex items-center justify-center gap-3 mt-5">
+                  <Link
+                    href="/rfq/create"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all text-sm"
+                  >
+                    <Plus className="w-4 h-4" /> Post an RFQ
+                  </Link>
+                  <Link
+                    href="/rfq"
+                    className="inline-flex items-center gap-2 px-5 py-2.5 border border-gray-200 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] font-semibold rounded-xl transition-all text-sm"
+                  >
+                    <FileText className="w-4 h-4" /> Browse Marketplace
+                  </Link>
+                </div>
               </div>
             ) : (
               rfqs.map(rfq => (

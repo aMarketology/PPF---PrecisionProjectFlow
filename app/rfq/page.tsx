@@ -474,11 +474,12 @@ function AvatarImg({ src, name, size = 10 }: { src?: string | null; name: string
   );
 }
 
-function OfferModal({ rfqId, rfqTitle, rfqBudget, currentUserId, onClose, onOfferPlaced }: {
-  rfqId: string; rfqTitle: string; rfqBudget?: string | null; currentUserId: string | null; onClose: () => void; onOfferPlaced: () => void;
+function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
+  rfq: RFQ; currentUserId: string | null; onClose: () => void; onOfferPlaced: () => void;
 }) {
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [deliveryDays, setDeliveryDays] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -487,59 +488,145 @@ function OfferModal({ rfqId, rfqTitle, rfqBudget, currentUserId, onClose, onOffe
     if (!amount || Number(amount) <= 0) { toast.error('Enter a valid offer amount'); return; }
     setSubmitting(true);
     try {
-      const res = await fetch(`/api/rfq/${rfqId}/offer`, {
+      const res = await fetch(`/api/rfq/${rfq.id}/offer`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: Number(amount), note }),
+        body: JSON.stringify({ amount: Number(amount), note, deliveryDays: deliveryDays ? Number(deliveryDays) : null }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || 'Failed to submit offer');
-      toast.success('Offer submitted successfully!');
+      if (!res.ok) {
+        const msg = data.error || `Request failed (${res.status})`;
+        toast.error(msg);
+        setSubmitting(false);
+        return;
+      }
+      toast.success('Offer submitted successfully! 50 tokens spent.');
       onOfferPlaced();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Failed to submit offer');
-    } finally { setSubmitting(false); }
+      toast.error(err.message || 'Network error — check console');
+      console.error('[OfferModal] submit error:', err);
+      setSubmitting(false);
+    }
   };
 
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-jakarta" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h2 className="font-bold text-lg text-gray-900">Submit Offer</h2>
-            <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{rfqTitle}</p>
+            <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{rfq.title}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
         <form onSubmit={handleSubmit} className="p-6 space-y-5">
-          {rfqBudget && (
-            <div className="bg-blue-50 border border-blue-100 rounded-xl px-4 py-3 flex items-center gap-3">
-              <DollarSign className="w-5 h-5 text-[#003D82] flex-shrink-0" />
-              <div>
-                <p className="text-xs font-semibold text-gray-500">Client Budget</p>
-                <p className="text-sm font-bold text-[#003D82]">{rfqBudget}</p>
-              </div>
+          {/* ── RFQ Requirements Summary ── */}
+          <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">RFQ Requirements</h3>
+            <div className="grid grid-cols-2 gap-2">
+              {rfq.budget && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Budget</p>
+                  <p className="text-sm font-bold text-gray-900">{rfq.budget}</p>
+                </div>
+              )}
+              {rfq.timeline && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Timeline</p>
+                  <p className="text-sm font-semibold text-gray-900">{rfq.timeline}</p>
+                </div>
+              )}
+              {rfq.quantity && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Quantity</p>
+                  <p className="text-sm font-semibold text-gray-900">{rfq.quantity}</p>
+                </div>
+              )}
+              {rfq.material && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Material / Specs</p>
+                  <p className="text-sm font-semibold text-gray-900 line-clamp-1">{rfq.material}</p>
+                </div>
+              )}
+              {rfq.inventory_status && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Inventory</p>
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold ${
+                    rfq.inventory_status === 'in_stock' ? 'bg-emerald-100 text-emerald-700' :
+                    rfq.inventory_status === 'out_of_stock' ? 'bg-red-100 text-red-700' :
+                    'bg-amber-100 text-amber-700'
+                  }`}>
+                    {rfq.inventory_status === 'in_stock' ? '🟢 In Stock' :
+                     rfq.inventory_status === 'out_of_stock' ? '🔴 Out of Stock' : '🟡 Back Order'}
+                  </span>
+                </div>
+              )}
+              {rfq.lead_time_days && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Lead Time</p>
+                  <p className="text-sm font-semibold text-gray-900">{rfq.lead_time_days} days</p>
+                </div>
+              )}
+              {rfq.estimated_ship_date && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Ship Date</p>
+                  <p className="text-sm font-semibold text-gray-900">{new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</p>
+                </div>
+              )}
+              {rfq.location && (
+                <div>
+                  <p className="text-[10px] text-gray-400 font-medium">Location</p>
+                  <p className="text-sm font-semibold text-gray-900">{rfq.location}</p>
+                </div>
+              )}
             </div>
-          )}
+            {rfq.description && (
+              <p className="text-xs text-gray-500 mt-2 line-clamp-2 italic">&ldquo;{rfq.description}&rdquo;</p>
+            )}
+          </div>
+
+          {/* Offer Amount */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Your Offer Amount <span className="text-red-500">*</span></label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-400 text-lg font-semibold">$</span>
               <input type="number" min="1" step="0.01" placeholder="0.00" value={amount} onChange={e => setAmount(e.target.value)}
                 className="w-full pl-8 pr-4 py-3.5 border-2 border-gray-200 rounded-xl text-lg font-bold text-gray-900 focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] outline-none" autoFocus />
+            </div>
           </div>
+
+          {/* Delivery Timeline */}
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Delivery Timeline <span className="text-gray-400 font-normal">(optional)</span></label>
+            <div className="relative">
+              <input type="number" min="1" placeholder="e.g. 14" value={deliveryDays} onChange={e => setDeliveryDays(e.target.value)}
+                className="w-full pr-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] outline-none" style={{ paddingLeft: '7rem' }} />
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 text-sm font-semibold pointer-events-none">Days to deliver</span>
+            </div>
           </div>
+
+          {/* Note */}
           <div>
             <label className="block text-sm font-semibold text-gray-700 mb-1.5">Note to Client <span className="text-gray-400 font-normal">(optional)</span></label>
             <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Describe your approach, timeline, or relevant experience..."
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] outline-none resize-none" rows={3} maxLength={1000} />
           </div>
+
+          {/* Token cost notice */}
+          <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 flex items-center gap-3">
+            <DollarSign className="w-5 h-5 text-amber-600 flex-shrink-0" />
+            <div>
+              <p className="text-sm font-semibold text-amber-800">This costs 50 tokens</p>
+              <p className="text-xs text-amber-600">Submitting an offer on an RFQ costs 50 tokens from your balance.</p>
+            </div>
+          </div>
+
           <button type="submit" disabled={submitting || !amount}
             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#003D82] hover:bg-[#002960] text-white font-bold rounded-xl disabled:opacity-50 transition-all text-base">
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            {submitting ? 'Submitting...' : 'Submit Offer'}
+            {submitting ? 'Submitting...' : 'Submit Offer — 50 Tokens'}
           </button>
           <p className="text-xs text-gray-400 text-center">Your offer will be sent to the client. You can withdraw it anytime.</p>
         </form>
@@ -768,9 +855,7 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
       <AnimatePresence>
         {showOfferModal && (
           <OfferModal
-            rfqId={rfq.id}
-            rfqTitle={rfq.title}
-            rfqBudget={rfq.budget}
+            rfq={rfq}
             currentUserId={currentUserId}
             onClose={() => setShowOfferModal(false)}
             onOfferPlaced={onOfferPlaced}
