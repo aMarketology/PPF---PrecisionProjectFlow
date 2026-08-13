@@ -1,173 +1,109 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
-import { mockCompanies, Company } from '@/lib/mockData'
+import { useState, useEffect } from 'react'
+import { Search, Loader2, Trash2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
+
+interface Company {
+  id: string; company_name: string; city: string; state: string
+  industry: string | null; verified: boolean; is_claimed: boolean
+  created_at: string
+}
 
 export default function AdminCompaniesPage() {
-  const [companies, setCompanies] = useState<Company[]>(mockCompanies)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterSpecialty, setFilterSpecialty] = useState('all')
+  const [companies, setCompanies] = useState<Company[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
   const [filterClaimed, setFilterClaimed] = useState<'all' | 'claimed' | 'unclaimed'>('all')
 
-  // Get unique specialties from all companies
-  const specialties = Array.from(new Set(companies.flatMap(c => c.specialties)))
+  useEffect(() => { loadCompanies() }, [])
 
-  const filteredCompanies = companies.filter(company => {
-    const fullLocation = `${company.address.city}, ${company.address.state}`
-    const matchesSearch = 
-      company.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      fullLocation.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesSpecialty = filterSpecialty === 'all' || company.specialties.includes(filterSpecialty)
-    const matchesClaimed = filterClaimed === 'all' || 
-      (filterClaimed === 'claimed' ? company.claimed : !company.claimed)
-    
-    return matchesSearch && matchesSpecialty && matchesClaimed
+  const loadCompanies = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin?action=data&tab=companies')
+      const json = await res.json()
+      setCompanies(json.data || [])
+    } catch { }
+    finally { setLoading(false) }
+  }
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Delete this company permanently?')) return
+    try {
+      const res = await fetch(`/api/admin?action=delete&tab=companies&id=${id}`, { method: 'POST' })
+      if (!res.ok) { toast.error('Delete failed'); return }
+      toast.success('Deleted')
+      setCompanies(prev => prev.filter(c => c.id !== id))
+    } catch { toast.error('Failed') }
+  }
+
+  const filtered = companies.filter(c => {
+    if (filterClaimed === 'claimed' && !c.is_claimed) return false
+    if (filterClaimed === 'unclaimed' && c.is_claimed) return false
+    if (!search) return true
+    const q = search.toLowerCase()
+    return c.company_name?.toLowerCase().includes(q) || c.city?.toLowerCase().includes(q) || c.state?.toLowerCase().includes(q)
   })
 
-  const toggleClaimed = (companyId: string) => {
-    setCompanies(companies.map(c => 
-      c.id === companyId ? { ...c, claimed: !c.claimed } : c
-    ))
-  }
+  if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Company Management</h1>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-          + Add Company
-        </button>
-      </div>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Company Management</h1>
 
-      {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search by company name or location..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search companies..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003D82]/30" />
         </div>
-        <select
-          value={filterSpecialty}
-          onChange={(e) => setFilterSpecialty(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Specialties</option>
-          {specialties.map(s => (
-            <option key={s} value={s}>{s}</option>
-          ))}
-        </select>
-        <select
-          value={filterClaimed}
-          onChange={(e) => setFilterClaimed(e.target.value as any)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Status</option>
+        <select value={filterClaimed} onChange={e => setFilterClaimed(e.target.value as any)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm">
+          <option value="all">All Companies</option>
           <option value="claimed">Claimed</option>
           <option value="unclaimed">Unclaimed</option>
         </select>
+        <span className="text-sm text-gray-500 ml-auto">{filtered.length} companies</span>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-4 gap-4 mb-8">
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Total Companies</p>
-          <p className="text-2xl font-bold text-white">{companies.length}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Claimed</p>
-          <p className="text-2xl font-bold text-green-400">{companies.filter(c => c.claimed).length}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Unclaimed</p>
-          <p className="text-2xl font-bold text-yellow-400">{companies.filter(c => !c.claimed).length}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Verified</p>
-          <p className="text-2xl font-bold text-blue-400">{companies.filter(c => c.verified).length}</p>
-        </div>
-      </div>
-
-      {/* Companies Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gray-800 rounded-xl overflow-hidden"
-      >
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-900">
-              <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Company</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Specialty</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Location</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Rating</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-700">
-              {filteredCompanies.map((company) => (
-                <tr key={company.id} className="hover:bg-gray-700/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-white font-semibold">
-                        {company.name.charAt(0)}
-                      </div>
-                      <div>
-                        <div className="text-white font-medium flex items-center gap-2">
-                          {company.name}
-                          {company.verified && <span className="text-blue-400">✓</span>}
-                        </div>
-                        <div className="text-sm text-gray-400">{company.email}</div>
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-gray-300">{company.specialties[0]}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                    {company.address.city}, {company.address.state}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">
-                    {company.rating ? `${company.rating} ⭐ (${company.reviewCount})` : 'No reviews'}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs rounded-full ${
-                      company.claimed 
-                        ? 'bg-green-500/20 text-green-400' 
-                        : 'bg-yellow-500/20 text-yellow-400'
-                    }`}>
-                      {company.claimed ? 'Claimed' : 'Unclaimed'}
+      <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+        <table className="w-full text-sm">
+          <thead className="bg-gray-50 border-b">
+            <tr>
+              <th className="text-left px-4 py-3 font-semibold">Name</th>
+              <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">Location</th>
+              <th className="text-left px-4 py-3 font-semibold hidden md:table-cell">Industry</th>
+              <th className="text-left px-4 py-3 font-semibold">Status</th>
+              <th className="text-right px-4 py-3 font-semibold">Actions</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {filtered.length === 0 ? (
+              <tr><td colSpan={5} className="text-center py-12 text-gray-400">No companies found</td></tr>
+            ) : filtered.map(c => (
+              <tr key={c.id} className="hover:bg-gray-50">
+                <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{c.company_name}</td>
+                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
+                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{c.industry || '—'}</td>
+                <td className="px-4 py-3">
+                  <div className="flex gap-1">
+                    {c.verified && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Verified</span>}
+                    <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${c.is_claimed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
+                      {c.is_claimed ? 'Claimed' : 'Unclaimed'}
                     </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button className="text-blue-400 hover:text-blue-300 text-sm">
-                        Edit
-                      </button>
-                      <button 
-                        onClick={() => toggleClaimed(company.id)}
-                        className="text-yellow-400 hover:text-yellow-300 text-sm"
-                      >
-                        {company.claimed ? 'Unclaim' : 'Claim'}
-                      </button>
-                      <button className="text-red-400 hover:text-red-300 text-sm">
-                        Delete
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </motion.div>
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  <button onClick={() => handleDelete(c.id)} className="p-1.5 hover:bg-red-50 rounded-lg text-gray-400 hover:text-red-600">
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }

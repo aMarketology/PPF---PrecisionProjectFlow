@@ -46,18 +46,16 @@ function ResetPasswordForm() {
 
   useEffect(() => {
     let mounted = true;
+    let timerId: ReturnType<typeof setTimeout>;
     const supabase = createClient();
 
     const checkTokenAndSession = async () => {
       // Prevent React StrictMode double-execution from burning single-use code
       if (hasExecutedRef.current) {
         console.log('[reset-password] Skipping duplicate execution (StrictMode guard)');
-        // Still need to check session on second mount
         const { data: { session } } = await supabase.auth.getSession();
         if (mounted) {
-          if (session) {
-            setIsValidToken(true);
-          }
+          if (session) setIsValidToken(true);
           setValidating(false);
         }
         return;
@@ -71,30 +69,38 @@ function ResetPasswordForm() {
         console.log('[reset-password] token_hash:', tokenHash ? tokenHash.substring(0, 8) + '...' : 'none', 'code:', code ? code.substring(0, 8) + '...' : 'none');
 
         if (tokenHash) {
-          // New template format: ?token_hash=...&type=recovery
           const { error: verifyError } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type });
-          console.log('[reset-password] verifyOtp(token_hash):', verifyError ? verifyError.message : 'success');
+          console.log('[reset-password] verifyOtp:', verifyError ? verifyError.message : 'success');
           if (verifyError) throw verifyError;
         } else if (code) {
-          // Old template format: ?code=... (PKCE flow)
           const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code);
           console.log('[reset-password] exchangeCodeForSession:', exchangeError ? exchangeError.message : 'success');
           if (exchangeError) throw exchangeError;
         }
 
-        const { data: { session }, error: sessionError } = await supabase.auth.getSession();
-        console.log('[reset-password] getSession:', session ? 'session found' : 'no session', sessionError ? sessionError.message : '');
+        // Session may not be ready immediately — retry after delay
+        const { data: { session } } = await supabase.auth.getSession();
+        console.log('[reset-password] getSession:', session ? 'session found' : 'no session');
 
         if (mounted) {
           if (session) {
-            console.log('[reset-password] valid token, showing form');
             setIsValidToken(true);
+            setValidating(false);
           } else {
-            console.log('[reset-password] no session, showing error');
-            setIsValidToken(false);
-            setError('Invalid or expired reset link. Please request a new one.');
+            // Retry after 1.5s — session propagation can be delayed
+            timerId = setTimeout(async () => {
+              const { data: { session: retrySession } } = await supabase.auth.getSession();
+              if (mounted) {
+                if (retrySession) {
+                  setIsValidToken(true);
+                } else {
+                  setIsValidToken(false);
+                  setError('Invalid or expired reset link. Please request a new one.');
+                }
+                setValidating(false);
+              }
+            }, 1500);
           }
-          setValidating(false);
         }
       } catch (err: any) {
         console.error('[reset-password] error:', err);
@@ -108,7 +114,10 @@ function ResetPasswordForm() {
 
     checkTokenAndSession();
 
-    return () => { mounted = false; };
+    return () => {
+      mounted = false;
+      if (timerId) clearTimeout(timerId);
+    };
   }, [searchParams]);
 
   const handleSubmit = async (e: React.FormEvent) => {

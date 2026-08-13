@@ -156,7 +156,7 @@ export default function Navigation() {
     >
       <div className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex items-center justify-between h-16">
-          {/* Left: Logo + Nav Links together */}
+          {/* Left: Logo + Nav Links + Search + Bell */}
           <div className="flex items-center gap-2 flex-1 min-w-0">
             <Link href="/" className="flex-shrink-0 mr-1">
               <motion.div whileHover={{ scale: 1.05 }} className="flex items-center">
@@ -197,9 +197,9 @@ export default function Navigation() {
             </div>
           </div>
 
-          {/* Right: Search + User */}
-          <div className="flex items-center gap-2 flex-shrink-0 ml-4">
-            {/* ── Search Bar ── */}
+          {/* Center/Right: Search + Bell + User */}
+          <div className="hidden md:flex items-center gap-1 mr-2">
+            {/* ── Search ── */}
             <div ref={searchRef} className="relative">
               <AnimatePresence mode="wait">
                 {searchOpen ? (
@@ -230,7 +230,6 @@ export default function Navigation() {
                         <X className="w-3.5 h-3.5" />
                       </button>
                     )}
-
                     {/* Results dropdown */}
                     <AnimatePresence>
                       {searchQuery.trim() && (searchLoading || searchResults.services.length > 0 || searchResults.engineers.length > 0) && (
@@ -251,18 +250,10 @@ export default function Navigation() {
                                 <div>
                                   <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest">Services</div>
                                   {searchResults.services.map(s => (
-                                    <Link
-                                      key={s.id}
-                                      href={`/marketplace/service/${s.id}`}
-                                      onClick={closeSearch}
-                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group"
-                                    >
+                                    <Link key={s.id} href={`/marketplace/service/${s.id}`} onClick={closeSearch}
+                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group">
                                       <div className="w-8 h-8 rounded-lg bg-gray-100 overflow-hidden flex-shrink-0">
-                                        {s.images?.[0] ? (
-                                          <img src={s.images[0]} alt="" className="w-full h-full object-cover" />
-                                        ) : (
-                                          <div className="w-full h-full bg-gradient-to-br from-[#003D82] to-[#0066C0]" />
-                                        )}
+                                        {s.images?.[0] ? <img src={s.images[0]} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full bg-gradient-to-br from-[#003D82] to-[#0066C0]" />}
                                       </div>
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#003D82]">{s.title}</p>
@@ -276,19 +267,9 @@ export default function Navigation() {
                                 <div>
                                   <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50">Engineers</div>
                                   {searchResults.engineers.map(e => (
-                                    <Link
-                                      key={e.id}
-                                      href={`/profiles/${e.id}`}
-                                      onClick={closeSearch}
-                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group"
-                                    >
-                                      {e.avatar_url ? (
-                                        <img src={e.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200" />
-                                      ) : (
-                                        <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">
-                                          {(e.full_name || 'E').charAt(0).toUpperCase()}
-                                        </div>
-                                      )}
+                                    <Link key={e.id} href={`/profiles/${e.id}`} onClick={closeSearch}
+                                      className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group">
+                                      {e.avatar_url ? <img src={e.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200" /> : <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">{(e.full_name || 'E').charAt(0).toUpperCase()}</div>}
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#003D82]">{e.full_name}</p>
                                         <p className="text-xs text-gray-400 truncate">{e.company_name || e.location || 'Engineer'}</p>
@@ -297,14 +278,9 @@ export default function Navigation() {
                                   ))}
                                 </div>
                               )}
-                              {/* View all results */}
                               <div className="border-t border-gray-100">
-                                <button
-                                  type="submit"
-                                  className="w-full px-4 py-2.5 text-sm text-[#003D82] font-semibold hover:bg-blue-50 transition-colors text-left flex items-center gap-2"
-                                >
-                                  <Search className="w-3.5 h-3.5" />
-                                  See all results for &ldquo;{searchQuery}&rdquo;
+                                <button type="submit" className="w-full px-4 py-2.5 text-sm text-[#003D82] font-semibold hover:bg-blue-50 transition-colors text-left flex items-center gap-2">
+                                  <Search className="w-3.5 h-3.5" /> See all results for &ldquo;{searchQuery}&rdquo;
                                 </button>
                               </div>
                             </>
@@ -320,7 +296,7 @@ export default function Navigation() {
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     onClick={openSearch}
-                    className={`p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500`}
+                    className="p-2 rounded-lg hover:bg-gray-100 transition-colors text-gray-500"
                     title="Search"
                   >
                     <Search className="w-5 h-5" />
@@ -328,7 +304,30 @@ export default function Navigation() {
                 )}
               </AnimatePresence>
             </div>
-            
+
+            {/* ── Notification Bell ── */}
+            {user && (
+              <Link href="/activity" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Activity Feed">
+                <Bell className="w-5 h-5 text-gray-500" />
+                <AnimatePresence>
+                  {unreadCount > 0 && (
+                    <motion.span
+                      key="badge"
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      exit={{ scale: 0 }}
+                      className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md"
+                    >
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </Link>
+            )}
+          </div>
+
+          {/* Right: User Menu */}
+          <div className="flex items-center gap-2 flex-shrink-0">
             {/* User Menu Dropdown */}
             <motion.div
               ref={userMenuRef}
@@ -338,26 +337,7 @@ export default function Navigation() {
               className="relative"
             >
               {user ? (
-                // Signed In - User Menu
                 <>
-                  {/* Notification Bell */}
-                  <Link href="/messages" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Messages">
-                    <Bell className="w-5 h-5 text-gray-500" />
-                    <AnimatePresence>
-                      {unreadCount > 0 && (
-                        <motion.span
-                          key="badge"
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          exit={{ scale: 0 }}
-                          className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md"
-                        >
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </Link>
-
                   <motion.button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
                     className="flex items-center gap-2 bg-white border border-gray-200 hover:border-gray-300 text-gray-700 font-medium text-sm px-3 py-1.5 rounded-lg transition-all min-w-[140px]"

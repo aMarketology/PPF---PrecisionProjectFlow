@@ -3,8 +3,10 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { isAdmin } from '@/lib/admin-config'
+import {
+  Shield, Users, Package, FileText, Building2,
+  BarChart3, Settings, ShoppingCart, Loader2,
+} from 'lucide-react'
 
 export default function AdminLayout({
   children,
@@ -18,16 +20,23 @@ export default function AdminLayout({
 
   useEffect(() => {
     async function checkAdminAccess() {
-      const supabase = createClient()
-      const { data: { user } } = await supabase.auth.getUser()
-      
-      if (!user || !isAdmin(user.email)) {
+      try {
+        const res = await fetch('/api/admin?action=check')
+        if (!res.ok) {
+          router.push('/login?redirect=/admin')
+          return
+        }
+        const json = await res.json()
+        if (!json.isAdmin) {
+          router.push('/')
+          return
+        }
+        setUser(json.profile)
+      } catch {
         router.push('/')
-        return
+      } finally {
+        setLoading(false)
       }
-
-      setUser(user)
-      setLoading(false)
     }
 
     checkAdminAccess()
@@ -35,68 +44,61 @@ export default function AdminLayout({
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gray-900 flex items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center">
+        <Loader2 className="w-8 h-8 animate-spin text-[#003D82]" />
       </div>
     )
   }
 
   const navItems = [
-    { name: 'Dashboard', href: '/admin', icon: '📊' },
-    { name: 'Users', href: '/admin/users', icon: '👥' },
-    { name: 'Services', href: '/admin/services', icon: '🛠️' },
-    { name: 'Orders', href: '/admin/orders', icon: '📦' },
-    { name: 'Companies', href: '/admin/companies', icon: '🏢' },
-    { name: 'Reports', href: '/admin/reports', icon: '📈' },
-    { name: 'Settings', href: '/admin/settings', icon: '⚙️' },
+    { name: 'Dashboard', href: '/admin', icon: Shield },
+    { name: 'Users', href: '/admin/users', icon: Users },
+    { name: 'Companies', href: '/admin/companies', icon: Building2 },
+    { name: 'Products', href: '/admin/products', icon: Package },
+    { name: 'Services', href: '/admin/services', icon: Settings },
+    { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },
+    { name: 'RFQs', href: '/admin/rfqs', icon: FileText },
+    { name: 'Reports', href: '/admin/reports', icon: BarChart3 },
+    { name: 'Settings', href: '/admin/settings', icon: Settings },
   ]
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      {/* Admin Header */}
-      <header className="bg-gray-800 border-b border-gray-700 fixed w-full z-50">
-        <div className="px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <Link href="/admin" className="text-xl font-bold text-white">
-              🔐 Admin Panel
-            </Link>
-            <span className="text-gray-400 text-sm">Precision Project Flow</span>
+    <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
+      {/* Top Bar */}
+      <header className="bg-gray-900 text-white sticky top-0 z-50">
+        <div className="px-4 sm:px-6 h-14 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Shield className="w-5 h-5 text-amber-400" />
+            <span className="font-bold text-lg">PPF Admin</span>
           </div>
-          <div className="flex items-center gap-4">
-            <span className="text-gray-300 text-sm">{user?.email}</span>
-            <Link 
-              href="/" 
-              className="text-gray-400 hover:text-white text-sm"
-            >
-              ← Back to Site
-            </Link>
+          <div className="flex items-center gap-4 text-sm">
+            <Link href="/" className="text-gray-400 hover:text-white">← Site</Link>
+            <span className="text-gray-500">{user?.email}</span>
           </div>
         </div>
       </header>
 
-      <div className="flex pt-16">
+      <div className="flex h-[calc(100vh-56px)]">
         {/* Sidebar */}
-        <aside className="w-64 bg-gray-800 min-h-[calc(100vh-64px)] fixed">
-          <nav className="p-4 space-y-1">
-            {navItems.map((item) => (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                  pathname === item.href
-                    ? 'bg-blue-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                }`}
-              >
-                <span>{item.icon}</span>
-                <span>{item.name}</span>
-              </Link>
-            ))}
-          </nav>
+        <aside className="w-56 bg-gray-900 text-gray-400 flex flex-col flex-shrink-0">
+          {navItems.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`flex items-center gap-3 px-4 py-2.5 text-sm font-medium transition-colors border-l-2 ${
+                pathname === item.href
+                  ? 'bg-gray-800 text-white border-[#FF6B35]'
+                  : 'hover:bg-gray-800 hover:text-white border-transparent'
+              }`}
+            >
+              <item.icon className="w-4 h-4" />
+              {item.name}
+            </Link>
+          ))}
         </aside>
 
         {/* Main Content */}
-        <main className="flex-1 ml-64 p-8">
+        <main className="flex-1 overflow-y-auto p-6">
           {children}
         </main>
       </div>

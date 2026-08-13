@@ -6,15 +6,22 @@
 ---
 
 ## 📍 Current Focus
-**Deal Flow — Shipping &amp; Delivery Tracking.**
+**Deal Flow — Contracts &amp; Escrow (RFQ → Contract application).**
 
-Added full shipping lifecycle to the order pipeline: vendor marks order as shipped with carrier/tracking/estimated delivery → buyer sees shipping info on order detail → order progresses to delivered → completed.
+Wired the RFQ offer-acceptance flow into the contract system:
 
-### Deal Flow Status Pipeline
+1. **Accept offer → auto-create contract** — `app/api/rfq/offer` PATCH (accept) now calls `create_contract_from_offer` RPC, creating a `contracts` row + a single full-amount milestone, and returns `contractId`.
+2. **Contracts API** — `GET /api/contracts` (list by role), `POST /api/contracts` (admin create), `GET /api/contracts/[id]` (detail), `POST /api/contracts/[id]` (deliver/release milestone).
+3. **Contracts pages** — `/contracts` (list with role filter + milestone progress), `/contracts/[id]` (detail with milestone deliver/release actions).
+4. **Auth fix** — `app/api/rfq/offer` PATCH/DELETE now use cookie-based `createClient()` for auth (was `createServiceClient`, which can't read cookies → 401).
+
+### Milestone escrow flow
 ```
-pending_payment → paid → in_progress → shipped → delivered → completed
-                                                    ↘ cancelled / refunded / disputed
+Contract created (active) → Vendor marks milestone delivered → Buyer releases funds → all released → contract completed
 ```
+
+### ⚠️ Prerequisite
+The `CONTRACTS_AND_ESCROW.sql` migration (contracts + contract_milestones tables + RPCs) must be run in Supabase if not already applied. It was authored earlier but verify the tables/RPCs exist live.
 
 ---
 

@@ -80,6 +80,9 @@ export async function GET(request: NextRequest) {
         case 'rfqs':
           result = await supabase.from('rfqs').select('*, client:profiles!rfqs_client_id_fkey(id, full_name, email)').order('created_at', { ascending: false }).limit(50);
           break;
+        case 'orders':
+          result = await supabase.from('product_orders').select('*, buyer:profiles!product_orders_buyer_id_fkey(id, full_name, email), company:company_profiles!product_orders_company_id_fkey(id, company_name)').order('created_at', { ascending: false }).limit(50);
+          break;
       }
 
       return NextResponse.json({ data: result?.data ?? [] });

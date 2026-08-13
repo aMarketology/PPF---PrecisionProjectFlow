@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
@@ -74,12 +75,15 @@ export async function PATCH(request: NextRequest) {
       return NextResponse.json({ error: 'action must be accept or reject' }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
-
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Auth via cookie-based client
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    // DB operations via service client
+    const supabase = createServiceClient();
 
     // Fetch the offer with RFQ info
     const { data: offer, error: offerError } = await supabase
@@ -114,6 +118,22 @@ export async function PATCH(request: NextRequest) {
 
       // Mark RFQ as awarded
       await supabase.from('rfqs').update({ status: 'awarded' }).eq('id', offer.rfq_id);
+
+      // ── Create a contract from this accepted offer ──
+      let contractId: string | null = null;
+      try {
+        const { data: cid, error: contractError } = await supabase.rpc('create_contract_from_offer', {
+          p_order_id: null,
+          p_buyer_id: user.id,
+          p_vendor_id: offer.vendor_id,
+          p_title: rfq.title,
+          p_description: `Contract awarded from RFQ: ${rfq.title}. Accepted offer: $${offer.amount}.`,
+          p_total_amount: offer.amount,
+        });
+        if (!contractError && cid) contractId = cid as string;
+      } catch (e) {
+        console.error('[offer/accept] contract creation failed:', e);
+      }
 
       // Get or create + unlock conversation
       const { data: convs } = await supabase
@@ -161,12 +181,12 @@ export async function PATCH(request: NextRequest) {
         await supabase.from('user_messages').insert({
           conversation_id: convId,
           sender_id: user.id,
-          content: `🎉 **Offer Accepted!** The client accepted your offer of $${offer.amount} for "${rfq.title}". You can now discuss project details freely.`,
+          content: `🎉 **Offer Accepted!** The client accepted your offer of $${offer.amount} for "${rfq.title}".${contractId ? ` A contract has been created.` : ''} You can now discuss project details freely.`,
           is_system_message: true,
         });
       }
 
-      return NextResponse.json({ success: true, conversationId: convId });
+      return NextResponse.json({ success: true, conversationId: convId, contractId });
     }
 
     // Reject

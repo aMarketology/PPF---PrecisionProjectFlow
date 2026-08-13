@@ -1,153 +1,172 @@
 'use client'
 
-import { useState } from 'react'
-import { motion } from 'framer-motion'
+import { useState, useEffect } from 'react'
+import { Search, Loader2, Truck } from 'lucide-react'
 
-// Mock orders data
-const mockOrders = [
-  { id: 'ORD-001', service: 'Electrical Panel Design', client: 'John Smith', engineer: 'ElectricDisk Inc', amount: 2500, status: 'completed', date: '2024-01-15' },
-  { id: 'ORD-002', service: 'HVAC System Design', client: 'ABC Corp', engineer: 'CoolAir Specialists', amount: 4200, status: 'in_progress', date: '2024-01-18' },
-  { id: 'ORD-003', service: 'Plumbing Design', client: 'Home Builders LLC', engineer: 'MCG Plumbing', amount: 1800, status: 'pending', date: '2024-01-20' },
-  { id: 'ORD-004', service: 'Solar Installation Plan', client: 'Green Energy Inc', engineer: 'SolarTech Pro', amount: 5500, status: 'completed', date: '2024-01-10' },
-  { id: 'ORD-005', service: 'CNC Machining', client: 'Auto Parts Mfg', engineer: 'Allens Performance', amount: 3200, status: 'completed', date: '2024-01-08' },
-  { id: 'ORD-006', service: 'Industrial Wiring', client: 'Factory One', engineer: 'ElectricDisk Inc', amount: 8500, status: 'in_progress', date: '2024-01-19' },
-  { id: 'ORD-007', service: 'Welding Services', client: 'Steel Works Co', engineer: 'Pro Welders', amount: 2100, status: 'cancelled', date: '2024-01-05' },
-]
+interface Order {
+  id: string
+  order_number: string
+  product_name: string
+  total_amount: number
+  platform_fee: number
+  status: string
+  created_at: string
+  shipped_at: string | null
+  shipping_carrier: string | null
+  shipping_tracking: string | null
+  buyer?: { full_name: string; email: string }
+  company?: { company_name: string }
+}
+
+const STATUS_STYLES: Record<string, string> = {
+  pending_payment: 'bg-yellow-100 text-yellow-700 border-yellow-300',
+  paid: 'bg-blue-100 text-blue-700 border-blue-300',
+  in_progress: 'bg-purple-100 text-purple-700 border-purple-300',
+  shipped: 'bg-indigo-100 text-indigo-700 border-indigo-300',
+  delivered: 'bg-orange-100 text-orange-700 border-orange-300',
+  completed: 'bg-emerald-100 text-emerald-700 border-emerald-300',
+  cancelled: 'bg-red-100 text-red-700 border-red-300',
+  refunded: 'bg-gray-100 text-gray-600 border-gray-300',
+  disputed: 'bg-red-200 text-red-800 border-red-400',
+}
+
+const ALL_STATUSES = ['all', 'pending_payment', 'paid', 'in_progress', 'shipped', 'delivered', 'completed', 'cancelled', 'refunded', 'disputed']
 
 export default function AdminOrdersPage() {
-  const [orders, setOrders] = useState(mockOrders)
-  const [searchTerm, setSearchTerm] = useState('')
-  const [filterStatus, setFilterStatus] = useState('all')
+  const [orders, setOrders] = useState<Order[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [statusFilter, setStatusFilter] = useState('all')
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = 
-      order.id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.service.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.client.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      order.engineer.toLowerCase().includes(searchTerm.toLowerCase())
-    
-    const matchesStatus = filterStatus === 'all' || order.status === filterStatus
-    
-    return matchesSearch && matchesStatus
+  useEffect(() => { loadOrders() }, [])
+
+  const loadOrders = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin?action=data&tab=orders')
+      const json = await res.json()
+      setOrders(json.data || [])
+    } catch (e) { console.error(e) }
+    finally { setLoading(false) }
+  }
+
+  const filtered = orders.filter(o => {
+    if (statusFilter !== 'all' && o.status !== statusFilter) return false
+    if (!search) return true
+    const q = search.toLowerCase()
+    return (
+      o.order_number?.toLowerCase().includes(q) ||
+      o.product_name?.toLowerCase().includes(q) ||
+      o.buyer?.full_name?.toLowerCase().includes(q) ||
+      o.company?.company_name?.toLowerCase().includes(q)
+    )
   })
 
-  const totalRevenue = orders.filter(o => o.status === 'completed').reduce((a, o) => a + o.amount, 0)
-  const platformFee = Math.round(totalRevenue * 0.1) // 10% platform fee
+  const completedTotal = orders
+    .filter(o => o.status === 'completed')
+    .reduce((sum, o) => sum + (Number(o.total_amount) - Number(o.platform_fee || 0)), 0)
 
-  const statusColors: Record<string, string> = {
-    pending: 'bg-yellow-500/20 text-yellow-400',
-    in_progress: 'bg-blue-500/20 text-blue-400',
-    completed: 'bg-green-500/20 text-green-400',
-    cancelled: 'bg-red-500/20 text-red-400',
-  }
+  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+  const formatPrice = (n: number) => '$' + n.toLocaleString()
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Order Management</h1>
-        <button className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors">
-          Export Orders
-        </button>
+      <h1 className="text-2xl font-bold text-gray-900 mb-6">Order Management</h1>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Total</p>
+          <p className="text-2xl font-bold text-gray-900">{orders.length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Pending</p>
+          <p className="text-2xl font-bold text-yellow-600">{orders.filter(o => o.status === 'pending_payment').length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Active</p>
+          <p className="text-2xl font-bold text-blue-600">{orders.filter(o => ['paid', 'in_progress', 'shipped'].includes(o.status)).length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Completed</p>
+          <p className="text-2xl font-bold text-emerald-600">{orders.filter(o => o.status === 'completed').length}</p>
+        </div>
+        <div className="bg-white rounded-xl border border-gray-200 p-4">
+          <p className="text-xs text-gray-500 uppercase tracking-wider">Revenue</p>
+          <p className="text-2xl font-bold text-gray-900">{formatPrice(completedTotal)}</p>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-4 mb-6">
-        <div className="flex-1">
-          <input
-            type="text"
-            placeholder="Search by order ID, service, client, or engineer..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
+      <div className="flex items-center gap-3 mb-4">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)}
+            placeholder="Search orders..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm" />
         </div>
-        <select
-          value={filterStatus}
-          onChange={(e) => setFilterStatus(e.target.value)}
-          className="bg-gray-800 border border-gray-700 rounded-lg px-4 py-2 text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-        >
-          <option value="all">All Status</option>
-          <option value="pending">Pending</option>
-          <option value="in_progress">In Progress</option>
-          <option value="completed">Completed</option>
-          <option value="cancelled">Cancelled</option>
+        <select value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+          className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003D82]/30">
+          {ALL_STATUSES.map(s => (
+            <option key={s} value={s}>{s === 'all' ? 'All Status' : s.replace(/_/g, ' ').replace(/\b\w/g, c => c.toUpperCase())}</option>
+          ))}
         </select>
+        <span className="text-sm text-gray-500 ml-auto">{filtered.length} orders</span>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-5 gap-4 mb-8">
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Total Orders</p>
-          <p className="text-2xl font-bold text-white">{orders.length}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Pending</p>
-          <p className="text-2xl font-bold text-yellow-400">{orders.filter(o => o.status === 'pending').length}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">In Progress</p>
-          <p className="text-2xl font-bold text-blue-400">{orders.filter(o => o.status === 'in_progress').length}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Total Revenue</p>
-          <p className="text-2xl font-bold text-green-400">${totalRevenue.toLocaleString()}</p>
-        </div>
-        <div className="bg-gray-800 rounded-lg p-4">
-          <p className="text-gray-400 text-sm">Platform Fee (10%)</p>
-          <p className="text-2xl font-bold text-purple-400">${platformFee.toLocaleString()}</p>
-        </div>
-      </div>
-
-      {/* Orders Table */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-gray-800 rounded-xl overflow-hidden"
-      >
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-700">
-            <thead className="bg-gray-900">
+      {/* Table */}
+      {loading ? (
+        <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>
+      ) : (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b">
               <tr>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Order ID</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Service</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Client</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Engineer</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Amount</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Status</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Date</th>
-                <th className="px-6 py-3 text-left text-xs font-medium text-gray-400 uppercase tracking-wider">Actions</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700">Order #</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700">Product</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Buyer</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Company</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-700">Amount</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden lg:table-cell">Shipping</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Date</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-700">
-              {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-700/50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-white font-mono">{order.id}</span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">{order.service}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">{order.client}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-300">{order.engineer}</td>
-                  <td className="px-6 py-4 whitespace-nowrap text-green-400 font-medium">
-                    ${order.amount.toLocaleString()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs rounded-full ${statusColors[order.status]}`}>
-                      {order.status.replace('_', ' ')}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-gray-400">{order.date}</td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <div className="flex gap-2">
-                      <button className="text-blue-400 hover:text-blue-300 text-sm">View</button>
-                      <button className="text-yellow-400 hover:text-yellow-300 text-sm">Edit</button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
+            <tbody className="divide-y">
+              {filtered.length === 0 ? (
+                <tr><td colSpan={8} className="text-center py-12 text-gray-400">No orders found</td></tr>
+              ) : (
+                filtered.map(order => (
+                  <tr key={order.id} className="hover:bg-gray-50">
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500 max-w-[100px] truncate">{order.order_number}</td>
+                    <td className="px-4 py-3 font-medium text-gray-900 max-w-[180px] truncate">{order.product_name}</td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell max-w-[150px] truncate">
+                      {order.buyer?.full_name || '—'}<br />
+                      <span className="text-xs text-gray-400">{order.buyer?.email}</span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{order.company?.company_name || '—'}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatPrice(order.total_amount)}</td>
+                    <td className="px-4 py-3 hidden lg:table-cell">
+                      {order.shipping_carrier ? (
+                        <div className="flex items-center gap-1 text-xs">
+                          <Truck className="w-3 h-3 text-indigo-500" />
+                          <span className="text-gray-700">{order.shipping_carrier}</span>
+                          {order.shipping_tracking && <span className="text-gray-400 font-mono">{order.shipping_tracking}</span>}
+                        </div>
+                      ) : <span className="text-xs text-gray-400">—</span>}
+                    </td>
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[order.status] || 'bg-gray-100 text-gray-600 border-gray-300'}`}>
+                        {order.status.replace(/_/g, ' ')}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-right text-xs text-gray-500 hidden md:table-cell">{formatDate(order.created_at)}</td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
-      </motion.div>
+      )}
     </div>
   )
 }

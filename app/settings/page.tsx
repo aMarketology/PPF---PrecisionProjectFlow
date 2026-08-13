@@ -126,7 +126,7 @@ export default function SettingsPage() {
     setUploadingAvatar(true)
     const supabase = createClient()
     const ext = file.name.split('.').pop()
-    const path = `avatars/${profile.id}.${ext}`
+    const path = `${profile.id}/avatar.${ext}`
 
     const { error: uploadError } = await supabase.storage
       .from('avatars')
