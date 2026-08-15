@@ -217,13 +217,13 @@ export default function RFQMarketplacePage() {
       <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-20 pb-5 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px)' }} />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between gap-4">
+          <div className="flex items-center justify-between gap-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><FileText className="w-5 h-5 text-[#FF6B35]" /></div>
               <div><h1 className="text-xl md:text-2xl font-extrabold text-white">RFQ Marketplace</h1><p className="text-blue-200 text-xs">{openCount} open · {totalRFQs} total</p></div>
             </div>
-            <Link href="/rfq/create" className="inline-flex items-center gap-2 px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg text-sm flex-shrink-0">
-              <Plus className="w-4 h-4" /> Post an RFQ
+            <Link href="/rfq/create" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg text-xs sm:text-sm flex-shrink-0">
+              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Post an </span>RFQ
             </Link>
           </div>
         </div>
@@ -249,15 +249,15 @@ export default function RFQMarketplacePage() {
                 </button>
               </div>
             )}
-            <div className="relative max-w-xs">
+            <div className="relative w-full sm:w-auto sm:max-w-xs sm:flex-1">
               <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
               <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Search..." className="w-full pl-8 pr-3 py-1.5 text-xs border border-gray-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 outline-none" />
             </div>
-            <div className="flex bg-gray-100 rounded-lg p-0.5">
+            <div className="flex max-w-full overflow-x-auto bg-gray-100 rounded-lg p-0.5">
               {['open', 'in_review', 'awarded', 'all'].map(s => (
                 <button key={s} onClick={() => setSelectedStatus(s)}
-                  className={`px-2.5 py-1 rounded-md text-xs font-semibold transition-all capitalize ${selectedStatus === s ? 'bg-white text-[#003D82] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                  className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all capitalize ${selectedStatus === s ? 'bg-white text-[#003D82] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
                   {s === 'all' ? 'All' : s.replace('_', ' ')}
                 </button>
               ))}
@@ -302,7 +302,7 @@ export default function RFQMarketplacePage() {
           <div className="flex-1 min-w-0">
             {/* Nudge banner: engineers without services */}
             {userType === 'engineer' && vendorSpecialties.categories.length === 0 && !loadingSpecialties && currentUserId && (
-              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 flex items-center gap-3">
+              <div className="bg-amber-50 border border-amber-200 rounded-xl p-3 mb-3 flex flex-col sm:flex-row items-start sm:items-center gap-3">
                 <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
                   <Tag className="w-4 h-4 text-amber-600" />
                 </div>
@@ -311,7 +311,7 @@ export default function RFQMarketplacePage() {
                   <p className="text-xs text-amber-700 mt-0.5">Add services to your profile to see personalized recommendations.</p>
                 </div>
                 <Link href="/services/create"
-                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0">
+                  className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white text-xs font-semibold rounded-lg transition-colors flex-shrink-0 self-start sm:self-auto">
                   Add Services
                 </Link>
               </div>
@@ -513,15 +513,15 @@ function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-50 p-4 font-jakarta" onClick={onClose}>
       <motion.div initial={{ scale: 0.95, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.95, opacity: 0 }}
-        className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
-        <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
+        className="bg-white rounded-xl sm:rounded-2xl shadow-2xl w-full max-w-lg max-h-[94dvh] sm:max-h-[90vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 sm:px-6 py-4 border-b border-gray-100 sticky top-0 bg-white z-10">
           <div>
             <h2 className="font-bold text-lg text-gray-900">Submit Offer</h2>
             <p className="text-sm text-gray-500 mt-0.5 line-clamp-1">{rfq.title}</p>
           </div>
           <button onClick={onClose} className="p-2 hover:bg-gray-100 rounded-xl"><X className="w-5 h-5 text-gray-500" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="p-6 space-y-5">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-5">
           {/* ── RFQ Requirements Summary ── */}
           <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
             <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-3">RFQ Requirements</h3>
@@ -670,9 +670,9 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
       <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.02 }}
         className={`bg-white rounded-xl border shadow-sm hover:shadow-md transition-all ${hasMatch ? 'border-orange-300 ring-1 ring-orange-200' : 'border-gray-100 hover:border-gray-200'}`}>
         <div className="p-4">
-          <div className="flex items-start gap-4">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4">
             {/* Left: Status + Avatar + Match Badge */}
-            <div className="flex flex-col items-center gap-2 min-w-[56px]">
+            <div className="flex flex-row sm:flex-col items-center gap-2 min-w-0 sm:min-w-[56px]">
               <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm">
                 {rfq.client?.full_name?.charAt(0)?.toUpperCase() || '?'}
               </div>
@@ -783,14 +783,14 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
             </div>
 
             {/* Right: Budget + Actions */}
-            <div className="flex flex-col items-end gap-2 min-w-[120px] flex-shrink-0">
+            <div className="flex flex-row flex-wrap sm:flex-col items-center sm:items-end justify-between gap-2 min-w-0 sm:min-w-[120px] flex-shrink-0 border-t border-gray-100 pt-3 sm:border-0 sm:pt-0">
               {rfq.budget && (
-                <div className="text-right">
+                <div className="text-left sm:text-right">
                   <p className="text-xs text-gray-500">Budget</p>
                   <p className="font-bold text-gray-900 text-lg leading-tight">{rfq.budget}</p>
                 </div>
               )}
-              <div className="flex gap-1.5 flex-wrap justify-end">
+              <div className="flex gap-1.5 flex-wrap justify-end ml-auto sm:ml-0">
                 <Link href={`/rfq/${rfq.slug || rfq.id}`}
                   className="px-3 py-1.5 text-xs font-semibold text-[#003D82] border border-gray-200 hover:bg-blue-50 rounded-lg transition-colors">
                   <Eye className="w-3 h-3 inline mr-1" />Details
@@ -804,7 +804,7 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
               </div>
               {/* Offer toggle */}
               <button onClick={() => { if (!showOffers && offers.length === 0) loadOffers(); setShowOffers(!showOffers); }}
-                className="text-[10px] text-gray-400 hover:text-[#003D82] font-semibold flex items-center gap-1">
+                className="flex w-full sm:w-auto justify-end text-[10px] text-gray-400 hover:text-[#003D82] font-semibold items-center gap-1">
                 <Gavel className="w-3 h-3" />
                 {showOffers ? 'Hide' : 'View'} offers
                 {showOffers ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
@@ -823,12 +823,12 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                     <p className="text-sm text-gray-400 text-center py-2">No offers yet. Be the first!</p>
                   ) : (
                     offers.map((offer: any, oi: number) => (
-                      <div key={offer.id} className={`flex items-center justify-between p-2.5 rounded-lg ${oi === 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50'}`}>
-                        <div className="flex items-center gap-2.5">
+                      <div key={offer.id} className={`flex items-center justify-between gap-3 p-2.5 rounded-lg ${oi === 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50'}`}>
+                        <div className="flex items-center gap-2.5 min-w-0">
                           {oi === 0 && <Award className="w-3.5 h-3.5 text-emerald-600" />}
                           <AvatarImg src={offer.vendor?.avatar_url} name={offer.vendor?.full_name || 'Vendor'} size={7} />
-                          <div>
-                            <p className="text-sm font-semibold text-gray-900">{offer.vendor?.full_name || 'Vendor'}</p>
+                          <div className="min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{offer.vendor?.full_name || 'Vendor'}</p>
                             {offer.note && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{offer.note}</p>}
                           </div>
                         </div>

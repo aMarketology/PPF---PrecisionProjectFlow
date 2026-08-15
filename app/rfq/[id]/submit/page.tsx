@@ -208,16 +208,16 @@ export default function SubmitOfferPage() {
     return (
       <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
         <Navigation />
-        <div className="max-w-2xl mx-auto px-4 py-24">
+        <div className="max-w-2xl mx-auto px-3 sm:px-4 py-20 sm:py-24">
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center"
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 sm:p-12 text-center"
           >
-            <div className="w-20 h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <CheckCircle2 className="w-10 h-10 text-emerald-600" />
+            <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <CheckCircle2 className="w-8 h-8 sm:w-10 sm:h-10 text-emerald-600" />
             </div>
-            <h1 className="text-3xl font-extrabold text-gray-900 mb-3">Offer Submitted!</h1>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-3">Offer Submitted!</h1>
             <p className="text-gray-500 mb-2">
               Your offer of <span className="font-bold text-gray-900">${Number(offerAmount).toLocaleString()}</span> has been sent to the client.
             </p>
@@ -261,10 +261,10 @@ export default function SubmitOfferPage() {
         </div>
       </div>
 
-      <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
-        <div className="space-y-6">
+      <div className="max-w-3xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
+        <div className="space-y-4 sm:space-y-6">
           {/* RFQ Summary */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
             <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
               <FileText className="w-5 h-5 text-[#003D82]" />
               RFQ Summary
@@ -308,12 +308,12 @@ export default function SubmitOfferPage() {
 
           {/* Line Items (if any) */}
           {rfq.line_items && rfq.line_items.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+            <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-6">
               <h2 className="text-lg font-bold text-gray-900 mb-3 flex items-center gap-2">
                 <Package className="w-5 h-5 text-[#003D82]" />
                 Parts to Quote
               </h2>
-              <div className="overflow-x-auto rounded-lg border border-gray-200">
+              <div className="hidden sm:block overflow-x-auto rounded-lg border border-gray-200">
                 <table className="w-full text-sm">
                   <thead className="bg-gray-50">
                     <tr>
@@ -335,12 +335,26 @@ export default function SubmitOfferPage() {
                   </tbody>
                 </table>
               </div>
+              <div className="space-y-2 sm:hidden">
+                {rfq.line_items.map((item, i) => (
+                  <div key={i} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <p className="text-sm font-semibold text-gray-900">{item.part}</p>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-gray-600 border border-gray-200">Qty {item.qty || '—'}</span>
+                    </div>
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
+                      <div><span className="text-gray-400">Material</span><p className="font-medium text-gray-700 break-words">{item.material || '—'}</p></div>
+                      <div><span className="text-gray-400">Tolerance</span><p className="font-mono text-gray-700 break-words">{item.tolerance || '—'}</p></div>
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
           )}
 
           {/* Offer Form */}
           <div className="bg-white rounded-2xl border-2 border-[#FF6B35] shadow-xl overflow-hidden">
-            <div className="bg-gradient-to-r from-[#FF6B35] to-[#E55A2B] px-6 py-4">
+            <div className="bg-gradient-to-r from-[#FF6B35] to-[#E55A2B] px-4 sm:px-6 py-4">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                   <Gavel className="w-5 h-5 text-white" />
@@ -352,7 +366,7 @@ export default function SubmitOfferPage() {
               </div>
             </div>
 
-            <div className="p-6 space-y-5">
+            <div className="p-4 sm:p-6 space-y-5">
               {/* Token balance */}
               <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-xl p-4 flex items-center gap-3">
                 <div className="w-10 h-10 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0">
@@ -369,7 +383,7 @@ export default function SubmitOfferPage() {
                     )}
                   </p>
                 </div>
-                <div className="text-right">
+                <div className="hidden sm:block text-right">
                   <span className="text-2xl font-black text-amber-600">50</span>
                   <span className="text-xs text-amber-500 block leading-tight">tokens</span>
                 </div>
@@ -445,12 +459,12 @@ export default function SubmitOfferPage() {
                   </label>
                   <div className="space-y-2">
                     {rfq.line_items.map((item, i) => (
-                      <div key={i} className="flex items-center gap-3 bg-gray-50 rounded-lg px-3 py-2">
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-gray-50 rounded-lg px-3 py-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-gray-700 truncate">{item.part}</p>
                           <p className="text-[10px] text-gray-400">Qty: {item.qty || '—'} · {item.material || '—'}</p>
                         </div>
-                        <div className="relative w-32 flex-shrink-0">
+                        <div className="relative w-full sm:w-32 flex-shrink-0">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
                           <input type="number" value={lineItemPrices[i] || ''}
                             onChange={e => setLineItemPrices(prev => ({ ...prev, [i]: e.target.value }))}
@@ -491,7 +505,7 @@ export default function SubmitOfferPage() {
 
               {/* ── Submit ── */}
               <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex-1">
                     <p className="text-xs text-gray-500 font-medium">By submitting, you agree to:</p>
                     <ul className="text-[11px] text-gray-400 mt-1 space-y-0.5">
@@ -502,7 +516,7 @@ export default function SubmitOfferPage() {
                   </div>
                   <button onClick={handleSubmit}
                     disabled={submitting || tokenBalance < 50 || !offerAmount}
-                    className="flex items-center gap-2 px-8 py-3.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 whitespace-nowrap">
+                    className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 sm:px-8 py-3.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm sm:text-base font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 sm:whitespace-nowrap">
                     {submitting ? (
                       <><Loader2 className="w-5 h-5 animate-spin" /> Submitting...</>
                     ) : tokenBalance < 50 ? (

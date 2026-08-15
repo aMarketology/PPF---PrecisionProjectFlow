@@ -304,8 +304,8 @@ export default function RFQDetailPage() {
           <Link href="/rfq" className="inline-flex items-center gap-1.5 text-white/60 hover:text-white text-xs mb-3 transition-colors">
             <ArrowLeft className="w-3.5 h-3.5" /> Back to RFQ Marketplace
           </Link>
-          <div className="flex items-start justify-between gap-4">
-            <div className="flex-1">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-start justify-between gap-4">
+            <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-2">
                 <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold border ${status.bg} ${status.color} ${status.border}`}>
                   <span className="w-1.5 h-1.5 rounded-full bg-current" />{status.label}
@@ -313,7 +313,7 @@ export default function RFQDetailPage() {
                 <span className="text-blue-200 text-xs flex items-center gap-1"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(rfq.created_at), { addSuffix: true })}</span>
               </div>
               <h1 className="text-2xl md:text-3xl font-extrabold text-white">{rfq.title}</h1>
-              <div className="flex items-center gap-3 mt-2">
+              <div className="flex flex-wrap items-center gap-2 sm:gap-3 mt-2">
                 <span className="flex items-center gap-1 text-xs text-blue-200">{CATEGORY_ICONS[rfq.category] || <FileText className="w-3.5 h-3.5" />}{rfq.category}</span>
                 {rfq.rfq_type && (
                   <span className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full border ${
@@ -342,7 +342,7 @@ export default function RFQDetailPage() {
             </div>
             {!isOwner && !isSameCompany && rfq.status === 'open' && !myPendingOffer && (
               <Link href={`/rfq/${rfq.slug || rfq.id}/submit`}
-                className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 text-sm flex-shrink-0">
+                className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 text-sm flex-shrink-0">
                 <Gavel className="w-4 h-4" /> Submit Offer
               </Link>
             )}
@@ -350,10 +350,10 @@ export default function RFQDetailPage() {
         </div>
       </div>
 
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 py-8">
-        <div className="space-y-6">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 py-5 sm:py-8">
+        <div className="space-y-4 sm:space-y-6">
           {/* Budget + Timeline Bar */}
-          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+          <div className="bg-white rounded-xl sm:rounded-2xl border border-gray-100 shadow-sm p-4 sm:p-5">
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {rfq.budget && (
                 <div>
