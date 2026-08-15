@@ -11,19 +11,15 @@ export const dynamic = 'force-dynamic';
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { rfqId, amount, note, deliveryDays } = body;
-    console.log('🔴 [POST /api/rfq/offer] Received:', { rfqId, amount, note: note?.substring(0, 50), deliveryDays });
+    const { rfqId, amount, note, deliveryDays } = await request.json();
 
     if (!rfqId || !amount) {
-      console.log('   ❌ Missing rfqId or amount');
       return NextResponse.json({ error: 'rfqId and amount are required' }, { status: 400 });
     }
 
     // Auth via cookie-based client
     const supabaseAuth = await createClient();
     const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
-    console.log('   Auth user:', user ? `${user.email} (${user.id})` : 'NONE', authError ? `| error: ${authError.message}` : '');
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
@@ -31,14 +27,12 @@ export async function POST(request: NextRequest) {
     // DB operations via service client
     const supabase = createServiceClient();
 
-    // Check user is an engineer
+    // Get the user's profile (no engineer restriction — anyone can bid)
     const { data: profile } = await supabase.from('profiles')
-      .select('user_type, token_balance, full_name, company_name').eq('id', user.id).single();
-    console.log('   Profile:', profile ? `type=${profile.user_type}, tokens=${profile.token_balance}` : 'NOT FOUND');
+      .select('user_type, token_balance, full_name, company_id').eq('id', user.id).single();
 
-    if (!profile || profile.user_type !== 'engineer') {
-      console.log('   ❌ Not an engineer');
-      return NextResponse.json({ error: 'Only engineers can submit offers' }, { status: 403 });
+    if (!profile) {
+      return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
     // Fetch the RFQ
@@ -47,67 +41,40 @@ export async function POST(request: NextRequest) {
       .select('id, client_id, title, budget, timeline, quantity, material, inventory_status, lead_time_days, estimated_ship_date, location')
       .eq('id', rfqId)
       .single();
-    console.log('   RFQ:', rfq ? rfq.title : 'NOT FOUND');
 
     if (!rfq) {
       return NextResponse.json({ error: 'RFQ not found' }, { status: 404 });
     }
 
+    // Block: owner or same company
+    if (rfq.client_id === user.id) {
+      return NextResponse.json({ error: 'You cannot bid on your own RFQ' }, { status: 403 });
+    }
+
+    if (profile.company_id) {
+      const { data: posterProfile } = await supabase.from('profiles')
+        .select('company_id').eq('id', rfq.client_id).single();
+      if (posterProfile?.company_id && posterProfile.company_id === profile.company_id) {
+        return NextResponse.json({ error: 'You cannot bid on an RFQ from your own company' }, { status: 403 });
+      }
+    }
+
     // Call the token-gated RPC
-    // NOTE: the deployed submit_rfq_offer only accepts (p_rfq_id, p_vendor_id, p_amount).
-    // It does NOT accept p_note / p_delivery_days — passing those makes PostgREST fail
-    // with "Could not find the function" because the signature doesn't match.
-    console.log('   📞 Calling submit_rfq_offer RPC (3 params only)...');
     const { data: result, error: rpcError } = await supabase.rpc('submit_rfq_offer', {
       p_rfq_id: rfqId,
       p_vendor_id: user.id,
       p_amount: amount,
+      p_note: note || null,
+      p_delivery_days: deliveryDays || null,
     });
-
-    console.log('   RPC result:', JSON.stringify(result), '| error:', rpcError?.message);
 
     if (rpcError) {
       console.error('[offer/submit] RPC error:', rpcError);
       return NextResponse.json({ error: rpcError.message }, { status: 500 });
     }
 
-    // The RPC may return either:
-    // - A UUID string directly (older deployed version)
-    // - A JSONB object: { success: true, offer_id: "uuid" }
-    let offerId: string | null = null;
-    if (typeof result === 'string' && result.match(/^[0-9a-f-]{36}$/)) {
-      // RPC returned a UUID directly — success!
-      offerId = result;
-      console.log('   ✅ Offer created (UUID return)! ID:', offerId);
-    } else if (result && typeof result === 'object' && result.success) {
-      offerId = result.offer_id;
-      console.log('   ✅ Offer created (JSONB return)! ID:', offerId);
-    } else if (result && typeof result === 'object' && result.error) {
-      console.log('   ❌ RPC returned failure:', result.error);
-      return NextResponse.json({ error: result.error }, { status: 400 });
-    } else {
-      console.log('   ❌ Unexpected RPC result type:', typeof result, JSON.stringify(result));
-      return NextResponse.json({ error: 'Unexpected response from offer submission' }, { status: 500 });
-    }
-
-    if (!offerId) {
-      return NextResponse.json({ error: 'Failed to create offer' }, { status: 500 });
-    }
-
-    // ── Attach note + delivery_days after the RPC (deployed RPC doesn't accept them) ──
-    if (note || deliveryDays) {
-      const { error: updateErr } = await supabase
-        .from('rfq_offers')
-        .update({
-          ...(note ? { note } : {}),
-          ...(deliveryDays ? { delivery_days: deliveryDays } : {}),
-        })
-        .eq('id', offerId);
-      if (updateErr) {
-        console.error('[offer/submit] Failed to attach note/delivery:', updateErr);
-      } else {
-        console.log('   ✅ Attached note/delivery to offer');
-      }
+    if (!result?.success) {
+      return NextResponse.json({ error: result?.error || 'Failed to submit offer' }, { status: 400 });
     }
 
     // ── Create locked DM with the client ──
@@ -120,7 +87,7 @@ export async function POST(request: NextRequest) {
 
       if (convId) {
         conversationId = convId as string;
-        const vendorName = profile.full_name || profile.company_name || 'A vendor';
+        const vendorName = profile.full_name || 'A vendor';
         const offerMsg = [
           `📨 **New Offer Received**`,
           ``,
@@ -161,7 +128,7 @@ export async function POST(request: NextRequest) {
       console.error('[offer/dm] Failed to create DM:', e);
     }
 
-    return NextResponse.json({ success: true, offerId, conversationId });
+    return NextResponse.json({ success: true, offerId: result.offer_id, conversationId });
   } catch (error: any) {
     console.error('[offer/submit]', error);
     return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });

@@ -21,21 +21,11 @@ interface RFQ {
   id: string; client_id: string; title: string; category: string;
   description: string; quantity: string | null; budget: string | null;
   timeline: string | null; location: string | null; material: string | null;
-  attachment_urls: string[] | null; status: string;
+  attachment_urls: string[] | null; status: string; slug?: string | null;
   rfq_type?: string; nda_required?: boolean; is_asap?: boolean;
   inventory_status: string | null; lead_time_days: number | null; estimated_ship_date: string | null;
-  line_items?: LineItem[] | null;
   created_at: string; updated_at: string;
   client?: { id: string; full_name: string; email: string; avatar_url?: string; company_name?: string };
-}
-
-interface LineItem {
-  part: string;
-  qty: number | null;
-  material: string | null;
-  tolerance: string | null;
-  finish: string | null;
-  notes: string | null;
 }
 
 interface Offer {
@@ -72,7 +62,7 @@ export default function RFQDetailPage() {
   const [currentUserType, setCurrentUserType] = useState<string | null>(null);
   const [tokenBalance, setTokenBalance] = useState(0);
   const [isOwner, setIsOwner] = useState(false);
-  const [sameCompanyCheck, setSameCompanyCheck] = useState(false);
+  const [isSameCompany, setIsSameCompany] = useState(false);
 
   // Offer form state
   const [showOfferForm, setShowOfferForm] = useState(false);
@@ -91,20 +81,16 @@ export default function RFQDetailPage() {
   }, [rfqId]);
 
   const init = async () => {
-    console.log('🔵 [init] Starting...');
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    console.log('   user:', user ? `${user.email} (${user.id})` : 'NOT LOGGED IN');
     if (user) {
       setCurrentUserId(user.id);
       const { data: profile } = await supabase.from('profiles')
         .select('user_type, token_balance').eq('id', user.id).single();
-      console.log('   profile:', profile ? `type=${profile.user_type}, tokens=${profile.token_balance}` : 'NOT FOUND');
       setCurrentUserType(profile?.user_type ?? null);
       setTokenBalance(profile?.token_balance ?? 0);
     }
     await loadRFQ();
-    await loadOffers();
   };
 
   const loadRFQ = async () => {
@@ -122,12 +108,6 @@ export default function RFQDetailPage() {
       const data = await res.json();
       if (!data || data.error) { toast.error('RFQ not found'); router.push('/rfq'); return; }
 
-      // Redirect UUID URLs to slug URLs for clean canonical URLs
-      if (isUuid && data.slug) {
-        router.replace(`/rfq/${data.slug}`);
-        return;
-      }
-
       setRfq(data);
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
@@ -139,19 +119,26 @@ export default function RFQDetailPage() {
           user_a: user.id,
           user_b: data.client_id,
         });
-        setSameCompanyCheck(sameCompany === true);
+        setIsSameCompany(sameCompany === true);
       }
+
+      // Load offers using the resolved UUID (data.id)
+      await loadOffers(data.id);
     } catch (err) { console.error('loadRFQ:', err); }
     finally { setLoading(false); }
   };
 
-  const loadOffers = async () => {
+  const loadOffers = async (targetId?: string) => {
     try {
       const supabase = createClient();
+      // rfq_offers.rfq_id is a UUID — use the resolved RFQ's id, not the URL slug
+      const actualRfqId = targetId || rfq?.id || (rfqId.match(/^[0-9a-f-]{36}$/i) ? rfqId : null);
+      if (!actualRfqId) return;
+      
       const { data, error } = await supabase
         .from('rfq_offers')
         .select('*')
-        .eq('rfq_id', rfqId)
+        .eq('rfq_id', actualRfqId)
         .order('created_at', { ascending: false });
 
       if (error) { console.error('loadOffers:', error); return; }
@@ -186,47 +173,26 @@ export default function RFQDetailPage() {
   };
 
   const handleSubmitOffer = async () => {
-    console.log('🔴 [handleSubmitOffer] FIRED');
-    console.log('   currentUserId:', currentUserId);
-    console.log('   rfqId:', rfqId);
-    console.log('   offerAmount:', offerAmount);
-    console.log('   tokenBalance:', tokenBalance);
-    console.log('   isEngineer:', currentUserType === 'engineer');
-    console.log('   isOwner:', isOwner);
-    console.log('   rfq.status:', rfq?.status);
-
-    if (!currentUserId) {
-      console.log('   ❌ No currentUserId — redirecting to login');
-      router.push('/login?redirect=/rfq/' + rfqId);
-      return;
-    }
+    if (!currentUserId) { router.push('/login?redirect=/rfq/' + rfqId); return; }
     if (!offerAmount || isNaN(Number(offerAmount)) || Number(offerAmount) <= 0) {
-      console.log('   ❌ Invalid offer amount');
       toast.error('Please enter a valid amount');
       return;
     }
 
-    console.log('   ✅ Validation passed, calling API...');
     setSubmittingOffer(true);
     try {
-      const payload = {
-        rfqId,
-        amount: Number(offerAmount),
-        note: offerNote || null,
-        deliveryDays: offerDelivery ? Number(offerDelivery) : null,
-      };
-      console.log('   📤 POST /api/rfq/offer payload:', JSON.stringify(payload));
-
       const res = await fetch('/api/rfq/offer', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          rfqId,
+          amount: Number(offerAmount),
+          note: offerNote || null,
+          deliveryDays: offerDelivery ? Number(offerDelivery) : null,
+        }),
       });
 
-      console.log('   📥 Response status:', res.status);
       const json = await res.json();
-      console.log('   📥 Response body:', JSON.stringify(json));
-
       if (!res.ok) throw new Error(json.error || 'Failed to submit offer');
 
       toast.success('Offer submitted! 50 tokens spent.');
@@ -238,7 +204,6 @@ export default function RFQDetailPage() {
       setTokenBalance(prev => prev - 50);
       await loadOffers();
     } catch (err: any) {
-      console.error('   ❌ Offer submit error:', err.message);
       toast.error(err.message);
     } finally {
       setSubmittingOffer(false);
@@ -321,9 +286,8 @@ export default function RFQDetailPage() {
   if (!rfq) return null;
 
   const status = STATUS_CONFIG[rfq.status] || STATUS_CONFIG.open;
-  // Any user can see the Submit Offer button UNLESS they own the RFQ or are in the same company.
-  // Not-logged-in visitors are redirected to login by the /submit page.
-  const isSameCompany = sameCompanyCheck;
+  const isEngineer = currentUserType === 'engineer';
+  const canBid = isEngineer && !isOwner && rfq.status === 'open';
   const myPendingOffer = offers.find(o => o.vendor_id === currentUserId && o.status === 'pending');
   const hasAcceptedOffer = offers.some(o => o.status === 'accepted');
   const pendingOffers = offers.filter(o => o.status === 'pending');
@@ -377,26 +341,10 @@ export default function RFQDetailPage() {
               </div>
             </div>
             {!isOwner && !isSameCompany && rfq.status === 'open' && !myPendingOffer && (
-              <Link href={`/rfq/${rfqId}/submit`}
+              <Link href={`/rfq/${rfq.slug || rfq.id}/submit`}
                 className="inline-flex items-center gap-2 px-5 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 text-sm flex-shrink-0">
                 <Gavel className="w-4 h-4" /> Submit Offer
               </Link>
-            )}
-            {isOwner && (
-              <button
-                onClick={() => document.getElementById('offers-section')?.scrollIntoView({ behavior: 'smooth' })}
-                disabled={pendingOffers.length === 0}
-                className={`inline-flex items-center gap-2 px-5 py-3 rounded-xl text-sm font-bold transition-all flex-shrink-0 ${
-                  pendingOffers.length > 0
-                    ? 'bg-white text-[#003D82] hover:bg-blue-50 shadow-lg'
-                    : 'bg-white/20 text-white/50 border border-white/30 cursor-not-allowed'
-                }`}
-              >
-                <Gavel className="w-4 h-4" />
-                {pendingOffers.length > 0
-                  ? `View Proposals (${pendingOffers.length})`
-                  : 'No Proposals Yet'}
-              </button>
             )}
           </div>
         </div>
@@ -482,50 +430,6 @@ export default function RFQDetailPage() {
             <h2 className="text-lg font-bold text-gray-900 mb-4">Description</h2>
             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{rfq.description}</p>
           </div>
-
-          {/* ── Line Items / Parts List ── */}
-          {rfq.line_items && rfq.line_items.length > 0 && (
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
-                  <Package className="w-5 h-5 text-[#003D82]" />
-                  Line Items / Parts List
-                </h2>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#003D82] border border-blue-200 rounded-full text-xs font-semibold">
-                  <Package className="w-3.5 h-3.5" />
-                  {rfq.line_items.length} {rfq.line_items.length === 1 ? 'item' : 'items'}
-                </span>
-              </div>
-              <div className="overflow-x-auto rounded-xl border border-gray-200">
-                <table className="w-full text-sm">
-                  <thead className="bg-gray-50 border-b border-gray-200">
-                    <tr>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">#</th>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Part</th>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Qty</th>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Material</th>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Tolerance</th>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Finish</th>
-                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Notes</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {rfq.line_items.map((item, idx) => (
-                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 text-gray-400 font-medium">{idx + 1}</td>
-                        <td className="px-4 py-3 font-medium text-gray-900">{item.part}</td>
-                        <td className="px-4 py-3 text-gray-700">{item.qty || '—'}</td>
-                        <td className="px-4 py-3 text-gray-700">{item.material || '—'}</td>
-                        <td className="px-4 py-3 text-gray-700 font-mono text-xs">{item.tolerance || '—'}</td>
-                        <td className="px-4 py-3 text-gray-700">{item.finish || '—'}</td>
-                        <td className="px-4 py-3 text-gray-500 text-xs max-w-[200px]">{item.notes || '—'}</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
 
           {/* ── OFFER SUBMISSION FORM ── */}
           <AnimatePresence>
@@ -771,11 +675,11 @@ export default function RFQDetailPage() {
           </AnimatePresence>
 
           {/* ── OFFERS SECTION ── */}
-          <div id="offers-section" className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+          <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
                 <TrendingUp className="w-5 h-5 text-[#003D82]" />
-                {isOwner ? 'Proposals' : 'Offers'}
+                Offers
                 <span className="text-sm font-normal text-gray-400">({offers.length})</span>
               </h2>
             </div>
@@ -783,7 +687,7 @@ export default function RFQDetailPage() {
             {offers.length === 0 ? (
               <div className="text-center py-8">
                 <Gavel className="w-10 h-10 text-gray-300 mx-auto mb-2" />
-                <p className="text-gray-500 font-medium">No {isOwner ? 'proposals' : 'offers'} yet</p>
+                <p className="text-gray-500 font-medium">No offers yet</p>
                 <p className="text-sm text-gray-400">Be the first to submit an offer on this RFQ</p>
               </div>
             ) : (
@@ -902,26 +806,10 @@ export default function RFQDetailPage() {
                   </button>
                 )}
                 {!isOwner && !isSameCompany && rfq.status === 'open' && !myPendingOffer && (
-                  <Link href={`/rfq/${rfqId}/submit`}
+                  <Link href={`/rfq/${rfq.slug || rfq.id}/submit`}
                     className="px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all text-sm flex items-center gap-1.5">
                     <Gavel className="w-4 h-4" /> Submit Offer
                   </Link>
-                )}
-                {isOwner && (
-                  <button
-                    onClick={() => document.getElementById('offers-section')?.scrollIntoView({ behavior: 'smooth' })}
-                    disabled={pendingOffers.length === 0}
-                    className={`px-4 py-2 rounded-xl transition-all text-sm flex items-center gap-1.5 font-bold ${
-                      pendingOffers.length > 0
-                        ? 'bg-[#003D82] hover:bg-[#002960] text-white'
-                        : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                    }`}
-                  >
-                    <Gavel className="w-4 h-4" />
-                    {pendingOffers.length > 0
-                      ? `View Proposals (${pendingOffers.length})`
-                      : 'No Proposals Yet'}
-                  </button>
                 )}
               </div>
             </div>

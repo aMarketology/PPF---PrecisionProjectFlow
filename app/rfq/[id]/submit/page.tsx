@@ -31,6 +31,9 @@ export default function SubmitOfferPage() {
   const router = useRouter();
   const rfqId = params?.id as string;
 
+  // Feature flag: when false, only offer amount is required for testing
+  const formFillRequired = process.env.NEXT_PUBLIC_FORM_FILL_REQUIRED !== 'false';
+
   const [rfq, setRfq] = useState<RFQ | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -70,24 +73,18 @@ export default function SubmitOfferPage() {
 
     // Profile
     const { data: profile } = await supabase.from('profiles')
-      .select('user_type, token_balance, full_name, phone, company_id').eq('id', user.id).single();
+      .select('user_type, token_balance, full_name, company_id').eq('id', user.id).single();
     console.log('   profile:', profile ? `type=${profile.user_type}, tokens=${profile.token_balance}` : 'NOT FOUND');
     setUserType(profile?.user_type ?? null);
     setTokenBalance(profile?.token_balance ?? 0);
     setContactName(profile?.full_name || '');
-    setPhoneNumber(profile?.phone || '');
+    setPhoneNumber('');  // phone column doesn't exist yet — leave blank for manual entry
 
     // Pre-fill company name
     if (profile?.company_id) {
       const { data: comp } = await supabase.from('company_profiles')
         .select('company_name').eq('id', profile.company_id).single();
       if (comp) setCompanyName(comp.company_name);
-    }
-
-    if (profile?.user_type !== 'engineer') {
-      toast.error('Only engineers/vendors can submit offers');
-      router.push(`/rfq/${rfqId}`);
-      return;
     }
 
     // Load RFQ
@@ -117,7 +114,7 @@ export default function SubmitOfferPage() {
 
     // Check if already has pending offer
     const { data: existing } = await supabase.from('rfq_offers')
-      .select('id').eq('rfq_id', rfqId).eq('vendor_id', user.id).eq('status', 'pending').limit(1);
+      .select('id').eq('rfq_id', data.id).eq('vendor_id', user.id).eq('status', 'pending').limit(1);
     if (existing && existing.length > 0) {
       toast('You already have a pending offer on this RFQ');
       router.push(`/rfq/${rfqId}`);
@@ -132,6 +129,13 @@ export default function SubmitOfferPage() {
     if (!offerAmount || isNaN(Number(offerAmount)) || Number(offerAmount) <= 0) {
       toast.error('Please enter a valid total amount');
       return;
+    }
+
+    // When form-fill is required, validate contact fields
+    if (formFillRequired) {
+      if (!contactName.trim()) { toast.error('Please enter your contact name'); return; }
+      if (!companyName.trim()) { toast.error('Please enter your company name'); return; }
+      if (!phoneNumber.trim()) { toast.error('Please enter your phone number'); return; }
     }
 
     setSubmitting(true);
@@ -155,7 +159,7 @@ export default function SubmitOfferPage() {
       if (offerNote) detailedNote += `\nAdditional Notes:\n${offerNote}`;
 
       const payload = {
-        rfqId,
+        rfqId: rfq?.id || rfqId,  // Use resolved UUID, fallback to URL param
         amount: Number(offerAmount),
         note: detailedNote || null,
         deliveryDays: offerDelivery ? Number(offerDelivery) : null,
@@ -373,27 +377,30 @@ export default function SubmitOfferPage() {
 
               {/* ── Contact Information ── */}
               <div className="bg-blue-50 border border-blue-200 rounded-xl p-4">
-                <h3 className="text-sm font-bold text-blue-900 mb-3 flex items-center gap-2">
+                <h3 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-2">
                   <User className="w-4 h-4" /> Your Contact Information
                 </h3>
+                {!formFillRequired && (
+                  <p className="text-xs text-blue-500 mb-3">Optional — only your offer amount is required for testing</p>
+                )}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-blue-700 mb-1">
-                      <User className="w-3 h-3 inline mr-1" /> Contact Name
+                      <User className="w-3 h-3 inline mr-1" /> Contact Name {formFillRequired && <span className="text-red-500">*</span>}
                     </label>
                     <input type="text" value={contactName} onChange={e => setContactName(e.target.value)}
                       placeholder="Your full name" className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm bg-white" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-blue-700 mb-1">
-                      <Building2 className="w-3 h-3 inline mr-1" /> Company
+                      <Building2 className="w-3 h-3 inline mr-1" /> Company {formFillRequired && <span className="text-red-500">*</span>}
                     </label>
                     <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)}
                       placeholder="Your company name" className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm bg-white" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-blue-700 mb-1">
-                      <Phone className="w-3 h-3 inline mr-1" /> Phone Number
+                      <Phone className="w-3 h-3 inline mr-1" /> Phone Number {formFillRequired && <span className="text-red-500">*</span>}
                     </label>
                     <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
                       placeholder="(555) 123-4567" className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm bg-white" />
