@@ -21,7 +21,7 @@ import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-
 import { loadStripe } from '@stripe/stripe-js';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-const UNLOCK_COST = 100;
+const UNLOCK_COST = 50;
 
 interface UserProfile { id: string; full_name: string; email: string; user_type: string; avatar_url?: string | null; }
 interface Conversation {
@@ -35,7 +35,36 @@ interface Conversation {
 interface Message {
   id: string; conversation_id: string; sender_id: string; content: string;
   is_read: boolean; read_at: string | null; created_at: string; is_system_message?: boolean;
+  message_type?: 'text' | 'system' | 'company_invite' | 'rfq_offer';
+  message_metadata?: Record<string, unknown> | null;
   attachment_url?: string | null; attachment_name?: string | null; attachment_type?: 'image' | 'pdf' | 'file' | null;
+}
+
+interface RFQOfferMessage {
+  rfqId: string;
+  title: string;
+  vendorName: string;
+  amount: number;
+  deliveryDays: number | null;
+  note: string | null;
+}
+
+const RFQ_OFFER_PREFIX = '[RFQ_OFFER]';
+
+function parseRFQOfferMessage(message: Pick<Message, 'content' | 'message_type' | 'message_metadata'>): RFQOfferMessage | null {
+  if (message.message_type === 'rfq_offer' && message.message_metadata) {
+    return message.message_metadata as unknown as RFQOfferMessage;
+  }
+  if (!message.content?.startsWith(RFQ_OFFER_PREFIX)) return null;
+  try {
+    return JSON.parse(message.content.slice(RFQ_OFFER_PREFIX.length)) as RFQOfferMessage;
+  } catch {
+    return null;
+  }
+}
+
+function messagePreview(content: string) {
+  return content.startsWith(RFQ_OFFER_PREFIX) ? 'New RFQ offer received' : content;
 }
 
 function Avatar({ user, size = 'md' }: { user: UserProfile | null; size?: 'sm' | 'md' | 'lg' }) {
@@ -988,6 +1017,46 @@ function MessagesPageInner() {
                           {messages.map(msg => {
                             const isOwn = msg.sender_id === currentUserId;
                             if (msg.is_system_message) {
+                              const offer = parseRFQOfferMessage(msg);
+                              if (offer) {
+                                return (
+                                  <div key={msg.id} className="flex justify-start my-3">
+                                    <div className="w-full max-w-md overflow-hidden rounded-xl border border-[#003D82]/15 bg-white shadow-sm">
+                                      <div className="flex items-center gap-2 border-b border-[#003D82]/10 bg-[#003D82] px-4 py-2.5 text-white">
+                                        <FileText className="h-4 w-4" />
+                                        <span className="text-sm font-bold">New RFQ Offer</span>
+                                      </div>
+                                      <div className="space-y-3 p-4">
+                                        <div>
+                                          <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">RFQ</p>
+                                          <p className="mt-0.5 text-sm font-semibold leading-snug text-gray-900">{offer.title}</p>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-3 border-y border-gray-100 py-3">
+                                          <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Submitted by</p>
+                                            <p className="mt-0.5 text-sm font-semibold text-gray-800">{offer.vendorName}</p>
+                                          </div>
+                                          <div>
+                                            <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Offer amount</p>
+                                            <p className="mt-0.5 flex items-center gap-1 text-sm font-bold text-emerald-700"><DollarSign className="h-3.5 w-3.5" />{Number(offer.amount).toLocaleString()}</p>
+                                          </div>
+                                          {offer.deliveryDays && (
+                                            <div>
+                                              <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Delivery</p>
+                                              <p className="mt-0.5 text-sm font-semibold text-gray-800">{offer.deliveryDays} days</p>
+                                            </div>
+                                          )}
+                                        </div>
+                                        {offer.note && <p className="whitespace-pre-wrap text-xs leading-relaxed text-gray-600">{offer.note}</p>}
+                                      </div>
+                                      <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
+                                        <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                                        Unlock this conversation for 50 tokens to reply.
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              }
                               // Check if this is a company invite
                               const isInvite = msg.content?.includes('INVITE') && (msg.content?.includes('[Accept]') || msg.content?.includes('**[Accept]**'));
                               const isAccepted = msg.content?.includes('ACCEPTED');
@@ -1119,7 +1188,7 @@ function MessagesPageInner() {
                           <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0"><Lock className="w-4 h-4 text-amber-600" /></div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-900 text-sm">Unlock this conversation</p>
-                            <p className="text-gray-500 text-xs">100 tokens (~$10) one-time · Free messaging forever after · Both parties can respond</p>
+                            <p className="text-gray-500 text-xs">50 tokens one-time · Free messaging forever after · Both parties can respond</p>
                           </div>
                           <button onClick={() => setShowUnlockModal(true)} className="px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-colors">
                             <Unlock className="w-3.5 h-3.5" /> Unlock
@@ -1711,7 +1780,7 @@ function SidebarSection({ title, icon, items, collapsed, onToggle, selectedId, c
                 )}
                 <div className="min-w-0 flex-1">
                   <p className="text-xs font-semibold truncate">{c.conversation_type === 'direct' ? c.other_user?.full_name : c.name || 'Unnamed'}</p>
-                  {c.last_message && <p className="text-[10px] text-gray-400 truncate">{c.last_message.content}</p>}
+                  {c.last_message && <p className="text-[10px] text-gray-400 truncate">{messagePreview(c.last_message.content)}</p>}
                 </div>
                 {c.unread_count > 0 && (
                   <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${selectedId === c.id ? 'bg-white/20 text-white' : 'bg-[#003D82] text-white'}`}>{c.unread_count}</span>

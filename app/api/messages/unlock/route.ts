@@ -6,7 +6,7 @@ export const dynamic = 'force-dynamic';
 const UNLOCK_COST = 50;
 
 // POST /api/messages/unlock
-// Charges 100 tokens to open a cold conversation thread.
+// Charges 50 tokens to open a cold conversation thread.
 // Does NOT call the unlock_conversation RPC (it requires columns that
 // may not exist yet in the live DB). Handles everything inline using
 // only the guaranteed-to-exist is_contracted column.

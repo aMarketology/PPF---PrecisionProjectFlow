@@ -16,7 +16,7 @@ export async function GET(
 
     const { data: offers, error } = await supabase
       .from('rfq_offers')
-      .select('*, vendor:profiles!rfq_offers_vendor_id_fkey(id, full_name, avatar_url, company_name)')
+      .select('*, vendor:profiles!rfq_offers_vendor_id_fkey(id, full_name, avatar_url)')
       .eq('rfq_id', id)
       .order('amount', { ascending: true });
 
@@ -58,10 +58,10 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid offer amount' }, { status: 400 });
     }
 
-    // Check user is an engineer
+    // Any authenticated user (not just engineers) can bid — no user_type check.
     const { data: profile } = await supabase
       .from('profiles')
-      .select('user_type, token_balance, full_name, company_name')
+      .select('user_type, token_balance, full_name, company_id')
       .eq('id', user.id)
       .single();
 
@@ -69,14 +69,10 @@ export async function POST(
       return NextResponse.json({ error: 'Profile not found' }, { status: 404 });
     }
 
-    if (profile.user_type !== 'engineer') {
-      return NextResponse.json({ error: 'Only engineers / vendors can submit offers' }, { status: 403 });
-    }
-
     // Fetch the RFQ to get client_id and title
     const { data: rfq } = await supabase
       .from('rfqs')
-      .select('id, client_id, title, budget, timeline, quantity, material, inventory_status, lead_time_days, estimated_ship_date, location')
+      .select('id, client_id, title, budget, timeline, quantity, material, location')
       .eq('id', id)
       .single();
 
@@ -84,13 +80,27 @@ export async function POST(
       return NextResponse.json({ error: 'RFQ not found' }, { status: 404 });
     }
 
+    // Block: owner or same company
+    if (rfq.client_id === user.id) {
+      return NextResponse.json({ error: 'You cannot bid on your own RFQ' }, { status: 403 });
+    }
+
+    if (profile.company_id) {
+      const { data: posterProfile } = await supabase.from('profiles')
+        .select('company_id').eq('id', rfq.client_id).single();
+      if (posterProfile?.company_id && posterProfile.company_id === profile.company_id) {
+        return NextResponse.json({ error: 'You cannot bid on an RFQ from your own company' }, { status: 403 });
+      }
+    }
+
     // Call the token-gated RPC (spends 50 tokens + inserts offer atomically)
     const { data: result, error: rpcError } = await supabase.rpc('submit_rfq_offer', {
       p_rfq_id: id,
       p_vendor_id: user.id,
       p_amount: amount,
-      p_note: note || null,
-      p_delivery_days: deliveryDays || null,
+      p_notes: note || null,
+      p_timeline: deliveryDays ? `${deliveryDays} days` : null,
+      p_terms: null,
     });
 
     if (rpcError) {
@@ -114,37 +124,24 @@ export async function POST(
       if (convId) {
         conversationId = convId as string;
 
-        // Build a rich offer message
-        const vendorName = profile.full_name || profile.company_name || 'A vendor';
-        const offerMsg = [
-          `📨 **New Offer Received**`,
-          ``,
-          `**RFQ:** ${rfq.title}`,
-          `**Vendor:** ${vendorName}`,
-          `**Offer Amount:** $${Number(amount).toLocaleString()}`,
-          rfq.budget ? `**Your Budget:** ${rfq.budget}` : '',
-          deliveryDays ? `**Delivery:** ${deliveryDays} days` : '',
-          note ? `` : '',
-          note ? `**Note from vendor:** ${note}` : '',
-          ``,
-          `---`,
-          `**RFQ Requirements Recap:**`,
-          rfq.quantity ? `• Quantity: ${rfq.quantity}` : '',
-          rfq.material ? `• Material: ${rfq.material}` : '',
-          rfq.timeline ? `• Timeline: ${rfq.timeline}` : '',
-          rfq.location ? `• Location: ${rfq.location}` : '',
-          rfq.inventory_status ? `• Inventory: ${rfq.inventory_status === 'in_stock' ? 'In Stock' : rfq.inventory_status === 'out_of_stock' ? 'Out of Stock' : 'Back Order'}` : '',
-          rfq.lead_time_days ? `• Lead Time: ${rfq.lead_time_days} days` : '',
-          rfq.estimated_ship_date ? `• Ship Date: ${new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '',
-          ``,
-          `🔒 **This conversation is locked.** Unlock for 50 tokens to view the full offer and reply.`,
-        ].filter(Boolean).join('\n');
+        // Store the proposal as a first-class RFQ offer message.
+        const vendorName = profile.full_name || 'A vendor';
+        const offerMetadata = {
+          rfqId: rfq.id,
+          title: rfq.title,
+          vendorName,
+          amount: Number(amount),
+          deliveryDays: deliveryDays ? Number(deliveryDays) : null,
+          note: note || null,
+        };
 
         // Insert the offer as a system message in the DM
         await supabase.from('user_messages').insert({
           conversation_id: convId,
           sender_id: user.id,
-          content: offerMsg,
+          content: 'New RFQ offer received',
+          message_type: 'rfq_offer',
+          message_metadata: offerMetadata,
           is_system_message: true,
           is_read: false,
         });

@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     // Fetch the RFQ
     const { data: rfq } = await supabase
       .from('rfqs')
-      .select('id, client_id, title, budget, timeline, quantity, material, inventory_status, lead_time_days, estimated_ship_date, location')
+      .select('id, client_id, title, budget, timeline, quantity, material, location')
       .eq('id', rfqId)
       .single();
 
@@ -64,8 +64,9 @@ export async function POST(request: NextRequest) {
       p_rfq_id: rfqId,
       p_vendor_id: user.id,
       p_amount: amount,
-      p_note: note || null,
-      p_delivery_days: deliveryDays || null,
+      p_notes: note || null,
+      p_timeline: deliveryDays ? `${deliveryDays} days` : null,
+      p_terms: null,
     });
 
     if (rpcError) {
@@ -79,54 +80,49 @@ export async function POST(request: NextRequest) {
 
     // ── Create locked DM with the client ──
     let conversationId: string | null = null;
-    try {
-      const { data: convId } = await supabase.rpc('get_or_create_conversation', {
+    const { data: convId, error: conversationError } = await supabase.rpc('get_or_create_conversation', {
         user_one_id: user.id,
         user_two_id: rfq.client_id,
-      });
+    });
 
-      if (convId) {
-        conversationId = convId as string;
-        const vendorName = profile.full_name || 'A vendor';
-        const offerMsg = [
-          `📨 **New Offer Received**`,
-          ``,
-          `**RFQ:** ${rfq.title}`,
-          `**Vendor:** ${vendorName}`,
-          `**Offer Amount:** $${Number(amount).toLocaleString()}`,
-          rfq.budget ? `**Your Budget:** ${rfq.budget}` : '',
-          deliveryDays ? `**Delivery:** ${deliveryDays} days` : '',
-          note ? `` : '',
-          note ? `**Note from vendor:** ${note}` : '',
-          ``,
-          `---`,
-          `**RFQ Requirements Recap:**`,
-          rfq.quantity ? `• Quantity: ${rfq.quantity}` : '',
-          rfq.material ? `• Material: ${rfq.material}` : '',
-          rfq.timeline ? `• Timeline: ${rfq.timeline}` : '',
-          rfq.location ? `• Location: ${rfq.location}` : '',
-          rfq.inventory_status ? `• Inventory: ${rfq.inventory_status === 'in_stock' ? 'In Stock' : rfq.inventory_status === 'out_of_stock' ? 'Out of Stock' : 'Back Order'}` : '',
-          rfq.lead_time_days ? `• Lead Time: ${rfq.lead_time_days} days` : '',
-          rfq.estimated_ship_date ? `• Ship Date: ${new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '',
-          ``,
-          `🔒 **This conversation is locked.** Unlock for 50 tokens to view the full offer and reply.`,
-        ].filter(Boolean).join('\n');
-
-        await supabase.from('user_messages').insert({
-          conversation_id: convId,
-          sender_id: user.id,
-          content: offerMsg,
-          is_system_message: true,
-          is_read: false,
-        });
-
-        await supabase.from('user_conversations')
-          .update({ is_unlocked: false, last_message_at: new Date().toISOString() })
-          .eq('id', convId);
-      }
-    } catch (e) {
-      console.error('[offer/dm] Failed to create DM:', e);
+    if (conversationError || !convId) {
+      throw new Error(conversationError?.message || 'Unable to create an offer conversation');
     }
+
+    conversationId = convId as string;
+    const vendorName = profile.full_name || 'A vendor';
+    const offerMetadata = {
+      rfqId: rfq.id,
+      title: rfq.title,
+      vendorName,
+      amount: Number(amount),
+      deliveryDays: deliveryDays ? Number(deliveryDays) : null,
+      note: note || null,
+    };
+
+    const { data: message, error: messageError } = await supabase.from('user_messages').insert({
+      conversation_id: conversationId,
+      sender_id: user.id,
+      content: 'New RFQ offer received',
+      message_type: 'rfq_offer',
+      message_metadata: offerMetadata,
+      is_system_message: true,
+      is_read: false,
+    }).select('id').single();
+
+    if (messageError || !message) {
+      throw new Error(messageError?.message || 'Unable to create the offer message');
+    }
+
+    const { error: conversationUpdateError } = await supabase.from('user_conversations')
+      .update({ is_unlocked: false, last_message_at: new Date().toISOString() })
+      .eq('id', conversationId);
+    if (conversationUpdateError) throw new Error(conversationUpdateError.message);
+
+    const { error: offerUpdateError } = await supabase.from('rfq_offers')
+      .update({ conversation_id: conversationId, message_id: message.id })
+      .eq('id', result.offer_id);
+    if (offerUpdateError) throw new Error(offerUpdateError.message);
 
     return NextResponse.json({ success: true, offerId: result.offer_id, conversationId });
   } catch (error: any) {

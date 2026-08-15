@@ -68,14 +68,6 @@ export default function CreateRFQPage() {
     inventoryStatus: '' as '' | 'in_stock' | 'out_of_stock' | 'back_order',
     leadTimeDays: '',
     estimatedShipDate: '',
-    lineItems: [] as {
-      part: string;
-      qty: string;
-      material: string;
-      tolerance: string;
-      finish: string;
-      notes: string;
-    }[],
     specifications: [] as File[],
     selectedSuppliers: [] as string[],
   })
@@ -104,41 +96,6 @@ export default function CreateRFQPage() {
       specifications: prev.specifications.filter((_, i) => i !== index)
     }))
   }
-
-  // ── Line items (parts list) ──
-  const updateLineItem = (index: number, field: keyof typeof formData.lineItems[number], value: string) => {
-    setFormData(prev => ({
-      ...prev,
-      lineItems: prev.lineItems.map((item, i) =>
-        i === index ? { ...item, [field]: value } : item
-      )
-    }))
-  }
-
-  const addLineItem = () => {
-    setFormData(prev => ({
-      ...prev,
-      lineItems: [...prev.lineItems, { part: '', qty: '', material: '', tolerance: '', finish: '', notes: '' }]
-    }))
-  }
-
-  const removeLineItem = (index: number) => {
-    setFormData(prev => ({
-      ...prev,
-      lineItems: prev.lineItems.filter((_, i) => i !== index)
-    }))
-  }
-
-  const lineItemsForDb = () => formData.lineItems
-    .filter(li => li.part.trim() !== '')
-    .map(li => ({
-      part: li.part.trim(),
-      qty: li.qty.trim() !== '' ? Number(li.qty) : null,
-      material: li.material.trim() || null,
-      tolerance: li.tolerance.trim() || null,
-      finish: li.finish.trim() || null,
-      notes: li.notes.trim() || null,
-    }))
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -171,7 +128,6 @@ export default function CreateRFQPage() {
           inventory_status: formData.inventoryStatus || null,
           lead_time_days: formData.leadTimeDays ? parseInt(formData.leadTimeDays) : null,
           estimated_ship_date: formData.estimatedShipDate || null,
-          line_items: lineItemsForDb().length > 0 ? lineItemsForDb() : null,
           slug: formData.title.toLowerCase()
             .replace(/[^a-z0-9]+/g, '-')
             .replace(/^-|-$/g, '') + '-' + crypto.randomUUID().substring(0, 8),
@@ -721,135 +677,6 @@ export default function CreateRFQPage() {
                     </div>
                   </div>
 
-                  {/* ── Line Items (Parts List) ── */}
-                  <div className="border-t border-gray-200 pt-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2">
-                        <Package className="w-5 h-5 text-[#003D82]" />
-                        Line Items / Parts List
-                        {formData.lineItems.length > 0 && (
-                          <span className="text-xs font-medium bg-blue-50 text-[#003D82] px-2 py-0.5 rounded-full">
-                            {formData.lineItems.length} {formData.lineItems.length === 1 ? 'item' : 'items'}
-                          </span>
-                        )}
-                      </h3>
-                      <button
-                        type="button"
-                        onClick={addLineItem}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-lg transition-colors"
-                      >
-                        <Plus className="w-4 h-4" /> Add Line Item
-                      </button>
-                    </div>
-
-                    {formData.lineItems.length === 0 ? (
-                      <div className="border-2 border-dashed border-gray-200 rounded-xl p-8 text-center">
-                        <Package className="w-10 h-10 text-gray-300 mx-auto mb-3" />
-                        <p className="text-sm font-medium text-gray-600 mb-1">No line items yet</p>
-                        <p className="text-xs text-gray-400 max-w-md mx-auto">
-                          Add each part you need quoted separately — vendors can then price each line
-                          accurately and quote the whole job in one offer.
-                        </p>
-                        <button
-                          type="button"
-                          onClick={addLineItem}
-                          className="mt-4 inline-flex items-center gap-1.5 px-4 py-2 text-sm font-semibold text-[#003D82] border-2 border-[#003D82] rounded-lg hover:bg-blue-50 transition-colors"
-                        >
-                          <Plus className="w-4 h-4" /> Add First Line Item
-                        </button>
-                      </div>
-                    ) : (
-                      <div className="space-y-3">
-                        {formData.lineItems.map((item, idx) => (
-                          <div key={idx} className="bg-gray-50 border border-gray-200 rounded-xl p-4">
-                            <div className="flex items-center justify-between mb-3">
-                              <span className="inline-flex items-center gap-1.5 text-xs font-bold text-gray-500 uppercase tracking-wider">
-                                <Package className="w-3.5 h-3.5" /> Item {idx + 1}
-                              </span>
-                              <button
-                                type="button"
-                                onClick={() => removeLineItem(idx)}
-                                className="inline-flex items-center gap-1 text-xs text-red-500 hover:text-red-700 font-semibold"
-                              >
-                                <X className="w-3.5 h-3.5" /> Remove
-                              </button>
-                            </div>
-                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                              <div className="lg:col-span-2">
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Part Name / Description *</label>
-                                <input
-                                  type="text"
-                                  value={item.part}
-                                  onChange={e => updateLineItem(idx, 'part', e.target.value)}
-                                  placeholder="e.g., Mounting Bracket — P/N BR-102"
-                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
-                                <input
-                                  type="number"
-                                  value={item.qty}
-                                  onChange={e => updateLineItem(idx, 'qty', e.target.value)}
-                                  min="1"
-                                  placeholder="e.g., 250"
-                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Material</label>
-                                <input
-                                  type="text"
-                                  value={item.material}
-                                  onChange={e => updateLineItem(idx, 'material', e.target.value)}
-                                  placeholder="e.g., 6061-T6 Aluminum"
-                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Tolerance</label>
-                                <input
-                                  type="text"
-                                  value={item.tolerance}
-                                  onChange={e => updateLineItem(idx, 'tolerance', e.target.value)}
-                                  placeholder="e.g., ±0.005&quot;"
-                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-sm"
-                                />
-                              </div>
-                              <div>
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Finish</label>
-                                <input
-                                  type="text"
-                                  value={item.finish}
-                                  onChange={e => updateLineItem(idx, 'finish', e.target.value)}
-                                  placeholder="e.g., Clear anodize"
-                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-sm"
-                                />
-                              </div>
-                              <div className="lg:col-span-2">
-                                <label className="block text-xs font-medium text-gray-600 mb-1">Notes / Drawing Ref</label>
-                                <input
-                                  type="text"
-                                  value={item.notes}
-                                  onChange={e => updateLineItem(idx, 'notes', e.target.value)}
-                                  placeholder="e.g., Per DWG-MB-102 Rev C — deburr all edges"
-                                  className="w-full px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82] focus:border-transparent text-sm"
-                                />
-                              </div>
-                            </div>
-                          </div>
-                        ))}
-                        <button
-                          type="button"
-                          onClick={addLineItem}
-                          className="w-full py-2.5 border-2 border-dashed border-gray-300 rounded-xl text-sm font-semibold text-gray-500 hover:border-[#003D82] hover:text-[#003D82] transition-colors"
-                        >
-                          <Plus className="w-4 h-4 inline mr-1" /> Add Another Line Item
-                        </button>
-                      </div>
-                    )}
-                  </div>
-
                   <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
                     <div className="flex items-start">
                       <AlertCircle className="w-5 h-5 text-blue-600 mr-2 mt-0.5 flex-shrink-0" />
@@ -966,45 +793,6 @@ export default function CreateRFQPage() {
                               {file.name}
                             </div>
                           ))}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* ── Line Items Review ── */}
-                    {formData.lineItems.filter(li => li.part.trim()).length > 0 && (
-                      <div>
-                        <h3 className="text-sm font-medium text-gray-500 mb-3 flex items-center gap-2">
-                          <Package className="w-4 h-4" />
-                          Line Items / Parts List
-                          <span className="text-xs font-medium bg-blue-50 text-[#003D82] px-2 py-0.5 rounded-full">
-                            {formData.lineItems.filter(li => li.part.trim()).length} items
-                          </span>
-                        </h3>
-                        <div className="overflow-x-auto rounded-xl border border-gray-200">
-                          <table className="w-full text-sm">
-                            <thead className="bg-gray-50 border-b border-gray-200">
-                              <tr>
-                                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Part</th>
-                                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Qty</th>
-                                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Material</th>
-                                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Tolerance</th>
-                                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Finish</th>
-                                <th className="text-left px-4 py-2.5 font-semibold text-gray-600 text-xs uppercase tracking-wider">Notes</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-100">
-                              {formData.lineItems.filter(li => li.part.trim()).map((item, idx) => (
-                                <tr key={idx} className="hover:bg-gray-50 transition-colors">
-                                  <td className="px-4 py-3 font-medium text-gray-900">{item.part}</td>
-                                  <td className="px-4 py-3 text-gray-700">{item.qty || '—'}</td>
-                                  <td className="px-4 py-3 text-gray-700">{item.material || '—'}</td>
-                                  <td className="px-4 py-3 text-gray-700 font-mono text-xs">{item.tolerance || '—'}</td>
-                                  <td className="px-4 py-3 text-gray-700">{item.finish || '—'}</td>
-                                  <td className="px-4 py-3 text-gray-500 text-xs max-w-[160px] truncate">{item.notes || '—'}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
                         </div>
                       </div>
                     )}

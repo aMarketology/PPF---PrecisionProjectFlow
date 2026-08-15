@@ -307,7 +307,7 @@ export default function Navigation() {
 
             {/* ── Notification Bell ── */}
             {user && (
-              <Link href="/activity" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Activity Feed">
+              <Link href="/messages" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Open messages">
                 <Bell className="w-5 h-5 text-gray-500" />
                 <AnimatePresence>
                   {unreadCount > 0 && (
