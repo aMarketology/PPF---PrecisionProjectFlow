@@ -96,7 +96,7 @@ export default function Footer() {
 
           {/* Services */}
           <div>
-            <h3 className="text-lg font-bold mb-6 text-gray-900">Engineering Services</h3>
+            <h3 className="text-lg font-bold mb-6 text-gray-900">Vendor Services</h3>
             <ul className="space-y-3">
               {services.map((service, index) => (
                 <motion.li
@@ -132,7 +132,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li className="text-gray-600 text-sm">
-                <p className="font-semibold text-gray-900 mb-2">For Engineers:</p>
+                <p className="font-semibold text-gray-900 mb-2">For Vendors:</p>
                 <ul className="space-y-2">
                   {forEngineers.map((item, index) => (
                     <li key={index}>
@@ -149,7 +149,7 @@ export default function Footer() {
 
         {/* Bottom Bar */}
         <div className="py-6 border-t border-gray-200 flex flex-col md:flex-row justify-between items-center gap-4 text-sm text-gray-600">
-          <p>&copy; 2024 Precision Product Flow. All rights reserved.</p>
+          <p>&copy; 2026 Precision Product Flow. All rights reserved.</p>
           <div className="flex gap-6">
             <Link 
               href="/privacy-policy"
