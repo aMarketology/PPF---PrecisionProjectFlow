@@ -9,7 +9,7 @@ import Navigation from '@/app/components/Navigation';
 import Footer from '@/app/components/Footer';
 import Link from 'next/link';
 import {
-  Building2, Users, UserPlus, Settings2, Loader2, Search, X,
+  Building2, Users, UserPlus, UserMinus, Settings2, Loader2, Search, X,
   Mail, Shield, Trash2, Crown, MessageSquare, Hash, ArrowLeft,
   MapPin, Globe, Phone, Tag, Edit3, CheckCircle2, AlertCircle,
 } from 'lucide-react';
@@ -58,6 +58,7 @@ export default function CompanyDashboardPage() {
   const [inviteResults, setInviteResults] = useState<any[]>([]);
   const [inviteSearching, setInviteSearching] = useState(false);
   const [inviting, setInviting] = useState<string | null>(null);
+  const [leavingCompany, setLeavingCompany] = useState(false);
 
   useEffect(() => {
     if (!companyId) return;
@@ -175,6 +176,24 @@ export default function CompanyDashboardPage() {
       loadCompany(user.id);
     } catch (err: any) {
       toast.error(err.message || 'Failed to update role');
+    }
+  };
+
+  const handleLeaveCompany = async () => {
+    if (!company) return;
+    if (!window.confirm(`Leave ${company.company_name}? You will lose access to its team channels.`)) return;
+
+    setLeavingCompany(true);
+    try {
+      const response = await fetch(`/api/companies/${company.id}/leave`, { method: 'POST' });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to leave company');
+      toast.success(`You left ${company.company_name}`);
+      router.push('/companies');
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to leave company');
+    } finally {
+      setLeavingCompany(false);
     }
   };
 
@@ -312,6 +331,15 @@ export default function CompanyDashboardPage() {
                       className="flex items-center gap-3 w-full px-4 py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold rounded-xl transition-all text-sm">
                       <Building2 className="w-4 h-4" /> View Public Profile
                     </Link>
+                    <button
+                      type="button"
+                      onClick={handleLeaveCompany}
+                      disabled={leavingCompany}
+                      className="flex items-center gap-3 w-full px-4 py-3 border border-red-200 text-red-600 hover:bg-red-50 font-semibold rounded-xl transition-all text-sm disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {leavingCompany ? <Loader2 className="w-4 h-4 animate-spin" /> : <UserMinus className="w-4 h-4" />}
+                      Leave Company
+                    </button>
                   </div>
                 </div>
               </div>

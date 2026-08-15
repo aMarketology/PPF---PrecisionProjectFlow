@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     }
 
     const { error: conversationUpdateError } = await supabase.from('user_conversations')
-      .update({ is_unlocked: false, last_message_at: new Date().toISOString() })
+      .update({ last_message_at: new Date().toISOString() })
       .eq('id', conversationId);
     if (conversationUpdateError) throw new Error(conversationUpdateError.message);
 

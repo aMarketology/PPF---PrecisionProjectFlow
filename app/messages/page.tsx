@@ -9,6 +9,7 @@ import {
   Paperclip, FileText, Download, ExternalLink, Zap,
   Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown, AtSign,
   Shield, Trash2, Edit3, UserPlus, UserMinus, Briefcase,
+  ThumbsUp, ArrowLeft,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -35,6 +36,7 @@ interface Conversation {
 interface Message {
   id: string; conversation_id: string; sender_id: string; content: string;
   is_read: boolean; read_at: string | null; created_at: string; is_system_message?: boolean;
+  is_paid?: boolean;
   message_type?: 'text' | 'system' | 'company_invite' | 'rfq_offer';
   message_metadata?: Record<string, unknown> | null;
   attachment_url?: string | null; attachment_name?: string | null; attachment_type?: 'image' | 'pdf' | 'file' | null;
@@ -155,6 +157,7 @@ function MessagesPageInner() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [thumbsUpReactions, setThumbsUpReactions] = useState<Record<string, { count: number; reacted: boolean }>>({});
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isSending, setIsSending] = useState(false);
@@ -167,6 +170,9 @@ function MessagesPageInner() {
   const [convFilter, setConvFilter] = useState('');
   const [showNewConvModal, setShowNewConvModal] = useState(false);
   const [showUnlockModal, setShowUnlockModal] = useState(false);
+  const [offerToReview, setOfferToReview] = useState<RFQOfferMessage | null>(null);
+  const [showOfferReview, setShowOfferReview] = useState(false);
+  const [unlockingOfferMessageId, setUnlockingOfferMessageId] = useState<string | null>(null);
   const [paywallSecret, setPaywallSecret] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
@@ -239,6 +245,20 @@ function MessagesPageInner() {
     const existing = conversations.find(c => c.other_user?.id === withId);
     if (existing) setSelectedConversation(existing); else openOrCreateConversation(withId);
   }, [searchParams, currentUserId, isLoadingConversations]);
+  useEffect(() => {
+    const conversationId = searchParams.get('conversation');
+    if (!conversationId || isLoadingConversations) return;
+    const conversation = conversations.find(item => item.id === conversationId);
+    if (conversation) setSelectedConversation(conversation);
+  }, [searchParams, conversations, isLoadingConversations]);
+  useEffect(() => {
+    if (!selectedConversation) return;
+    if (searchParams.get('conversation') === selectedConversation.id) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('with');
+    params.set('conversation', selectedConversation.id);
+    router.replace(`/messages?${params.toString()}`, { scroll: false });
+  }, [selectedConversation?.id, searchParams, router]);
   useEffect(() => { if (searchQuery.length >= 2) searchUsers(); else setSearchResults([]); }, [searchQuery]);
   useEffect(() => { if (memberSearchQuery.length >= 2) searchMembers(); else setMemberSearchResults([]); }, [memberSearchQuery]);
   useEffect(() => {
@@ -672,11 +692,44 @@ function MessagesPageInner() {
     setIsLoadingMessages(true);
     try {
       const supabase = createClient();
-      const { data, error } = await supabase.from('user_messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: true });
+      const [{ data, error }, reactionsResponse] = await Promise.all([
+        supabase.from('user_messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: true }),
+        fetch(`/api/messages/reactions?conversationId=${conversationId}`),
+      ]);
       if (error) throw error;
       setMessages(data || []);
+      if (reactionsResponse.ok) {
+        const { reactions } = await reactionsResponse.json();
+        const grouped: Record<string, { count: number; reacted: boolean }> = {};
+        for (const reaction of reactions || []) {
+          const current = grouped[reaction.message_id] || { count: 0, reacted: false };
+          current.count += 1;
+          current.reacted ||= reaction.user_id === currentUserId;
+          grouped[reaction.message_id] = current;
+        }
+        setThumbsUpReactions(grouped);
+      }
     } catch (err: any) { console.error('loadMessages:', err); }
     finally { setIsLoadingMessages(false); }
+  };
+
+  const toggleThumbsUp = async (messageId: string) => {
+    if (!selectedConversation) return;
+    try {
+      const response = await fetch('/api/messages/reactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId, conversationId: selectedConversation.id }),
+      });
+      const data = await response.json();
+      if (!response.ok) throw new Error(data.error || 'Failed to update reaction');
+      setThumbsUpReactions(previous => ({
+        ...previous,
+        [messageId]: { count: data.count, reacted: data.active },
+      }));
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to update reaction');
+    }
   };
 
   const markMessagesAsRead = async (conversationId: string) => {
@@ -690,7 +743,10 @@ function MessagesPageInner() {
 
   const isFreeConversation = (conv: Conversation) => {
     if (conv.conversation_type !== 'direct') return true; // channels & groups are always free
-    return conv.is_unlocked;
+    const isRfqApplicant = messages.some(message =>
+      message.message_type === 'rfq_offer' && message.sender_id === currentUserId
+    );
+    return conv.is_unlocked || isRfqApplicant;
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -760,8 +816,36 @@ function MessagesPageInner() {
       setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, is_unlocked: true } : c));
       toast.success('Conversation unlocked! Message freely now. 🔓');
       await loadMessages(selectedConversation.id);
+      if (offerToReview) setShowOfferReview(true);
     } catch (err: any) { console.error('handleUnlock:', err); toast.error(err.message || 'Failed to unlock'); }
     finally { setIsUnlocking(false); }
+  };
+
+  const handleOfferUnlock = async (message: Message, offer: RFQOfferMessage) => {
+    if (message.is_paid) {
+      setOfferToReview(offer);
+      setShowOfferReview(true);
+      return;
+    }
+    setUnlockingOfferMessageId(message.id);
+    try {
+      const res = await fetch('/api/rfq/offer/unlock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: message.id }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to unlock RFQ application');
+      setTokenBalance(data.tokenBalance);
+      setMessages(previous => previous.map(item => item.id === message.id ? { ...item, is_paid: true } : item));
+      setOfferToReview(offer);
+      setShowOfferReview(true);
+      toast.success(data.tokensSpent ? 'RFQ application unlocked for 50 tokens.' : 'RFQ application is already unlocked.');
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to unlock RFQ application');
+    } finally {
+      setUnlockingOfferMessageId(null);
+    }
   };
 
   const searchUsers = async () => {
@@ -816,27 +900,27 @@ function MessagesPageInner() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex flex-col font-jakarta">
       <Navigation />
-      <div className="flex-1 pt-24 pb-12 px-4">
+      <div className="flex-1 pt-20 pb-4 px-2 sm:pt-24 sm:pb-12 sm:px-4">
         <div className="max-w-7xl mx-auto">
-          <div className="mb-6 flex items-center justify-between">
+          <div className="mb-3 sm:mb-6 flex items-center justify-between px-1 sm:px-0">
             <div>
-              <h1 className="text-3xl font-bold text-gray-900">Messages</h1>
-              <p className="text-gray-500 text-sm mt-0.5">Connect with engineers and clients</p>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5 hidden sm:block">Connect with engineers and clients</p>
             </div>
             {tokenBalance !== null && (
-              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-4 py-2 shadow-sm">
+              <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
                 <Zap className="w-4 h-4 text-[#FF6B35]" />
-                <span className="font-bold text-gray-900">{tokenBalance.toLocaleString()}</span>
-                <span className="text-gray-500 text-sm">tokens</span>
+                <span className="font-bold text-gray-900 text-sm sm:text-base">{tokenBalance.toLocaleString()}</span>
+                <span className="text-gray-500 text-xs sm:text-sm">tokens</span>
               </div>
             )}
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden" style={{ height: '72vh' }}>
+          <div className="bg-white rounded-none sm:rounded-2xl shadow-lg border-0 sm:border sm:border-gray-100 overflow-hidden h-[calc(100dvh-150px)] sm:h-[calc(100dvh-190px)] md:h-[72vh]">
             <div className="flex h-full">
 
               {/* Sidebar — Slack-style with sections */}
-              <div className="w-72 border-r border-gray-100 flex flex-col flex-shrink-0 bg-gray-50/50">
+              <div className={`${selectedConversation ? 'hidden' : 'flex'} md:flex w-full md:w-72 border-r border-gray-100 flex-col flex-shrink-0 bg-gray-50/50`}>
                 {/* Header */}
                 <div className="p-3 border-b border-gray-200 space-y-2">
                   <div className="flex items-center justify-between">
@@ -948,12 +1032,20 @@ function MessagesPageInner() {
               </div>
 
               {/* Thread */}
-              <div className="flex-1 flex flex-col min-w-0">
+              <div className={`${selectedConversation ? 'flex' : 'hidden'} md:flex flex-1 flex-col min-w-0`}>
                 {selectedConversation ? (
                   <>
                     {/* Header */}
-                    <div className="px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-white">
-                      <div className="flex items-center gap-3">
+                    <div className="px-3 sm:px-5 py-3.5 border-b border-gray-100 flex items-center justify-between bg-white">
+                      <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedConversation(null)}
+                          className="md:hidden -ml-1 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
+                          title="Back to conversations"
+                        >
+                          <ArrowLeft className="w-5 h-5" />
+                        </button>
                         {selectedConversation.conversation_type === 'channel' ? (
                           <div className="w-10 h-10 rounded-lg bg-[#003D82]/10 flex items-center justify-center">
                             <Hash className="w-5 h-5 text-[#003D82]" />
@@ -965,8 +1057,8 @@ function MessagesPageInner() {
                         ) : (
                           <Avatar user={selectedConversation.other_user} size="md" />
                         )}
-                        <div>
-                          <h2 className="font-bold text-gray-900">
+                        <div className="min-w-0">
+                          <h2 className="font-bold text-gray-900 truncate">
                             {selectedConversation.conversation_type === 'direct'
                               ? selectedConversation.other_user?.full_name
                               : selectedConversation.name || 'Unnamed'}
@@ -1049,9 +1141,19 @@ function MessagesPageInner() {
                                         </div>
                                         {offer.note && <p className="whitespace-pre-wrap text-xs leading-relaxed text-gray-600">{offer.note}</p>}
                                       </div>
-                                      <div className="flex items-center gap-2 border-t border-amber-200 bg-amber-50 px-4 py-2.5 text-xs font-medium text-amber-800">
-                                        <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-                                        Unlock this conversation for 50 tokens to reply.
+                                      <div className="flex flex-col gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                        <span className="flex items-center gap-2 text-xs font-medium text-amber-800">
+                                          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                                          {msg.is_paid ? 'Full RFQ application unlocked' : 'Unlock the complete RFQ application'}
+                                        </span>
+                                        <button
+                                          onClick={() => handleOfferUnlock(msg, offer)}
+                                          disabled={unlockingOfferMessageId === msg.id}
+                                          className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#003D82] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#002960] disabled:opacity-60"
+                                        >
+                                          {unlockingOfferMessageId === msg.id ? <Loader className="h-3.5 w-3.5 animate-spin" /> : msg.is_paid ? <FileText className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                          {msg.is_paid ? 'Review full application' : 'Unlock application for 50'}
+                                        </button>
                                       </div>
                                     </div>
                                   </div>
@@ -1135,6 +1237,19 @@ function MessagesPageInner() {
                                       <span>{formatDistanceToNow(new Date(msg.created_at), { addSuffix: true })}</span>
                                       {isOwn && (msg.is_read ? <CheckCheck className="w-3.5 h-3.5 text-blue-400" /> : <Check className="w-3.5 h-3.5" />)}
                                     </div>
+                                    <button
+                                      type="button"
+                                      onClick={() => toggleThumbsUp(msg.id)}
+                                      className={`mt-1 inline-flex items-center gap-1 ${isOwn ? 'self-end' : 'self-start'} rounded-full border px-2 py-1 text-[10px] font-semibold transition-colors ${
+                                        thumbsUpReactions[msg.id]?.reacted
+                                          ? 'border-[#003D82] bg-blue-50 text-[#003D82]'
+                                          : 'border-gray-200 bg-white text-gray-400 hover:border-[#003D82] hover:text-[#003D82]'
+                                      }`}
+                                      title="Thumbs up"
+                                    >
+                                      <ThumbsUp className="h-3 w-3" />
+                                      {thumbsUpReactions[msg.id]?.count > 0 && thumbsUpReactions[msg.id].count}
+                                    </button>
                                   </div>
                                 </div>
                               </motion.div>
@@ -1206,7 +1321,7 @@ function MessagesPageInner() {
               </div>
 
               {/* Right Sidebar — Company & Team */}
-              <div className="w-64 border-l border-gray-100 flex flex-col flex-shrink-0 bg-gray-50/30">
+              <div className="hidden lg:flex w-64 border-l border-gray-100 flex-col flex-shrink-0 bg-gray-50/30">
                 {userCompanyId && userCompanyName ? (
                   <>
                     {/* Company Header */}
@@ -1418,6 +1533,55 @@ function MessagesPageInner() {
                     <Plus className="w-4 h-4" /> New Message
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* RFQ application review */}
+      <AnimatePresence>
+        {showOfferReview && offerToReview && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 12 }}
+              className="max-h-[90vh] w-full max-w-2xl overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={event => event.stopPropagation()}>
+              <div className="flex items-start justify-between gap-4 bg-[#003D82] px-6 py-5 text-white">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15"><FileText className="h-5 w-5" /></div>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">RFQ application</p>
+                    <h3 className="truncate text-lg font-bold">{offerToReview.title}</h3>
+                  </div>
+                </div>
+                <button onClick={() => setShowOfferReview(false)} className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white" title="Close application review"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="max-h-[calc(90vh-156px)] space-y-6 overflow-y-auto p-6">
+                <div className="grid gap-4 sm:grid-cols-3">
+                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-gray-400">Applicant</p>
+                    <p className="mt-1 font-semibold text-gray-900">{offerToReview.vendorName}</p>
+                  </div>
+                  <div className="rounded-xl border border-emerald-100 bg-emerald-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-emerald-700">Proposed total</p>
+                    <p className="mt-1 flex items-center gap-1 text-lg font-extrabold text-emerald-700"><DollarSign className="h-4 w-4" />{Number(offerToReview.amount).toLocaleString()}</p>
+                  </div>
+                  <div className="rounded-xl border border-blue-100 bg-blue-50 p-4">
+                    <p className="text-[10px] font-bold uppercase tracking-wide text-[#003D82]">Delivery estimate</p>
+                    <p className="mt-1 font-semibold text-gray-900">{offerToReview.deliveryDays ? `${offerToReview.deliveryDays} days` : 'Not specified'}</p>
+                  </div>
+                </div>
+                <div>
+                  <p className="mb-2 text-sm font-bold text-gray-900">Application details</p>
+                  <div className="min-h-28 whitespace-pre-wrap rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm leading-relaxed text-gray-700">
+                    {offerToReview.note || 'The applicant did not add notes or additional requirements.'}
+                  </div>
+                </div>
+              </div>
+              <div className="flex flex-col-reverse gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4 sm:flex-row sm:justify-end">
+                <button onClick={() => setShowOfferReview(false)} className="rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 transition-colors hover:bg-white">Back to messages</button>
+                <button onClick={() => { setShowOfferReview(false); }} className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#003D82] px-4 py-2.5 text-sm font-bold text-white transition-colors hover:bg-[#002960]">
+                  <MessageSquare className="h-4 w-4" /> Message {offerToReview.vendorName}
+                </button>
               </div>
             </motion.div>
           </motion.div>

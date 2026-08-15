@@ -146,9 +146,9 @@ export async function POST(
           is_read: false,
         });
 
-        // Ensure conversation stays LOCKED (client must pay to unlock)
+        // Preserve existing DM access. New direct conversations default to locked.
         await supabase.from('user_conversations')
-          .update({ is_unlocked: false, last_message_at: new Date().toISOString() })
+          .update({ last_message_at: new Date().toISOString() })
           .eq('id', convId);
       }
     } catch (e) {

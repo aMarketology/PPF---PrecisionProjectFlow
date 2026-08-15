@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,6 +36,30 @@ export async function POST(request: NextRequest) {
 
     if (convErr || !conv) {
       return NextResponse.json({ error: 'Conversation not found' }, { status: 404 });
+    }
+
+    // The user who submitted an RFQ offer is never charged to message
+    // about that offer; only the RFQ poster may need to unlock the thread.
+    const serviceSupabase = createServiceClient();
+    const { data: submittedOffer } = await serviceSupabase
+      .from('rfq_offers')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .eq('vendor_id', user.id)
+      .limit(1)
+      .maybeSingle();
+    if (submittedOffer) {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('token_balance')
+        .eq('id', user.id)
+        .single();
+      return NextResponse.json({
+        success: true,
+        tokensSpent: 0,
+        tokenBalance: profile?.token_balance ?? 0,
+        applicantAccess: true,
+      });
     }
 
     // 2. Already unlocked — return success without charging again

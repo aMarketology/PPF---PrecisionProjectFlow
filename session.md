@@ -1,12 +1,22 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 14, 2026
+**Last updated:** August 15, 2026
 **Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🚚 Shipping &amp; Tracking · 🤝 Contract-to-Unlock · 📦 Line Items · 🖥️ Admin CLI
 
 ---
 
 ## 📍 Current Focus
 **Admin CLI + RFQ Offer Flow — End-to-end testing.**
+
+### Company membership
+- Users can now leave a company from `/dashboard/company/[id]` through `POST /api/companies/[id]/leave`.
+- Leaving marks their membership removed, clears the linked profile company through the existing trigger, and removes them from company channels.
+- Owners may also leave; the company record remains intact for later administration.
+
+### RFQ proposal messages
+- RFQ proposals now use `user_messages.message_type = 'rfq_offer'` with structured JSONB in `message_metadata`; ordinary `content` remains a readable fallback.
+- `app/messages/page.tsx` renders RFQ offers as compact proposal cards rather than normal chat bubbles.
+- Run `supabase/RFQ_MESSAGE_TYPES.sql` to add the typed-message columns and convert existing `[RFQ_OFFER]...` messages.
 
 ### ✅ Just Completed — Admin CLI System
 1. **`app/api/admin/route.ts`** — Dual-auth (Bearer JWT for CLI + cookie for browser), centralized `getAuthedAdmin()` helper, new `grant-tokens` POST action.

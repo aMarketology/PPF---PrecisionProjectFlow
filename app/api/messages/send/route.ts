@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { sendNewMessageEmail } from '@/lib/email';
 
 export const dynamic = 'force-dynamic';
@@ -77,7 +78,21 @@ export async function POST(request: NextRequest) {
         const { data } = await supabase.rpc('same_company', { user_a: user.id, user_b: otherUserId });
         isSameCompany = data === true;
       } catch {}
-      isFree = isUnlocked || areFriends || isSameCompany;
+      // An RFQ applicant may always discuss the offer they submitted.
+      // The RFQ poster separately unlocks the thread when it is otherwise locked.
+      let isRfqApplicant = false;
+      if (!isUnlocked) {
+        const serviceSupabase = createServiceClient();
+        const { data: submittedOffer } = await serviceSupabase
+          .from('rfq_offers')
+          .select('id')
+          .eq('conversation_id', conversationId)
+          .eq('vendor_id', user.id)
+          .limit(1)
+          .maybeSingle();
+        isRfqApplicant = !!submittedOffer;
+      }
+      isFree = isUnlocked || areFriends || isSameCompany || isRfqApplicant;
     }
 
     if (!isFree) {
