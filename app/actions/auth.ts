@@ -2,7 +2,6 @@
 
 import { createClient } from '@/lib/supabase/server'
 import { revalidatePath } from 'next/cache'
-import { redirect } from 'next/navigation'
 import { sendWelcomeEmail } from '@/lib/email'
 
 // Sign up function matching simplified profiles table
@@ -91,7 +90,8 @@ export async function signOut() {
   }
 
   revalidatePath('/', 'layout')
-  redirect('/')
+  // No redirect — caller stays on the current page.
+  return { success: true }
 }
 
 export async function getUser() {

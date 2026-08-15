@@ -217,7 +217,7 @@ export default function ActivityPage() {
                     </div>
                     {a.target_type === 'rfq' && a.target_id && (
                       <Link href={`/rfq/${a.target_id}`} className="text-xs font-semibold text-[#003D82] hover:text-[#002960] flex items-center gap-1">
-                        View RFQ <ExternalLink className="w-3 h-3" />
+                        {a.activity_type === 'offer_submitted' ? 'See Bid' : 'View RFQ'} <ExternalLink className="w-3 h-3" />
                       </Link>
                     )}
                   </div>

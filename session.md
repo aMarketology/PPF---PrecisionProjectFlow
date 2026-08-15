@@ -1,32 +1,38 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 13, 2026
-**Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🚚 Shipping &amp; Tracking · 🤝 Contract-to-Unlock · 📦 Line Items on RFQs
+**Last updated:** August 14, 2026
+**Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🚚 Shipping &amp; Tracking · 🤝 Contract-to-Unlock · 📦 Line Items · 🖥️ Admin CLI
 
 ---
 
 ## 📍 Current Focus
-**RFQ Marketplace — Real RFQ Posted + Line Items Feature.**
+**Admin CLI + RFQ Offer Flow — End-to-end testing.**
 
-### ✅ Just Completed
-1. **Realistic CNC RFQ posted** from `precisionprojectflow@gmail.com` (Project2Flow):
-   - **Title**: CNC Machined Parts Assembly — Custom Bracket Kit (250 Units)
-   - **Category**: CNC Machining · **Budget**: $18,000 - $28,000 · **Location**: Portland, OR
-   - **NDA Required** · **Material**: 6061-T6 Aluminum, 304 Stainless Steel
-   - **Live at**: https://www.precisionprojectflow.com/rfq/cnc-machined-parts-assembly-custom-bracket-kit-250-units-7ed90ade
+### ✅ Just Completed — Admin CLI System
+1. **`app/api/admin/route.ts`** — Dual-auth (Bearer JWT for CLI + cookie for browser), centralized `getAuthedAdmin()` helper, new `grant-tokens` POST action.
+2. **`scripts/admin-cli.js`** — Unified CLI: `stats`, `list <tab>`, `delete <tab> <id>`, `grant-tokens <userId> <amount>`, `grant-tokens-by-email <email> <amount>`. Supports `--url` and `--prod` flags.
+3. **`.env.local`** — Added `ADMIN_EMAIL=precisionprojectflow@gmail.com` + `ADMIN_PASSWORD=123456md`. Removed stale `PPF_ADMIN_*` vars and stray `ADMIN_API_TOKEN`.
+4. **Verified**: `stats` → 1 RFQ, `list rfqs` → CNC RFQ, `grant-tokens-by-email vendor@ppf.test 500` → 720 tokens, non-admin JWT → 401.
 
-2. **Line Items feature added** (code complete, needs DB migration):
-   - `supabase/ADD_RFQ_LINE_ITEMS.sql` — adds `line_items jsonb` column
-   - `app/rfq/create/page.tsx` — multi-line editor with part/qty/material/tolerance/finish/notes
-   - `app/rfq/[id]/page.tsx` — line items table display on detail page
-   - `app/rfq/page.tsx` — line items preview chips on feed cards
-   - **⚠️ DB migration not yet applied** — run in Supabase SQL Editor:
-     ```sql
-     ALTER TABLE public.rfqs ADD COLUMN IF NOT EXISTS line_items jsonb NOT NULL DEFAULT '[]'::jsonb;
-     ```
+### 🧪 Test Accounts
+| Account | Type | Tokens | Admin |
+|---------|------|--------|-------|
+| `precisionprojectflow@gmail.com` (Project2Flow) | engineer | 10,000 | ✅ |
+| `vendor@ppf.test` (Vendor) | engineer | 720 | ❌ |
+
+### 📋 Single RFQ in Marketplace
+- **CNC Machined Parts Assembly — Custom Bracket Kit (250 Units)** — `0a1e8cf8-...`
+- 5 line items (Mounting Bracket, Support Plate, Pivot Arm, Spacer Sleeve, Retaining Clip)
+- Owner: `precisionprojectflow@gmail.com` · Status: `open` · 0 offers
+4. **Auth fix** — `app/api/rfq/offer` PATCH/DELETE now use cookie-based `createClient()` for auth (was `createServiceClient`, which can't read cookies → 401).
+
+### Milestone escrow flow
+```
+Contract created (active) → Vendor marks milestone delivered → Buyer releases funds → all released → contract completed
+```
 
 ### ⚠️ Prerequisite
-The `CONTRACTS_AND_ESCROW.sql` migration (contracts + contract_milestones tables + RPCs) must be run in Supabase if not already applied.
+The `CONTRACTS_AND_ESCROW.sql` migration (contracts + contract_milestones tables + RPCs) must be run in Supabase if not already applied. It was authored earlier but verify the tables/RPCs exist live.
 
 ---
 

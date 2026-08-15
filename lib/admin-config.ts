@@ -2,8 +2,7 @@
 // Add your email address here to be the platform owner/admin
 
 export const ADMIN_EMAILS: string[] = [
-  // Add your email address below to gain admin access
-  // Example: 'youremail@example.com',
+  'precisionprojectflow@gmail.com',
 ]
 
 export function isAdmin(email: string | null | undefined): boolean {

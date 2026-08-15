@@ -1,8 +1,43 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { createClient } from '@/lib/supabase/server';
+import { createClient as createSupabaseClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
+
+// ── Shared auth helper — supports both Bearer JWT (CLI) and cookie (browser) ──
+async function getAuthedAdmin(request: NextRequest) {
+  const authHeader = request.headers.get('Authorization');
+  let userId: string | null = null;
+
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    // CLI path: validate the Supabase JWT
+    const token = authHeader.substring(7);
+    const anonClient = createSupabaseClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    );
+    const { data } = await anonClient.auth.getUser(token);
+    userId = data.user?.id ?? null;
+  } else {
+    // Browser path: read the Next.js auth cookie
+    const serverSupabase = await createClient();
+    const { data } = await serverSupabase.auth.getUser();
+    userId = data.user?.id ?? null;
+  }
+
+  if (!userId) return null;
+
+  // Check admin flag in profiles (service role to bypass RLS)
+  const serviceSupabase = createServiceClient();
+  const { data: profile } = await serviceSupabase
+    .from('profiles')
+    .select('is_admin, full_name, email')
+    .eq('id', userId)
+    .single();
+
+  return profile?.is_admin ? { userId, profile } : null;
+}
 
 /**
  * GET /api/admin?action=check
@@ -11,7 +46,7 @@ export const dynamic = 'force-dynamic';
  * GET /api/admin?action=stats
  *   Returns { users, companies, products, services, rfqs } counts
  *
- * GET /api/admin?action=data&tab=users|companies|products|services|rfqs
+ * GET /api/admin?action=data&tab=users|companies|products|services|rfqs|orders
  *   Returns up to 50 rows for the given table
  */
 export async function GET(request: NextRequest) {
@@ -19,31 +54,15 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') ?? 'check';
 
-    // Use the server client (reads auth cookie) to get the current user
-    const serverSupabase = await createClient();
-    const { data: { user } } = await serverSupabase.auth.getUser();
-    if (!user) {
-      return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
+    const admin = await getAuthedAdmin(request);
+    if (!admin) {
+      return NextResponse.json({ error: 'Not authenticated or not an admin' }, { status: 401 });
     }
 
-    // Use service client (bypasses RLS) for DB queries
     const supabase = createServiceClient();
 
-    // Check admin status directly from profiles table
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('is_admin, full_name, email')
-      .eq('id', user.id)
-      .single();
-
-    const isAdmin = !!profile?.is_admin;
-
-    if (!isAdmin) {
-      return NextResponse.json({ isAdmin: false, error: 'Access denied' }, { status: 403 });
-    }
-
     if (action === 'check') {
-      return NextResponse.json({ isAdmin: true, profile });
+      return NextResponse.json({ isAdmin: true, profile: admin.profile });
     }
 
     if (action === 'stats') {
@@ -96,32 +115,58 @@ export async function GET(request: NextRequest) {
 }
 
 /**
- * POST /api/admin?action=delete&tab=users&id=xxx
- * POST /api/admin?action=toggle&tab=products|services&id=xxx
+ * POST /api/admin
+ * Body: { action, tab?, id?, userId?, amount?, active? }
+ *
+ * Actions:
+ *   delete  — delete a row (tab + id required)
+ *   toggle  — toggle active state (tab + id + body.active required)
+ *   grant-tokens — mint tokens to a user (userId + amount required)
  */
 export async function POST(request: NextRequest) {
   try {
-    const { searchParams } = new URL(request.url);
-    const action = searchParams.get('action');
-    const tab = searchParams.get('tab');
-    const id = searchParams.get('id');
-
-    if (!action || !id) {
-      return NextResponse.json({ error: 'action and id required' }, { status: 400 });
+    const admin = await getAuthedAdmin(request);
+    if (!admin) {
+      return NextResponse.json({ error: 'Not authenticated or not an admin' }, { status: 401 });
     }
 
-    // Get user from server client (reads auth cookie)
-    const serverSupabase = await createClient();
-    const { data: { user } } = await serverSupabase.auth.getUser();
-    if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
-
-    // Use service client for DB queries
     const supabase = createServiceClient();
+    const body = await request.json().catch(() => ({}));
+    const { searchParams } = new URL(request.url);
+    const action = searchParams.get('action') || body.action;
+    const tab = searchParams.get('tab') || body.tab;
+    const id = searchParams.get('id') || body.id;
 
-    const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', user.id).single();
-    if (!profile?.is_admin) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
+    // ── grant-tokens ──
+    if (action === 'grant-tokens') {
+      const userId = body.userId;
+      const amount = Number(body.amount);
+      if (!userId || !amount || amount <= 0) {
+        return NextResponse.json({ error: 'userId and positive amount required' }, { status: 400 });
+      }
 
+      const { error } = await supabase.rpc('add_tokens', {
+        p_user_id: userId,
+        p_amount: amount,
+        p_description: 'Admin grant via CLI',
+        p_stripe_payment_id: 'admin-cli-' + Date.now(),
+      });
+
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+      // Read back new balance
+      const { data: prof } = await supabase.from('profiles').select('email, token_balance').eq('id', userId).single();
+
+      return NextResponse.json({
+        success: true,
+        message: `Granted ${amount} tokens to ${prof?.email || userId}`,
+        newBalance: prof?.token_balance,
+      });
+    }
+
+    // ── delete ──
     if (action === 'delete') {
+      if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
       const table = tab === 'companies' ? 'company_profiles'
         : tab === 'rfqs' ? 'rfqs'
         : tab === 'users' ? 'profiles'
@@ -131,8 +176,9 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true });
     }
 
+    // ── toggle ──
     if (action === 'toggle') {
-      const body = await request.json();
+      if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
       const table = tab === 'products' ? 'products' : 'services';
       const col = tab === 'products' ? 'is_active' : 'active';
       const { error } = await supabase.from(table).update({ [col]: body.active }).eq('id', id);

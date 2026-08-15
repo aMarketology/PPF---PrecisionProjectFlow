@@ -8,10 +8,12 @@ import Navigation from '../components/Navigation';
 import Footer from '../components/Footer';
 import { Mail, Lock, AlertCircle, Loader } from 'lucide-react';
 import { toast } from 'react-hot-toast';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense } from 'react';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [formData, setFormData] = useState({
     email: '',
     password: '',
@@ -32,7 +34,14 @@ export default function LoginPage() {
         toast.error(result.error);
       } else {
         toast.success('Welcome back!');
-        // Fetch profile to redirect to correct dashboard
+        // If the user came from another page, send them back there
+        const redirectTo = searchParams.get('redirect');
+        if (redirectTo && redirectTo.startsWith('/') && !redirectTo.startsWith('//')) {
+          router.push(redirectTo);
+          router.refresh();
+          return;
+        }
+        // Otherwise fetch profile to redirect to correct dashboard
         const { createClient } = await import('@/lib/supabase/client');
         const supabase = createClient();
         const { data: { user } } = await supabase.auth.getUser();
@@ -206,5 +215,13 @@ export default function LoginPage() {
       </div>
       <Footer />
     </>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center"><Loader className="h-8 w-8 animate-spin text-[#003D82]" /></div>}>
+      <LoginForm />
+    </Suspense>
   );
 }

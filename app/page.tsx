@@ -323,6 +323,11 @@ export default function HomePage() {
                     : activity.target_type === 'feed_post' && activity.target_id
                     ? `/activity`
                     : null;
+                  const targetLabel = activity.activity_type === 'offer_submitted'
+                    ? 'See Bid'
+                    : activity.target_type === 'rfq'
+                    ? 'View RFQ'
+                    : 'View';
 
                   return (
                     <motion.div
@@ -366,7 +371,7 @@ export default function HomePage() {
                         </div>
                         {targetLink && (
                           <Link href={targetLink} className="text-[10px] font-semibold text-[#003D82] hover:text-[#002960] flex items-center gap-0.5">
-                            View <ExternalLink className="w-2.5 h-2.5" />
+                            {targetLabel} <ExternalLink className="w-2.5 h-2.5" />
                           </Link>
                         )}
                       </div>

@@ -178,7 +178,7 @@ export default function Navigation() {
                 { label: 'RFQ Feed', href: '/rfq' },
                 { label: 'Companies', href: '/companies' },
                 { label: 'Blog', href: '/blog' },
-                { label: 'Contact', href: '/contact' },
+                { label: 'Messages', href: '/messages' },
               ].map((item, index) => (
                 <motion.div
                   key={item.label}
@@ -539,7 +539,7 @@ export default function Navigation() {
                   { label: 'RFQ Feed', href: '/rfq' },
                   { label: 'Companies', href: '/companies' },
                   { label: 'Blog', href: '/blog' },
-                  { label: 'Contact', href: '/contact' },
+                  { label: 'Messages', href: '/messages' },
                 ].map((item, index) => (
                   <motion.div
                     key={item.label}
