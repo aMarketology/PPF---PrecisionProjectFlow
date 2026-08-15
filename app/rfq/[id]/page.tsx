@@ -22,7 +22,7 @@ interface RFQ {
   description: string; quantity: string | null; budget: string | null;
   timeline: string | null; location: string | null; material: string | null;
   attachment_urls: string[] | null; status: string; slug?: string | null;
-  rfq_type?: string; nda_required?: boolean; is_asap?: boolean;
+  rfq_type?: string; nda_required?: boolean; is_asap?: boolean; is_next_day_air?: boolean;
   inventory_status: string | null; lead_time_days: number | null; estimated_ship_date: string | null;
   created_at: string; updated_at: string;
   client?: { id: string; full_name: string; email: string; avatar_url?: string; company_name?: string };
@@ -335,7 +335,12 @@ export default function RFQDetailPage() {
                 )}
                 {rfq.is_asap && (
                   <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-orange-500/20 text-orange-200 border border-orange-400/30 rounded-full text-[11px] font-semibold">
-                    <Zap className="w-3 h-3" /> ASAP / Next Day Air
+                    <Zap className="w-3 h-3" /> ASAP
+                  </span>
+                )}
+                {rfq.is_next_day_air && (
+                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-sky-500/20 text-sky-200 border border-sky-400/30 rounded-full text-[11px] font-semibold">
+                    Next Day Air
                   </span>
                 )}
               </div>
@@ -419,7 +424,12 @@ export default function RFQDetailPage() {
               )}
               {rfq.is_asap && (
                 <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-[11px] font-semibold">
-                  <Zap className="w-3 h-3" /> ASAP / Next Day Air
+                  <Zap className="w-3 h-3" /> ASAP
+                </span>
+              )}
+              {rfq.is_next_day_air && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[11px] font-semibold">
+                  Next Day Air
                 </span>
               )}
             </div>

@@ -35,6 +35,7 @@ interface RFQ {
   estimated_ship_date?: string | null;
   nda_required?: boolean;
   is_asap?: boolean;
+  is_next_day_air?: boolean;
   status: 'open' | 'in_review' | 'awarded' | 'closed';
   created_at: string;
   updated_at: string;
@@ -130,7 +131,7 @@ export default function RFQMarketplacePage() {
       params.set('limit', '50');
       if (selectedStatus !== 'all') params.set('status', selectedStatus);
       
-      const res = await fetch(`/api/rfq/list?${params.toString()}`);
+      const res = await fetch(`/api/rfq/list?${params.toString()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to fetch RFQs');
       
       const json = await res.json();
@@ -762,6 +763,11 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                   {rfq.is_asap && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-orange-50 text-orange-700 border border-orange-200 rounded-full text-[9px] font-semibold">
                       <Zap className="w-2.5 h-2.5" />ASAP
+                    </span>
+                  )}
+                  {rfq.is_next_day_air && (
+                    <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[9px] font-semibold">
+                      Next Day Air
                     </span>
                   )}
                 </div>

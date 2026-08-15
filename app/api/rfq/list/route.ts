@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
+export const revalidate = 0;
 
 // GET /api/rfq/list?page=0&limit=50&category=Mechanical&search=...&status=open
 // Returns paginated RFQs with client profiles, offer counts, and lowest offer
@@ -118,6 +119,10 @@ export async function GET(request: NextRequest) {
       page,
       hasMore: rfqList.length === limit,
       total: count ?? 0,
+    }, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0',
+      },
     });
   } catch (error: any) {
     console.error('RFQ list error:', error);

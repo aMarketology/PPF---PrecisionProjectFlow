@@ -25,14 +25,22 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient();
     const { data: offer, error: offerError } = await supabase
       .from('rfq_offers')
-      .select('id, client_id, message_id')
+      .select('id, rfq_id, message_id')
       .eq('message_id', messageId)
       .single();
 
     if (offerError || !offer) {
       return NextResponse.json({ error: 'RFQ offer not found' }, { status: 404 });
     }
-    if (offer.client_id !== user.id) {
+    const { data: rfq, error: rfqError } = await supabase
+      .from('rfqs')
+      .select('client_id')
+      .eq('id', offer.rfq_id)
+      .single();
+    if (rfqError || !rfq) {
+      return NextResponse.json({ error: 'RFQ not found' }, { status: 404 });
+    }
+    if (rfq.client_id !== user.id) {
       return NextResponse.json({ error: 'Only the RFQ owner can unlock this application' }, { status: 403 });
     }
 

@@ -307,7 +307,7 @@ export default function Navigation() {
 
             {/* ── Notification Bell ── */}
             {user && (
-              <Link href="/messages" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Open messages">
+              <Link href="/notifications" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Open notifications">
                 <Bell className="w-5 h-5 text-gray-500" />
                 <AnimatePresence>
                   {unreadCount > 0 && (
@@ -404,6 +404,19 @@ export default function Navigation() {
                           >
                             <User className="h-4 w-4" />
                             <span>Profile & Settings</span>
+                          </Link>
+                          <Link
+                            href="/notifications"
+                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            onClick={() => setUserMenuOpen(false)}
+                          >
+                            <Bell className="h-4 w-4" />
+                            <span>Notifications</span>
+                            {unreadCount > 0 && (
+                              <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                                {unreadCount > 99 ? '99+' : unreadCount}
+                              </span>
+                            )}
                           </Link>
                           <Link
                             href="/messages"
@@ -575,6 +588,19 @@ export default function Navigation() {
                     >
                       <User className="h-4 w-4" />
                       <span>Profile & Settings</span>
+                    </Link>
+                    <Link
+                      href="/notifications"
+                      className="flex items-center gap-3 px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Bell className="h-4 w-4" />
+                      <span>Notifications</span>
+                      {unreadCount > 0 && (
+                        <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                          {unreadCount > 99 ? '99+' : unreadCount}
+                        </span>
+                      )}
                     </Link>
                     <Link
                       href="/messages"

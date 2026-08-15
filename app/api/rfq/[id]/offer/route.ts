@@ -136,7 +136,7 @@ export async function POST(
         };
 
         // Insert the offer as a system message in the DM
-        await supabase.from('user_messages').insert({
+        const { data: message, error: messageError } = await supabase.from('user_messages').insert({
           conversation_id: convId,
           sender_id: user.id,
           content: 'New RFQ offer received',
@@ -144,7 +144,13 @@ export async function POST(
           message_metadata: offerMetadata,
           is_system_message: true,
           is_read: false,
-        });
+        }).select('id').single();
+        if (messageError || !message) throw new Error(messageError?.message || 'Unable to create the offer message');
+
+        const { error: offerUpdateError } = await supabase.from('rfq_offers')
+          .update({ conversation_id: convId, message_id: message.id })
+          .eq('id', result.offer_id);
+        if (offerUpdateError) throw offerUpdateError;
 
         // Preserve existing DM access. New direct conversations default to locked.
         await supabase.from('user_conversations')
