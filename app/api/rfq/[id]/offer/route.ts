@@ -128,6 +128,8 @@ export async function POST(
         const vendorName = profile.full_name || 'A vendor';
         const offerMetadata = {
           rfqId: rfq.id,
+          vendorId: user.id,
+          ownerId: rfq.client_id,
           title: rfq.title,
           vendorName,
           amount: Number(amount),

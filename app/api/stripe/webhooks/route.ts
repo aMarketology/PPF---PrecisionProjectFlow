@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { headers } from 'next/headers';
 import Stripe from 'stripe';
-import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import { sendNewOrderEmailVendor, sendOrderConfirmationEmail } from '@/lib/email';
 
 // Mark this route as dynamic
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Handle the event
-    const supabase = await createClient();
+    const supabase = createServiceClient();
 
     switch (event.type) {
       case 'payment_intent.succeeded':
@@ -81,6 +81,23 @@ async function handlePaymentSuccess(
   supabase: any
 ) {
   console.log('Payment succeeded:', paymentIntent.id);
+
+  if (paymentIntent.metadata?.type === 'rfq_contract') {
+    const contractId = paymentIntent.metadata.contract_id;
+    if (!contractId) {
+      console.error('[webhook] RFQ contract payment is missing contract_id metadata');
+      return;
+    }
+    const { error } = await supabase.from('contracts').update({
+      status: 'active',
+      stripe_payment_intent_id: paymentIntent.id,
+      accepted_at: new Date().toISOString(),
+      started_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    }).eq('id', contractId);
+    if (error) console.error('[webhook] contract activation failed:', error);
+    return;
+  }
 
   // ── Token purchase safety net ───────────────────────────────────
   // If the buyer closed their browser before the client-side credit

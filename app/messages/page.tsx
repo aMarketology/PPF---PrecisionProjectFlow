@@ -9,7 +9,7 @@ import {
   Paperclip, FileText, Download, ExternalLink, Zap,
   Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown, AtSign,
   Shield, Trash2, Edit3, UserPlus, UserMinus, Briefcase,
-  ThumbsUp, ArrowLeft,
+  ThumbsUp, ArrowLeft, Calendar, CreditCard,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -44,6 +44,8 @@ interface Message {
 
 interface RFQOfferMessage {
   rfqId: string;
+  vendorId?: string;
+  ownerId?: string;
   title: string;
   vendorName: string;
   amount: number;
@@ -157,6 +159,7 @@ function MessagesPageInner() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [selectedConversation, setSelectedConversation] = useState<Conversation | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
+  const [rfqOfferContexts, setRfqOfferContexts] = useState<Record<string, { vendorId: string; ownerId: string | null }>>({});
   const [thumbsUpReactions, setThumbsUpReactions] = useState<Record<string, { count: number; reacted: boolean }>>({});
   const [isLoadingConversations, setIsLoadingConversations] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
@@ -165,6 +168,7 @@ function MessagesPageInner() {
   const [replyMessage, setReplyMessage] = useState('');
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserFullName, setCurrentUserFullName] = useState<string>('');
+  const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
   const [tokenBalance, setTokenBalance] = useState<number | null>(null);
   const [tokenPacks, setTokenPacks] = useState<Array<{ id: string; name: string; tokens: number; price_cents: number; unlocks: number }>>([]);
   const [convFilter, setConvFilter] = useState('');
@@ -173,6 +177,11 @@ function MessagesPageInner() {
   const [offerToReview, setOfferToReview] = useState<RFQOfferMessage | null>(null);
   const [showOfferReview, setShowOfferReview] = useState(false);
   const [unlockingOfferMessageId, setUnlockingOfferMessageId] = useState<string | null>(null);
+  const [proposalActionMessageId, setProposalActionMessageId] = useState<string | null>(null);
+  const [meetingOffer, setMeetingOffer] = useState<{ message: Message; offer: RFQOfferMessage } | null>(null);
+  const [meetingAt, setMeetingAt] = useState('');
+  const [meetingDuration, setMeetingDuration] = useState('30');
+  const [meetingNote, setMeetingNote] = useState('');
   const [paywallSecret, setPaywallSecret] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<UserProfile[]>([]);
@@ -522,10 +531,11 @@ function MessagesPageInner() {
       if (!user) { router.push('/login'); return; }
 
       // Fetch profile FIRST so we can set both id and company_id together
-      const { data: profile } = await supabase.from('profiles').select('token_balance, company_id, full_name').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('id, token_balance, company_id, full_name, email, user_type, avatar_url').eq('id', user.id).single();
       if (profile) {
         setTokenBalance(profile.token_balance ?? 0);
         setCurrentUserFullName(profile.full_name || '');
+        setCurrentUserProfile(profile);
         if (profile.company_id) {
           setUserCompanyId(profile.company_id);
           const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', profile.company_id).single();
@@ -706,12 +716,19 @@ function MessagesPageInner() {
     setIsLoadingMessages(true);
     try {
       const supabase = createClient();
-      const [{ data, error }, reactionsResponse] = await Promise.all([
+      const [{ data, error }, reactionsResponse, offerContextResponse] = await Promise.all([
         supabase.from('user_messages').select('*').eq('conversation_id', conversationId).order('created_at', { ascending: true }),
         fetch(`/api/messages/reactions?conversationId=${conversationId}`),
+        fetch(`/api/rfq/offer/action?conversationId=${conversationId}`),
       ]);
       if (error) throw error;
       setMessages(data || []);
+      if (offerContextResponse.ok) {
+        const { contexts } = await offerContextResponse.json();
+        setRfqOfferContexts(contexts || {});
+      } else {
+        setRfqOfferContexts({});
+      }
       if (reactionsResponse.ok) {
         const { reactions } = await reactionsResponse.json();
         const grouped: Record<string, { count: number; reacted: boolean }> = {};
@@ -859,6 +876,61 @@ function MessagesPageInner() {
       toast.error(error.message || 'Failed to unlock RFQ application');
     } finally {
       setUnlockingOfferMessageId(null);
+    }
+  };
+
+  const handleSendContract = async (message: Message) => {
+    setProposalActionMessageId(message.id);
+    try {
+      const res = await fetch('/api/rfq/offer/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messageId: message.id, action: 'send_contract' }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to send contract');
+      setTokenBalance(data.tokenBalance);
+      toast.success('Contract created. Continue to secure payment.');
+      window.location.href = data.checkoutUrl;
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to send contract');
+    } finally {
+      setProposalActionMessageId(null);
+    }
+  };
+
+  const handleScheduleMeeting = async () => {
+    if (!meetingOffer) return;
+    if (!meetingAt) {
+      toast.error('Choose a meeting date and time');
+      return;
+    }
+    setProposalActionMessageId(meetingOffer.message.id);
+    try {
+      const res = await fetch('/api/rfq/offer/action', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          messageId: meetingOffer.message.id,
+          action: 'schedule_meeting',
+          meetingAt: new Date(meetingAt).toISOString(),
+          durationMinutes: Number(meetingDuration),
+          meetingNote,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Failed to schedule meeting');
+      setTokenBalance(data.tokenBalance);
+      setMeetingOffer(null);
+      setMeetingAt('');
+      setMeetingDuration('30');
+      setMeetingNote('');
+      toast.success('Meeting invitation sent. 50 tokens spent.');
+      if (selectedConversation) await loadMessages(selectedConversation.id);
+    } catch (error: any) {
+      toast.error(error.message || 'Failed to schedule meeting');
+    } finally {
+      setProposalActionMessageId(null);
     }
   };
 
@@ -1125,12 +1197,28 @@ function MessagesPageInner() {
                             if (msg.is_system_message) {
                               const offer = parseRFQOfferMessage(msg);
                               if (offer) {
+                                const offerContext = rfqOfferContexts[msg.id];
+                                const isOfferSender = offer.vendorId
+                                  ? offer.vendorId === currentUserId
+                                  : offerContext
+                                    ? offerContext.vendorId === currentUserId
+                                    : isOwn;
+                                const isOfferOwner = offer.ownerId
+                                  ? offer.ownerId === currentUserId
+                                  : offerContext?.ownerId === currentUserId;
+                                const senderProfile = isOfferSender
+                                  ? currentUserProfile
+                                  : selectedConversation.other_user;
                                 return (
-                                  <div key={msg.id} className="flex justify-start my-3">
+                                  <div key={msg.id} className={`flex items-end gap-2 my-3 ${isOfferSender ? 'justify-end' : 'justify-start'}`}>
+                                    {!isOfferSender && <Avatar user={senderProfile} size="sm" />}
                                     <div className="w-full max-w-md overflow-hidden rounded-xl border border-[#003D82]/15 bg-white shadow-sm">
                                       <div className="flex items-center gap-2 border-b border-[#003D82]/10 bg-[#003D82] px-4 py-2.5 text-white">
                                         <FileText className="h-4 w-4" />
-                                        <span className="text-sm font-bold">New RFQ Offer</span>
+                                        <div className="min-w-0">
+                                          <span className="block text-sm font-bold">New RFQ Offer</span>
+                                          <span className="block truncate text-[10px] text-blue-100">Sent by {offer.vendorName}</span>
+                                        </div>
                                       </div>
                                       <div className="space-y-3 p-4">
                                         <div>
@@ -1155,21 +1243,54 @@ function MessagesPageInner() {
                                         </div>
                                         {offer.note && <p className="whitespace-pre-wrap text-xs leading-relaxed text-gray-600">{offer.note}</p>}
                                       </div>
-                                      <div className="flex flex-col gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                                        <span className="flex items-center gap-2 text-xs font-medium text-amber-800">
-                                          <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-                                          {msg.is_paid ? 'Full RFQ application unlocked' : 'Unlock the complete RFQ application'}
-                                        </span>
-                                        <button
-                                          onClick={() => handleOfferUnlock(msg, offer)}
-                                          disabled={unlockingOfferMessageId === msg.id}
-                                          className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#003D82] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#002960] disabled:opacity-60"
-                                        >
-                                          {unlockingOfferMessageId === msg.id ? <Loader className="h-3.5 w-3.5 animate-spin" /> : msg.is_paid ? <FileText className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                                          {msg.is_paid ? 'Review full application' : 'Unlock application for 50'}
-                                        </button>
-                                      </div>
+                                      {isOfferSender ? (
+                                        <div className="flex items-center gap-2 border-t border-blue-100 bg-blue-50 px-4 py-3 text-xs font-medium text-[#003D82]">
+                                          <Check className="h-3.5 w-3.5 flex-shrink-0" />
+                                          Application sent. The RFQ owner can unlock and review it.
+                                        </div>
+                                      ) : isOfferOwner ? (
+                                        <div className="flex flex-col gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                                          <span className="flex items-center gap-2 text-xs font-medium text-amber-800">
+                                            <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                                            {msg.is_paid ? 'Full RFQ application unlocked' : 'Unlock the complete RFQ application'}
+                                          </span>
+                                          <button
+                                            onClick={() => handleOfferUnlock(msg, offer)}
+                                            disabled={unlockingOfferMessageId === msg.id}
+                                            className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#003D82] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#002960] disabled:opacity-60"
+                                          >
+                                            {unlockingOfferMessageId === msg.id ? <Loader className="h-3.5 w-3.5 animate-spin" /> : msg.is_paid ? <FileText className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
+                                            {msg.is_paid ? 'Review full application' : 'Unlock application for 50'}
+                                          </button>
+                                        </div>
+                                      ) : null}
+                                      {msg.is_paid && (
+                                        <div className="flex flex-wrap gap-2 border-t border-gray-100 bg-white px-4 py-3">
+                                          {isOfferOwner && (
+                                            <button
+                                              type="button"
+                                              onClick={() => handleSendContract(msg)}
+                                              disabled={proposalActionMessageId === msg.id || (tokenBalance ?? 0) < 50}
+                                              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#FF6B35] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#E55A2B] disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                              {proposalActionMessageId === msg.id ? <Loader className="h-3.5 w-3.5 animate-spin" /> : <CreditCard className="h-3.5 w-3.5" />}
+                                              Send Contract · 50
+                                            </button>
+                                          )}
+                                          {(isOfferOwner || isOfferSender) && (
+                                            <button
+                                              type="button"
+                                              onClick={() => setMeetingOffer({ message: msg, offer })}
+                                              disabled={proposalActionMessageId === msg.id || (tokenBalance ?? 0) < 50}
+                                              className="inline-flex flex-1 items-center justify-center gap-1.5 rounded-lg border border-[#003D82]/20 bg-blue-50 px-3 py-2 text-xs font-bold text-[#003D82] transition-colors hover:bg-blue-100 disabled:cursor-not-allowed disabled:opacity-50"
+                                            >
+                                              <Calendar className="h-3.5 w-3.5" /> Schedule Meeting · 50
+                                            </button>
+                                          )}
+                                        </div>
+                                      )}
                                     </div>
+                                    {isOfferSender && <Avatar user={senderProfile} size="sm" />}
                                   </div>
                                 );
                               }
@@ -1547,6 +1668,61 @@ function MessagesPageInner() {
                     <Plus className="w-4 h-4" /> New Message
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* RFQ meeting scheduler */}
+      <AnimatePresence>
+        {meetingOffer && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+            <motion.div initial={{ scale: 0.96, opacity: 0, y: 12 }} animate={{ scale: 1, opacity: 1, y: 0 }} exit={{ scale: 0.96, opacity: 0, y: 12 }}
+              className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={event => event.stopPropagation()}>
+              <div className="flex items-start justify-between gap-4 bg-[#003D82] px-6 py-5 text-white">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Calendar className="h-5 w-5" /></div>
+                  <div>
+                    <p className="text-xs font-semibold uppercase text-blue-200">RFQ meeting</p>
+                    <h3 className="text-lg font-bold">Schedule a Meeting</h3>
+                  </div>
+                </div>
+                <button type="button" onClick={() => setMeetingOffer(null)} className="rounded-lg p-2 text-white/80 hover:bg-white/15 hover:text-white" title="Close meeting scheduler"><X className="h-5 w-5" /></button>
+              </div>
+              <div className="space-y-4 p-6">
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Date and time</label>
+                  <input
+                    type="datetime-local"
+                    value={meetingAt}
+                    min={new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 16)}
+                    onChange={event => setMeetingAt(event.target.value)}
+                    className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#003D82] focus:ring-2 focus:ring-blue-100"
+                  />
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Duration</label>
+                  <select value={meetingDuration} onChange={event => setMeetingDuration(event.target.value)} className="w-full rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#003D82] focus:ring-2 focus:ring-blue-100">
+                    <option value="15">15 minutes</option>
+                    <option value="30">30 minutes</option>
+                    <option value="45">45 minutes</option>
+                    <option value="60">60 minutes</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="mb-1.5 block text-sm font-semibold text-gray-700">Agenda <span className="font-normal text-gray-400">(optional)</span></label>
+                  <textarea value={meetingNote} onChange={event => setMeetingNote(event.target.value)} rows={3} placeholder="Topics to cover, dial-in details, or a meeting link" className="w-full resize-none rounded-xl border border-gray-300 px-3 py-2.5 text-sm text-gray-900 outline-none focus:border-[#003D82] focus:ring-2 focus:ring-blue-100" />
+                </div>
+                <div className="flex items-center gap-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-xs font-medium text-amber-800">
+                  <Zap className="h-4 w-4 flex-shrink-0" /> Sending this meeting invitation costs 50 tokens.
+                </div>
+              </div>
+              <div className="flex gap-3 border-t border-gray-100 bg-gray-50 px-6 py-4">
+                <button type="button" onClick={() => setMeetingOffer(null)} className="flex-1 rounded-xl border border-gray-300 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-white">Cancel</button>
+                <button type="button" onClick={handleScheduleMeeting} disabled={!meetingAt || proposalActionMessageId === meetingOffer.message.id || (tokenBalance ?? 0) < 50} className="inline-flex flex-1 items-center justify-center gap-2 rounded-xl bg-[#003D82] px-4 py-2.5 text-sm font-bold text-white hover:bg-[#002960] disabled:cursor-not-allowed disabled:opacity-50">
+                  {proposalActionMessageId === meetingOffer.message.id ? <Loader className="h-4 w-4 animate-spin" /> : <Calendar className="h-4 w-4" />} Send Invite · 50
+                </button>
               </div>
             </motion.div>
           </motion.div>

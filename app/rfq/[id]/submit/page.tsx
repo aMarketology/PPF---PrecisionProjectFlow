@@ -31,9 +31,6 @@ export default function SubmitOfferPage() {
   const router = useRouter();
   const rfqId = params?.id as string;
 
-  // Feature flag: when false, only offer amount is required for testing
-  const formFillRequired = process.env.NEXT_PUBLIC_FORM_FILL_REQUIRED !== 'false';
-
   const [rfq, setRfq] = useState<RFQ | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
@@ -49,6 +46,7 @@ export default function SubmitOfferPage() {
   const [contactName, setContactName] = useState('');
   const [lineItemPrices, setLineItemPrices] = useState<Record<number, string>>({});
   const [submitting, setSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submittedOfferId, setSubmittedOfferId] = useState<string | null>(null);
 
@@ -126,16 +124,12 @@ export default function SubmitOfferPage() {
 
   const handleSubmit = async () => {
     console.log('🔴 [SubmitOfferPage] handleSubmit');
+    setSubmitError(null);
     if (!offerAmount || isNaN(Number(offerAmount)) || Number(offerAmount) <= 0) {
-      toast.error('Please enter a valid total amount');
+      const message = 'Enter a valid total offer amount greater than $0.';
+      setSubmitError(message);
+      toast.error(message);
       return;
-    }
-
-    // When form-fill is required, validate contact fields
-    if (formFillRequired) {
-      if (!contactName.trim()) { toast.error('Please enter your contact name'); return; }
-      if (!companyName.trim()) { toast.error('Please enter your company name'); return; }
-      if (!phoneNumber.trim()) { toast.error('Please enter your phone number'); return; }
     }
 
     setSubmitting(true);
@@ -183,7 +177,9 @@ export default function SubmitOfferPage() {
       toast.success('Offer submitted! 50 tokens spent.');
     } catch (err: any) {
       console.error('   ❌ Submit error:', err.message);
-      toast.error(err.message);
+      const message = err.message || 'The offer could not be submitted.';
+      setSubmitError(message);
+      toast.error(message, { duration: 7000 });
     } finally {
       setSubmitting(false);
     }
@@ -394,27 +390,25 @@ export default function SubmitOfferPage() {
                 <h3 className="text-sm font-bold text-blue-900 mb-1 flex items-center gap-2">
                   <User className="w-4 h-4" /> Your Contact Information
                 </h3>
-                {!formFillRequired && (
-                  <p className="text-xs text-blue-500 mb-3">Optional — only your offer amount is required for testing</p>
-                )}
+                <p className="text-xs text-blue-500 mb-3">Optional details shared with the RFQ poster. Only your offer amount is required.</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-blue-700 mb-1">
-                      <User className="w-3 h-3 inline mr-1" /> Contact Name {formFillRequired && <span className="text-red-500">*</span>}
+                      <User className="w-3 h-3 inline mr-1" /> Contact Name <span className="font-normal text-blue-400">(optional)</span>
                     </label>
                     <input type="text" value={contactName} onChange={e => setContactName(e.target.value)}
                       placeholder="Your full name" className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm bg-white" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-blue-700 mb-1">
-                      <Building2 className="w-3 h-3 inline mr-1" /> Company {formFillRequired && <span className="text-red-500">*</span>}
+                      <Building2 className="w-3 h-3 inline mr-1" /> Company <span className="font-normal text-blue-400">(optional)</span>
                     </label>
                     <input type="text" value={companyName} onChange={e => setCompanyName(e.target.value)}
                       placeholder="Your company name" className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm bg-white" />
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-blue-700 mb-1">
-                      <Phone className="w-3 h-3 inline mr-1" /> Phone Number {formFillRequired && <span className="text-red-500">*</span>}
+                      <Phone className="w-3 h-3 inline mr-1" /> Phone Number <span className="font-normal text-blue-400">(optional)</span>
                     </label>
                     <input type="tel" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)}
                       placeholder="(555) 123-4567" className="w-full px-3 py-2 border border-blue-200 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 text-sm bg-white" />
@@ -504,6 +498,17 @@ export default function SubmitOfferPage() {
               </div>
 
               {/* ── Submit ── */}
+              {submitError && (
+                <div className="rounded-xl border border-red-200 bg-red-50 p-4" role="alert">
+                  <div className="flex items-start gap-3">
+                    <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
+                    <div>
+                      <p className="text-sm font-bold text-red-800">Offer could not be submitted</p>
+                      <p className="mt-1 text-sm text-red-700">{submitError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
               <div className="bg-gray-50 rounded-xl border border-gray-200 p-4">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div className="flex-1">
@@ -514,7 +519,7 @@ export default function SubmitOfferPage() {
                       <li>• You can withdraw your offer anytime</li>
                     </ul>
                   </div>
-                  <button onClick={handleSubmit}
+                  <button type="button" onClick={handleSubmit}
                     disabled={submitting || tokenBalance < 50 || !offerAmount}
                     className="flex items-center justify-center gap-2 w-full sm:w-auto px-5 sm:px-8 py-3.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:bg-gray-300 disabled:cursor-not-allowed text-white text-sm sm:text-base font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 sm:whitespace-nowrap">
                     {submitting ? (

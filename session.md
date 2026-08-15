@@ -16,6 +16,10 @@
 ### RFQ proposal messages
 - RFQ proposals now use `user_messages.message_type = 'rfq_offer'` with structured JSONB in `message_metadata`; ordinary `content` remains a readable fallback.
 - `app/messages/page.tsx` renders RFQ offers as compact proposal cards rather than normal chat bubbles.
+- Proposal cards show the sender's profile avatar. The bidder sees a sent confirmation, while only the receiving RFQ owner sees the 50-token unlock/review action.
+- Existing and new proposal cards resolve the bidder from `rfq_offers.vendor_id` and the recipient from `rfqs.client_id`; unlock controls fail closed unless the current user is the confirmed RFQ owner.
+- After unlock, only the RFQ poster can send a contract; the server verifies canonical `rfqs.client_id`, charges 50 tokens, and launches Stripe Connect Checkout to the vendor's payout-ready account.
+- Either RFQ party can schedule a meeting from the proposal card for 50 tokens. The invitation is posted into their shared conversation.
 - Run `supabase/RFQ_MESSAGE_TYPES.sql` to add the typed-message columns and convert existing `[RFQ_OFFER]...` messages.
 
 ### ✅ Just Completed — Admin CLI System
