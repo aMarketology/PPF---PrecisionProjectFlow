@@ -221,6 +221,7 @@ function MessagesPageInner() {
   const [typingUsers, setTypingUsers] = useState<Map<string, string>>(new Map());
   const messagesEnd = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const pendingConversationIdRef = useRef<string | null>(null);
 
   useEffect(() => { initializeUser(); }, []);
   useEffect(() => { if (currentUserId) { loadConversations(); setupGlobalRealtime(); } return () => { if (globalRealtimeRef.current) { createClient().removeChannel(globalRealtimeRef.current); globalRealtimeRef.current = null; } }; }, [currentUserId]);
@@ -248,17 +249,30 @@ function MessagesPageInner() {
   useEffect(() => {
     const conversationId = searchParams.get('conversation');
     if (!conversationId || isLoadingConversations) return;
+    if (pendingConversationIdRef.current && conversationId !== pendingConversationIdRef.current) return;
+    if (pendingConversationIdRef.current === conversationId) pendingConversationIdRef.current = null;
     const conversation = conversations.find(item => item.id === conversationId);
-    if (conversation) setSelectedConversation(conversation);
+    if (conversation && selectedConversation?.id !== conversation.id) setSelectedConversation(conversation);
   }, [searchParams, conversations, isLoadingConversations]);
   useEffect(() => {
     if (!selectedConversation) return;
     if (searchParams.get('conversation') === selectedConversation.id) return;
+    pendingConversationIdRef.current = selectedConversation.id;
     const params = new URLSearchParams(searchParams.toString());
     params.delete('with');
     params.set('conversation', selectedConversation.id);
     router.replace(`/messages?${params.toString()}`, { scroll: false });
   }, [selectedConversation?.id, searchParams, router]);
+
+  const clearSelectedConversation = () => {
+    pendingConversationIdRef.current = null;
+    setSelectedConversation(null);
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('with');
+    params.delete('conversation');
+    const query = params.toString();
+    router.replace(query ? `/messages?${query}` : '/messages', { scroll: false });
+  };
   useEffect(() => { if (searchQuery.length >= 2) searchUsers(); else setSearchResults([]); }, [searchQuery]);
   useEffect(() => { if (memberSearchQuery.length >= 2) searchMembers(); else setMemberSearchResults([]); }, [memberSearchQuery]);
   useEffect(() => {
@@ -1040,7 +1054,7 @@ function MessagesPageInner() {
                       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
                         <button
                           type="button"
-                          onClick={() => setSelectedConversation(null)}
+                          onClick={clearSelectedConversation}
                           className="md:hidden -ml-1 p-2 text-gray-400 hover:text-gray-700 hover:bg-gray-100 rounded-lg transition-colors flex-shrink-0"
                           title="Back to conversations"
                         >
