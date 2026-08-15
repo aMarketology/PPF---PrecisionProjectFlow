@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-const UNLOCK_COST = 100;
+const UNLOCK_COST = 50;
 
 // POST /api/messages/unlock
 // Charges 100 tokens to open a cold conversation thread.

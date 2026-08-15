@@ -24,8 +24,18 @@ interface RFQ {
   attachment_urls: string[] | null; status: string;
   rfq_type?: string; nda_required?: boolean; is_asap?: boolean;
   inventory_status: string | null; lead_time_days: number | null; estimated_ship_date: string | null;
+  line_items?: LineItem[] | null;
   created_at: string; updated_at: string;
   client?: { id: string; full_name: string; email: string; avatar_url?: string; company_name?: string };
+}
+
+interface LineItem {
+  part: string;
+  qty: number | null;
+  material: string | null;
+  tolerance: string | null;
+  finish: string | null;
+  notes: string | null;
 }
 
 interface Offer {
@@ -414,6 +424,50 @@ export default function RFQDetailPage() {
             <h2 className="text-lg font-bold text-gray-900 mb-4">Description</h2>
             <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{rfq.description}</p>
           </div>
+
+          {/* ── Line Items / Parts List ── */}
+          {rfq.line_items && rfq.line_items.length > 0 && (
+            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
+              <div className="flex items-center justify-between mb-4">
+                <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                  <Package className="w-5 h-5 text-[#003D82]" />
+                  Line Items / Parts List
+                </h2>
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 bg-blue-50 text-[#003D82] border border-blue-200 rounded-full text-xs font-semibold">
+                  <Package className="w-3.5 h-3.5" />
+                  {rfq.line_items.length} {rfq.line_items.length === 1 ? 'item' : 'items'}
+                </span>
+              </div>
+              <div className="overflow-x-auto rounded-xl border border-gray-200">
+                <table className="w-full text-sm">
+                  <thead className="bg-gray-50 border-b border-gray-200">
+                    <tr>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">#</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Part</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Qty</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Material</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Tolerance</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Finish</th>
+                      <th className="text-left px-4 py-3 font-semibold text-gray-600 text-xs uppercase tracking-wider">Notes</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100">
+                    {rfq.line_items.map((item, idx) => (
+                      <tr key={idx} className="hover:bg-gray-50 transition-colors">
+                        <td className="px-4 py-3 text-gray-400 font-medium">{idx + 1}</td>
+                        <td className="px-4 py-3 font-medium text-gray-900">{item.part}</td>
+                        <td className="px-4 py-3 text-gray-700">{item.qty || '—'}</td>
+                        <td className="px-4 py-3 text-gray-700">{item.material || '—'}</td>
+                        <td className="px-4 py-3 text-gray-700 font-mono text-xs">{item.tolerance || '—'}</td>
+                        <td className="px-4 py-3 text-gray-700">{item.finish || '—'}</td>
+                        <td className="px-4 py-3 text-gray-500 text-xs max-w-[200px]">{item.notes || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
 
           {/* ── OFFER SUBMISSION FORM ── */}
           <AnimatePresence>

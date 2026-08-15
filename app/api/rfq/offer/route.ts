@@ -17,20 +17,33 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'rfqId and amount are required' }, { status: 400 });
     }
 
-    const supabase = createServiceClient();
-
-    // Get current user
-    const { data: { user }, error: authError } = await supabase.auth.getUser();
+    // Auth via cookie-based client
+    const supabaseAuth = await createClient();
+    const { data: { user }, error: authError } = await supabaseAuth.auth.getUser();
     if (authError || !user) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
+    // DB operations via service client
+    const supabase = createServiceClient();
+
     // Check user is an engineer
     const { data: profile } = await supabase.from('profiles')
-      .select('user_type, token_balance').eq('id', user.id).single();
+      .select('user_type, token_balance, full_name, company_name').eq('id', user.id).single();
 
     if (!profile || profile.user_type !== 'engineer') {
       return NextResponse.json({ error: 'Only engineers can submit offers' }, { status: 403 });
+    }
+
+    // Fetch the RFQ
+    const { data: rfq } = await supabase
+      .from('rfqs')
+      .select('id, client_id, title, budget, timeline, quantity, material, inventory_status, lead_time_days, estimated_ship_date, location')
+      .eq('id', rfqId)
+      .single();
+
+    if (!rfq) {
+      return NextResponse.json({ error: 'RFQ not found' }, { status: 404 });
     }
 
     // Call the token-gated RPC
@@ -51,7 +64,58 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: result?.error || 'Failed to submit offer' }, { status: 400 });
     }
 
-    return NextResponse.json({ success: true, offerId: result.offer_id });
+    // ── Create locked DM with the client ──
+    let conversationId: string | null = null;
+    try {
+      const { data: convId } = await supabase.rpc('get_or_create_conversation', {
+        user_one_id: user.id,
+        user_two_id: rfq.client_id,
+      });
+
+      if (convId) {
+        conversationId = convId as string;
+        const vendorName = profile.full_name || profile.company_name || 'A vendor';
+        const offerMsg = [
+          `📨 **New Offer Received**`,
+          ``,
+          `**RFQ:** ${rfq.title}`,
+          `**Vendor:** ${vendorName}`,
+          `**Offer Amount:** $${Number(amount).toLocaleString()}`,
+          rfq.budget ? `**Your Budget:** ${rfq.budget}` : '',
+          deliveryDays ? `**Delivery:** ${deliveryDays} days` : '',
+          note ? `` : '',
+          note ? `**Note from vendor:** ${note}` : '',
+          ``,
+          `---`,
+          `**RFQ Requirements Recap:**`,
+          rfq.quantity ? `• Quantity: ${rfq.quantity}` : '',
+          rfq.material ? `• Material: ${rfq.material}` : '',
+          rfq.timeline ? `• Timeline: ${rfq.timeline}` : '',
+          rfq.location ? `• Location: ${rfq.location}` : '',
+          rfq.inventory_status ? `• Inventory: ${rfq.inventory_status === 'in_stock' ? 'In Stock' : rfq.inventory_status === 'out_of_stock' ? 'Out of Stock' : 'Back Order'}` : '',
+          rfq.lead_time_days ? `• Lead Time: ${rfq.lead_time_days} days` : '',
+          rfq.estimated_ship_date ? `• Ship Date: ${new Date(rfq.estimated_ship_date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}` : '',
+          ``,
+          `🔒 **This conversation is locked.** Unlock for 50 tokens to view the full offer and reply.`,
+        ].filter(Boolean).join('\n');
+
+        await supabase.from('user_messages').insert({
+          conversation_id: convId,
+          sender_id: user.id,
+          content: offerMsg,
+          is_system_message: true,
+          is_read: false,
+        });
+
+        await supabase.from('user_conversations')
+          .update({ is_unlocked: false, last_message_at: new Date().toISOString() })
+          .eq('id', convId);
+      }
+    } catch (e) {
+      console.error('[offer/dm] Failed to create DM:', e);
+    }
+
+    return NextResponse.json({ success: true, offerId: result.offer_id, conversationId });
   } catch (error: any) {
     console.error('[offer/submit]', error);
     return NextResponse.json({ error: error.message || 'Internal error' }, { status: 500 });

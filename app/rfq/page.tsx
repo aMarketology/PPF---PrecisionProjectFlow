@@ -35,6 +35,7 @@ interface RFQ {
   estimated_ship_date?: string | null;
   nda_required?: boolean;
   is_asap?: boolean;
+  line_items?: { part: string; qty: number | null; material: string | null; tolerance: string | null; finish: string | null; notes: string | null }[] | null;
   status: 'open' | 'in_review' | 'awarded' | 'closed';
   created_at: string;
   updated_at: string;
@@ -499,7 +500,7 @@ function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
         setSubmitting(false);
         return;
       }
-      toast.success('Offer submitted successfully! 50 tokens spent.');
+      toast.success('Offer sent! The client has been notified via DM. 50 tokens spent.');
       onOfferPlaced();
       onClose();
     } catch (err: any) {
@@ -730,6 +731,35 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                   </span>
                 )}
               </div>
+
+              {/* Line items preview */}
+              {rfq.line_items && rfq.line_items.length > 0 && (
+                <div className="mt-2 bg-gray-50 border border-gray-100 rounded-lg px-3 py-2">
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[10px] font-bold text-gray-500 uppercase tracking-wider flex items-center gap-1">
+                      <Package className="w-3 h-3" /> Line Items
+                    </span>
+                    <span className="text-[10px] font-semibold text-[#003D82]">
+                      {rfq.line_items.length} {rfq.line_items.length === 1 ? 'part' : 'parts'}
+                    </span>
+                  </div>
+                  <div className="flex flex-wrap gap-1">
+                    {rfq.line_items.slice(0, 3).map((li, i) => (
+                      <span key={i} className="inline-flex items-center gap-1 px-2 py-0.5 bg-white border border-gray-200 rounded-md text-[10px] text-gray-600">
+                        <Package className="w-2.5 h-2.5 text-gray-400" />
+                        <span className="font-medium">{li.part}</span>
+                        {li.qty ? <span className="text-gray-400">×{li.qty}</span> : null}
+                        {li.material ? <span className="text-gray-400">· {li.material}</span> : null}
+                      </span>
+                    ))}
+                    {rfq.line_items.length > 3 && (
+                      <span className="inline-flex items-center px-2 py-0.5 bg-blue-50 text-[#003D82] border border-blue-100 rounded-md text-[10px] font-semibold">
+                        +{rfq.line_items.length - 3} more
+                      </span>
+                    )}
+                  </div>
+                </div>
+              )}
 
               {/* Inventory / Shipping row */}
               {(rfq.inventory_status || rfq.lead_time_days || rfq.estimated_ship_date) && (
