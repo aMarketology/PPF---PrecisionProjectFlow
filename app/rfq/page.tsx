@@ -223,9 +223,14 @@ export default function RFQMarketplacePage() {
               <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><FileText className="w-5 h-5 text-[#FF6B35]" /></div>
               <div><h1 className="text-xl md:text-2xl font-extrabold text-white">RFQ Marketplace</h1><p className="text-blue-200 text-xs">{openCount} open · {totalRFQs} total</p></div>
             </div>
-            <Link href="/rfq/create" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg text-xs sm:text-sm flex-shrink-0">
-              <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Post an </span>RFQ
-            </Link>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <Link href="/admin/rfqs" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl transition-all text-xs sm:text-sm">
+                <BarChart3 className="w-4 h-4" /> <span className="hidden sm:inline">RFQ Dashboard</span><span className="sm:hidden">Dashboard</span>
+              </Link>
+              <Link href="/rfq/create" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg text-xs sm:text-sm">
+                <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Post an </span>RFQ
+              </Link>
+            </div>
           </div>
         </div>
       </div>

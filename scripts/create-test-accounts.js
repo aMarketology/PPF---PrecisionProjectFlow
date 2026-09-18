@@ -1,24 +1,34 @@
 // Creates test vendor and client accounts directly via Supabase Admin API
 // Run: node scripts/create-test-accounts.js
 
+require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+const testAccountPassword = process.env.TEST_ACCOUNT_PASSWORD;
+
+if (!supabaseUrl || !serviceRoleKey || !testAccountPassword) {
+  console.error('Missing NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, or TEST_ACCOUNT_PASSWORD in .env.local');
+  process.exit(1);
+}
+
 const supabase = createClient(
-  'https://ifrxzmemiihxfdimwvcw.supabase.co',
-  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imlmcnh6bWVtaWloeGZkaW13dmN3Iiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MjA3NjM0MSwiZXhwIjoyMDg3NjUyMzQxfQ.WSL9LMRhr8HulQFBGOETst08940d9yUNkmjTfrzzKHA',
+  supabaseUrl,
+  serviceRoleKey,
   { auth: { autoRefreshToken: false, persistSession: false } }
 );
 
 const accounts = [
   {
     email: 'vendor@ppf.test',
-    password: '123456md',
+    password: testAccountPassword,
     full_name: 'Vendor',
     user_type: 'engineer', // engineers = vendors in this app
   },
   {
     email: 'supplier@ppf.test',
-    password: '123456md',
+    password: testAccountPassword,
     full_name: 'Supplier',
     user_type: 'client', // clients = suppliers/buyers in this app
   },
@@ -84,7 +94,6 @@ async function createAccount({ email, password, full_name, user_type }) {
   }
 
   console.log(`  📧 Email: ${email}`);
-  console.log(`  🔑 Password: 123456md`);
 }
 
 (async () => {
@@ -94,6 +103,7 @@ async function createAccount({ email, password, full_name, user_type }) {
   }
   console.log('\n=== Done ===');
   console.log('\nLogin at: http://localhost:3000/login');
-  console.log('Vendor:   vendor@ppf.test / 123456md');
-  console.log('Supplier: supplier@ppf.test / 123456md');
+  console.log('Vendor:   vendor@ppf.test');
+  console.log('Supplier: supplier@ppf.test');
+  console.log('Use the locally configured TEST_ACCOUNT_PASSWORD.');
 })();

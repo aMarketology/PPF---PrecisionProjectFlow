@@ -30,8 +30,13 @@ const admin = createClient(SUPABASE_URL, SERVICE_ROLE_KEY, {
 
 const OLD_DEALER_ID = process.env.PPF_DEALER_USER_ID; // 5afdc026-...
 const MAX_EMAIL     = 'max@amarketology.com';
-const MAX_PASSWORD  = process.env.PPF_ADMIN_PASSWORD || 'PPF_Admin_Max_2024!';
+const MAX_PASSWORD  = process.env.PPF_ADMIN_PASSWORD;
 const MAX_NAME      = 'Max Real';
+
+if (!MAX_PASSWORD) {
+  console.error('❌  Set PPF_ADMIN_PASSWORD in .env.local before running this script.');
+  process.exit(1);
+}
 
 function appendEnvVar(key, value) {
   const envPath = path.resolve(__dirname, '../.env.local');
@@ -184,7 +189,6 @@ async function main() {
   console.log('🎉  Admin setup complete!\n');
   console.log(`   Name:       ${MAX_NAME}`);
   console.log(`   Email:      ${MAX_EMAIL}`);
-  console.log(`   Password:   ${MAX_PASSWORD}`);
   console.log(`   User ID:    ${maxUserId}`);
   console.log(`   Role:       Admin + PPF Marketplace vendor`);
   console.log(`   Services:   ${services?.length ?? 0} listings under this account`);

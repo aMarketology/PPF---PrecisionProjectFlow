@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { motion } from 'framer-motion'
+import { useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 
 interface Profile {
@@ -15,6 +16,7 @@ interface Profile {
 }
 
 export default function AdminUsersPage() {
+  const router = useRouter()
   const [users, setUsers] = useState<Profile[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
@@ -146,7 +148,9 @@ export default function AdminUsersPage() {
                 </tr>
               ) : (
                 filteredUsers.map((user) => (
-                  <tr key={user.id} className="hover:bg-gray-700/50 transition-colors">
+                  <tr key={user.id}
+                    onClick={() => router.push(`/admin/users/${user.id}`)}
+                    className="hover:bg-gray-700/50 transition-colors cursor-pointer">
                     <td className="px-6 py-4 whitespace-nowrap">
                       <div className="flex items-center gap-3">
                         <div className="w-10 h-10 bg-gray-600 rounded-full flex items-center justify-center text-white font-semibold">
@@ -176,10 +180,12 @@ export default function AdminUsersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-gray-400">
                       {new Date(user.created_at).toLocaleDateString()}
                     </td>
-                    <td className="px-6 py-4 whitespace-nowrap">
+                    <td className="px-6 py-4 whitespace-nowrap" onClick={(e) => e.stopPropagation()}>
                       <div className="flex gap-2">
-                        <button className="text-blue-400 hover:text-blue-300 text-sm">
-                          Edit
+                        <button
+                          onClick={() => router.push(`/admin/users/${user.id}`)}
+                          className="text-blue-400 hover:text-blue-300 text-sm">
+                          View
                         </button>
                         <button 
                           onClick={() => handleDeleteUser(user.id)}

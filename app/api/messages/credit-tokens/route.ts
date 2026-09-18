@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
+import { createServiceClient } from '@/lib/supabase/service';
 import Stripe from 'stripe';
 
 export const dynamic = 'force-dynamic';
@@ -63,7 +64,8 @@ export async function POST(request: NextRequest) {
     const packId         = pi.metadata.pack_id;
 
     // Credit the tokens via DB function
-    const { data: newBalance, error: creditError } = await supabase
+    const serviceSupabase = createServiceClient();
+    const { data: newBalance, error: creditError } = await serviceSupabase
       .rpc('add_tokens', {
         p_user_id:           user.id,
         p_amount:            tokensToCredit,

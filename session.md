@@ -1,12 +1,34 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** August 15, 2026
+**Last updated:** September 11, 2026
 **Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🚚 Shipping &amp; Tracking · 🤝 Contract-to-Unlock · 📦 Line Items · 🖥️ Admin CLI
 
 ---
 
 ## 📍 Current Focus
-**Admin CLI + RFQ Offer Flow — End-to-end testing.**
+**Local desktop and mobile end-to-end testing before Supabase hardening and Stripe production testing.**
+
+### Current testing reference
+- Reworked `/features` into the live platform test guide, covering the active 15-stage desktop/mobile test plan.
+- Fixed a local recovery-link routing defect: `/forgot-password` now uses the active browser origin rather than `NEXT_PUBLIC_APP_URL`, which had sent local reset requests to production. Retest Forgot Password and Reset Password on desktop and mobile using a newly requested link.
+- Added `/admin/rfqs`, an authorized RFQ management view with status summaries, filters, requestor details, budgets, and public RFQ detail links. The RFQ header's always-visible RFQ Dashboard action now links directly there.
+- Added a Message Requestor action to every RFQ in `/admin/rfqs`; it opens the existing direct-message flow with that RFQ's client preselected.
+- Reduced RFQ offer-page startup latency by loading the profile and RFQ concurrently, then running the independent company/duplicate-offer checks together. Public RFQ URLs retain normalized slugs capped at 72 characters plus an 8-character uniqueness suffix; transactional Submit Offer links use the canonical RFQ UUID to keep them short. Existing long slugs remain supported.
+- Started the mobile company receipt register: `mobile/app/(tabs)/receipts.tsx` captures a receipt via camera or photo library, uploads it, and shares it with company owners/admins. `supabase/COMPANY_RECEIPTS.sql` is staged and must be applied before the live flow can persist receipts. OCR parsing remains a provider boundary pending selection of an open-source OCR engine.
+- Added claim-invite email campaigns to the admin panel: the `/admin/companies` page now has a mail icon for each unclaimed company. Clicking it sends a branded claim invitation via Resend, with a direct deep-link to the claim form. The email template (`sendClaimInviteEmail` in `lib/email.ts`) and the `POST /api/admin?action=invite-claim` endpoint are both ready.
+
+### P0 security hardening
+- Removed plaintext passwords and a hardcoded Supabase service-role key from tracked scripts and notes.
+- Admin authorization and the Admin Settings list now rely on `profiles.is_admin`; the hardcoded email allowlist was removed.
+- Deleted the unused unauthenticated `/api/admin/run-sql` endpoint and restricted admin mutation targets.
+- Operational follow-up required: rotate the exposed service-role key and previously shared account passwords before Stripe production testing.
+
+### Completed — claimable company listings
+- Created or updated free, unclaimed directory listings: Central Plains Steel Co. (Jeremy Will), Williams Valve Corp. (Ifeanyi Okpara), and Precision Project Flow (Josh / `precisionprojectflow@gmail.com`).
+- `scripts/provision-claimable-companies.js` is idempotent and can reapply these three outreach listings without duplicates.
+- Company Management (`/admin/companies`) now includes an admin-only reset control that clears company ownership, removes active team access, and closes pending claims so the listing can be claimed again.
+- Verified the three live company rows as unclaimed. `npx tsc --noEmit` remains blocked only by 10 pre-existing `Request` vs `NextRequest` typing errors in `__tests__/api-payment-intent.test.ts`.
+- Added and verified free, unclaimed listings for Equipment & Controls, Inc. (Piper McLaughlin) and Gritton & Associates (Mariah Woodfield).
 
 ### Company membership
 - Users can now leave a company from `/dashboard/company/[id]` through `POST /api/companies/[id]/leave`.
@@ -25,7 +47,7 @@
 ### ✅ Just Completed — Admin CLI System
 1. **`app/api/admin/route.ts`** — Dual-auth (Bearer JWT for CLI + cookie for browser), centralized `getAuthedAdmin()` helper, new `grant-tokens` POST action.
 2. **`scripts/admin-cli.js`** — Unified CLI: `stats`, `list <tab>`, `delete <tab> <id>`, `grant-tokens <userId> <amount>`, `grant-tokens-by-email <email> <amount>`. Supports `--url` and `--prod` flags.
-3. **`.env.local`** — Added `ADMIN_EMAIL=precisionprojectflow@gmail.com` + `ADMIN_PASSWORD=123456md`. Removed stale `PPF_ADMIN_*` vars and stray `ADMIN_API_TOKEN`.
+3. **Admin CLI credentials** — Configured locally through ignored environment variables. Never record admin passwords in tracked files or session notes.
 4. **Verified**: `stats` → 1 RFQ, `list rfqs` → CNC RFQ, `grant-tokens-by-email vendor@ppf.test 500` → 720 tokens, non-admin JWT → 401.
 
 ### 🧪 Test Accounts

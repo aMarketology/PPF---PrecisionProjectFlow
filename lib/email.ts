@@ -138,25 +138,28 @@ export async function sendOrderConfirmationEmail({ to, clientName, vendorName, s
   })
 }
 
-// ── 4. RFQ alert — engineer ───────────────────────────────────────────────────
+// ── 5. Company claim invitation ──────────────────────────────────────────────
 
-export async function sendRFQAlertEmail({ to, engineerName, rfqTitle, rfqCategory, budget, clientName }: {
-  to: string; engineerName: string; rfqTitle: string; rfqCategory: string; budget: string | null; clientName: string
+export async function sendClaimInviteEmail({ to, contactName, companyName, companyId, city, state }: {
+  to: string; contactName: string; companyName: string; companyId: string; city?: string | null; state?: string | null
 }) {
+  const location = [city, state].filter(Boolean).join(', ')
+  const claimUrl = `${APP_URL}/claim-company?id=${companyId}&name=${encodeURIComponent(companyName)}`
   const body =
-    h1('New RFQ matching your expertise') +
-    sub(`Hi ${engineerName}, a client just posted a request that fits your profile.`) +
+    h1(`Claim your company page, ${contactName}`) +
+    sub(`${companyName} already has a profile on Precision Project Flow. Claim it now — it's free and takes under 2 minutes.`) +
     infoBox([
-      { label: 'Title',     value: rfqTitle },
-      { label: 'Category',  value: rfqCategory },
-      { label: 'Budget',    value: budget || 'Not specified' },
-      { label: 'Posted by', value: clientName },
+      { label: 'Company', value: companyName },
+      { label: 'Location', value: location || 'Nationwide' },
     ]) +
-    btn('View & Respond to RFQ', `${APP_URL}/dashboard/engineer`, true) +
-    pp('Be one of the first to respond — early replies are 2x more likely to convert to a paid order.')
+    pp('Once claimed, you can update company details, add team members, receive RFQ notifications, message buyers directly, and build your engineering marketplace presence.') +
+    btn('Claim Your Company Now', claimUrl, true) +
+    divider() +
+    pp(`Didn't request this? No action needed — ${companyName}'s listing will remain as-is.`) +
+    pp(`Questions? Reply to this email or reach us at <a href="${APP_URL}/contact" style="color:#003D82;">${APP_URL}/contact</a>.`)
   return resend.emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
-    subject: `New RFQ: ${rfqTitle}`,
+    subject: `${contactName}, claim ${companyName} on Precision Project Flow`,
     html: emailBase(body),
   })
 }

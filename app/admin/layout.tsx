@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
-  Shield, Users, Package, FileText, Building2,
+  Shield, Users, FileText, Building2, Package,
   BarChart3, Settings, ShoppingCart, Loader2,
 } from 'lucide-react'
 
@@ -54,6 +54,7 @@ export default function AdminLayout({
     { name: 'Dashboard', href: '/admin', icon: Shield },
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Companies', href: '/admin/companies', icon: Building2 },
+    { name: 'Claims', href: '/admin/claims', icon: FileText },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Services', href: '/admin/services', icon: Settings },
     { name: 'Orders', href: '/admin/orders', icon: ShoppingCart },

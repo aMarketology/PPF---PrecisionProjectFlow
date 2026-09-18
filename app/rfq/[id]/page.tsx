@@ -346,7 +346,7 @@ export default function RFQDetailPage() {
               </div>
             </div>
             {!isOwner && !isSameCompany && rfq.status === 'open' && !myPendingOffer && (
-              <Link href={`/rfq/${rfq.slug || rfq.id}/submit`}
+              <Link href={`/rfq/${rfq.id}/submit`}
                 className="inline-flex items-center justify-center gap-2 w-full sm:w-auto px-5 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg shadow-[#FF6B35]/25 text-sm flex-shrink-0">
                 <Gavel className="w-4 h-4" /> Submit Offer
               </Link>
@@ -816,7 +816,7 @@ export default function RFQDetailPage() {
                   </button>
                 )}
                 {!isOwner && !isSameCompany && rfq.status === 'open' && !myPendingOffer && (
-                  <Link href={`/rfq/${rfq.slug || rfq.id}/submit`}
+                  <Link href={`/rfq/${rfq.id}/submit`}
                     className="px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all text-sm flex items-center gap-1.5">
                     <Gavel className="w-4 h-4" /> Submit Offer
                   </Link>

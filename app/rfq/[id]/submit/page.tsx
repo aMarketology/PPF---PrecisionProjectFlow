@@ -69,28 +69,26 @@ export default function SubmitOfferPage() {
     }
     setCurrentUserId(user.id);
 
-    // Profile
-    const { data: profile } = await supabase.from('profiles')
-      .select('user_type, token_balance, full_name, company_id').eq('id', user.id).single();
+    const isUuid = rfqId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
+    const param = isUuid ? `id=${rfqId}` : `slug=${rfqId}`;
+    const [{ data: profile }, rfqResponse] = await Promise.all([
+      supabase.from('profiles').select('user_type, token_balance, full_name, company_id').eq('id', user.id).single(),
+      fetch(`/api/rfq/detail?${param}`),
+    ]);
+
     console.log('   profile:', profile ? `type=${profile.user_type}, tokens=${profile.token_balance}` : 'NOT FOUND');
     setUserType(profile?.user_type ?? null);
     setTokenBalance(profile?.token_balance ?? 0);
     setContactName(profile?.full_name || '');
-    setPhoneNumber('');  // phone column doesn't exist yet — leave blank for manual entry
+    setPhoneNumber('');
 
-    // Pre-fill company name
     if (profile?.company_id) {
-      const { data: comp } = await supabase.from('company_profiles')
-        .select('company_name').eq('id', profile.company_id).single();
+      const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', profile.company_id).single();
       if (comp) setCompanyName(comp.company_name);
     }
 
-    // Load RFQ
-    const isUuid = rfqId.match(/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i);
-    const param = isUuid ? `id=${rfqId}` : `slug=${rfqId}`;
-    const res = await fetch(`/api/rfq/detail?${param}`);
-    if (!res.ok) { toast.error('RFQ not found'); router.push('/rfq'); return; }
-    const data = await res.json();
+    if (!rfqResponse.ok) { toast.error('RFQ not found'); router.push('/rfq'); return; }
+    const data = await rfqResponse.json();
     if (!data || data.error) { toast.error('RFQ not found'); router.push('/rfq'); return; }
     setRfq(data);
 
@@ -100,19 +98,16 @@ export default function SubmitOfferPage() {
       router.push(`/rfq/${rfqId}`);
       return;
     }
-    const { data: sameCompany } = await supabase.rpc('same_company', {
-      user_a: user.id,
-      user_b: data.client_id,
-    });
+    const [{ data: sameCompany }, { data: existing }] = await Promise.all([
+      supabase.rpc('same_company', { user_a: user.id, user_b: data.client_id }),
+      supabase.from('rfq_offers').select('id').eq('rfq_id', data.id).eq('vendor_id', user.id).eq('status', 'pending').limit(1),
+    ]);
     if (sameCompany === true) {
       toast.error('You cannot bid on an RFQ from your own company');
       router.push(`/rfq/${rfqId}`);
       return;
     }
 
-    // Check if already has pending offer
-    const { data: existing } = await supabase.from('rfq_offers')
-      .select('id').eq('rfq_id', data.id).eq('vendor_id', user.id).eq('status', 'pending').limit(1);
     if (existing && existing.length > 0) {
       toast('You already have a pending offer on this RFQ');
       router.push(`/rfq/${rfqId}`);

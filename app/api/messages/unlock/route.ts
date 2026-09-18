@@ -77,7 +77,7 @@ export async function POST(request: NextRequest) {
     }
 
     // 3. Deduct tokens via the spend_tokens RPC
-    const { data: spendResult, error: spendErr } = await supabase.rpc('spend_tokens', {
+    const { data: spendResult, error: spendErr } = await serviceSupabase.rpc('spend_tokens', {
       p_user_id:      user.id,
       p_amount:       UNLOCK_COST,
       p_description:  'Unlock conversation thread',

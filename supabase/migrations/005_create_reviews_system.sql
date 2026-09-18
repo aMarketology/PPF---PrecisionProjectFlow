@@ -85,6 +85,13 @@ CREATE POLICY "Companies can respond to their reviews"
     responded_at IS NOT NULL
   );
 
+-- Admins can manage all reviews (moderation)
+DROP POLICY IF EXISTS "Admins can manage all reviews" ON reviews;
+CREATE POLICY "Admins can manage all reviews"
+  ON reviews FOR ALL
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));
+
 -- RLS Policies for helpful votes
 CREATE POLICY "Helpful votes are viewable by everyone"
   ON review_helpful_votes FOR SELECT

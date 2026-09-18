@@ -2,7 +2,14 @@
   "expo": {
     "name": "Precision Project Flow",
     "scheme": "ppf",
-    "plugins": ["expo-router", "expo-font"],
+    "plugins": [
+      "expo-router",
+      "expo-font",
+      ["expo-image-picker", {
+        "photosPermission": "Allow Precision Project Flow to attach receipt photos for your company back office.",
+        "cameraPermission": "Allow Precision Project Flow to capture receipt photos for your company back office."
+      }]
+    ],
     "experiments": { "typedRoutes": true },
     "slug": "mobile",
     "version": "1.0.0",

@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router';
-import { Home, Store, MessageSquare, User, FileText } from 'lucide-react-native';
+import { Home, Store, MessageSquare, User, FileText, ReceiptText } from 'lucide-react-native';
 import { colors } from '@/lib/theme';
 
 export default function TabsLayout() {
@@ -55,6 +55,13 @@ export default function TabsLayout() {
         options={{
           title: 'Messages',
           tabBarIcon: ({ color, size }) => <MessageSquare size={size} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="receipts"
+        options={{
+          title: 'Receipts',
+          tabBarIcon: ({ color, size }) => <ReceiptText size={size} color={color} />,
         }}
       />
       <Tabs.Screen

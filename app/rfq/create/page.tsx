@@ -143,7 +143,9 @@ export default function CreateRFQPage() {
         line_items: populatedLineItems,
         slug: formData.title.toLowerCase()
           .replace(/[^a-z0-9]+/g, '-')
-          .replace(/^-|-$/g, '') + '-' + crypto.randomUUID().substring(0, 8),
+          .replace(/^-|-$/g, '')
+          .slice(0, 72)
+          .replace(/-+$/g, '') + '-' + crypto.randomUUID().substring(0, 8),
         status: 'open',
       }
 

@@ -1,17 +1,23 @@
-// Sign in as precisionprojectflow@gmail.com and verify access
+// Sign in with locally configured credentials and verify access.
 require('dotenv').config({ path: '.env.local' });
 const { createClient } = require('@supabase/supabase-js');
 
 async function main() {
+  const email = process.env.VERIFY_USER_EMAIL;
+  const password = process.env.VERIFY_USER_PASSWORD;
+  if (!email || !password) {
+    throw new Error('Set VERIFY_USER_EMAIL and VERIFY_USER_PASSWORD in .env.local before running this script.');
+  }
+
   const anon = createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
   );
 
-  console.log('Signing in as precisionprojectflow@gmail.com...');
+  console.log(`Signing in as ${email}...`);
   const { data, error } = await anon.auth.signInWithPassword({
-    email: 'precisionprojectflow@gmail.com',
-    password: '123456md',
+    email,
+    password,
   });
 
   if (error) {

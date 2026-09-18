@@ -40,7 +40,7 @@ export const BADGES: Record<BadgeId, BadgeDef> = {
   first_order:       { id: 'first_order',       label: 'First Order',        emoji: '🎉', description: 'Placed your first order on PPF',                      cls: 'bg-orange-50 text-[#FF6B35] border-orange-200' },
   frequent_buyer:    { id: 'frequent_buyer',    label: 'Frequent Buyer',     emoji: '🛒', description: 'Placed 3 or more orders',                             cls: 'bg-pink-50 text-pink-700 border-pink-200' },
   rfq_pioneer:       { id: 'rfq_pioneer',       label: 'RFQ Pioneer',        emoji: '📋', description: 'Posted at least one RFQ to the marketplace',         cls: 'bg-cyan-50 text-cyan-700 border-cyan-200' },
-  admin:             { id: 'admin',             label: 'PPF Team',           emoji: '🛡️', description: 'Official Precision Project Flow team member',         cls: 'bg-[#003D82] text-white border-[#002960]' },
+  admin:             { id: 'admin',             label: 'Super Admin',       emoji: '🛡️', description: 'Official Precision Project Flow platform administrator', cls: 'bg-[#003D82] text-white border-[#002960]' },
 }
 
 export interface BadgeContext {

@@ -1,16 +1,15 @@
 -- ════════════════════════════════════════════════════════════════════
 -- ADMIN_SETUP.sql
--- Adds admin role support to profiles and sets precisionprojectflow
--- as the initial admin.
+-- Adds database-backed admin role support to profiles.
 -- Run in: Supabase Dashboard → SQL Editor
 -- ════════════════════════════════════════════════════════════════════
 
 -- 1. Add is_admin column
 ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN NOT NULL DEFAULT FALSE;
 
--- 2. Set precisionprojectflow@gmail.com as admin
-UPDATE public.profiles SET is_admin = TRUE
-WHERE email ILIKE '%precisionprojectflow%';
+-- 2. Bootstrap the first admin manually by immutable auth user UUID.
+-- Never grant administrator access by matching an email address.
+-- UPDATE public.profiles SET is_admin = TRUE WHERE id = '<auth-user-uuid>'::uuid;
 
 -- 3. Create admin check helper
 CREATE OR REPLACE FUNCTION public.is_admin(user_id UUID DEFAULT auth.uid())
@@ -65,3 +64,58 @@ DROP POLICY IF EXISTS "Admins can see all token transactions" ON public.token_tr
 CREATE POLICY "Admins can see all token transactions"
   ON public.token_transactions FOR SELECT
   USING (public.is_admin(auth.uid()));
+
+-- 11. RLS: admins can read all messages
+DROP POLICY IF EXISTS "Admins can read all messages" ON public.user_messages;
+CREATE POLICY "Admins can read all messages"
+  ON public.user_messages FOR SELECT
+  USING (public.is_admin(auth.uid()));
+
+-- 12. RLS: admins can read all conversations
+DROP POLICY IF EXISTS "Admins can read all conversations" ON public.user_conversations;
+CREATE POLICY "Admins can read all conversations"
+  ON public.user_conversations FOR SELECT
+  USING (public.is_admin(auth.uid()));
+
+-- 13. RLS: admins can manage all company members
+DROP POLICY IF EXISTS "Admins can manage all company members" ON public.company_members;
+CREATE POLICY "Admins can manage all company members"
+  ON public.company_members FOR ALL
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));
+
+-- 14. RLS: admins can manage all company claims
+DROP POLICY IF EXISTS "Admins can manage all company claims" ON public.company_claims;
+CREATE POLICY "Admins can manage all company claims"
+  ON public.company_claims FOR ALL
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));
+
+-- 15. RLS: admins can manage all orders
+DROP POLICY IF EXISTS "Admins can manage all orders" ON public.product_orders;
+CREATE POLICY "Admins can manage all orders"
+  ON public.product_orders FOR ALL
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));
+
+-- 16. RLS: admins can manage all contracts (requires CONTRACTS_AND_ESCROW.sql)
+-- Applied in CONTRACTS_AND_ESCROW.sql when that migration runs.
+
+-- 17. RLS: admins can manage all contract milestones (requires CONTRACTS_AND_ESCROW.sql)
+-- Applied in CONTRACTS_AND_ESCROW.sql when that migration runs.
+
+-- 18. RLS: admins can manage all reviews (requires migrations/005_create_reviews_system.sql)
+-- Applied in migrations/005_create_reviews_system.sql when that migration runs.
+
+-- 19. RLS: admins can read all site activities
+DROP POLICY IF EXISTS "Admins can read all activities" ON public.site_activities;
+CREATE POLICY "Admins can read all activities"
+  ON public.site_activities FOR SELECT
+  USING (public.is_admin(auth.uid()));
+
+-- 20. RLS: admins can manage all storage objects
+DROP POLICY IF EXISTS "Admins can manage all storage" ON storage.objects;
+CREATE POLICY "Admins can manage all storage"
+  ON storage.objects FOR ALL
+  USING (public.is_admin(auth.uid()))
+  WITH CHECK (public.is_admin(auth.uid()));

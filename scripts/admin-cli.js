@@ -48,8 +48,7 @@ if (!SUPABASE_URL || !SUPABASE_ANON) {
 }
 if (!ADMIN_EMAIL || !ADMIN_PASSWORD) {
   console.error('❌ Missing ADMIN_EMAIL or ADMIN_PASSWORD in .env.local');
-  console.error('   Add: ADMIN_EMAIL=precisionprojectflow@gmail.com');
-  console.error('   Add: ADMIN_PASSWORD=123456md');
+  console.error('   Configure both values locally; never commit or print the password.');
   process.exit(1);
 }
 
