@@ -21,10 +21,22 @@ export async function middleware(request: NextRequest) {
       return NextResponse.redirect(new URL('/login?redirect=/admin', request.url))
     }
 
-    // Check is_admin via the SECURITY DEFINER RPC
-    const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id })
-    if (!isAdmin) {
-      return NextResponse.redirect(new URL('/', request.url))
+    // Every authenticated user gets a personal /admin panel. Only the
+    // platform-wide management subpaths require super-admin (profiles.is_admin).
+    const superAdminOnly = [
+      '/admin/users', '/admin/companies', '/admin/claims', '/admin/products',
+      '/admin/services', '/admin/orders', '/admin/rfqs', '/admin/reports',
+      '/admin/settings',
+    ]
+    const needsSuperAdmin = superAdminOnly.some(
+      p => request.nextUrl.pathname === p || request.nextUrl.pathname.startsWith(`${p}/`)
+    )
+
+    if (needsSuperAdmin) {
+      const { data: isAdmin } = await supabase.rpc('is_admin', { user_id: user.id })
+      if (!isAdmin) {
+        return NextResponse.redirect(new URL('/admin', request.url))
+      }
     }
   }
 

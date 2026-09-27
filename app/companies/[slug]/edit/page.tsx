@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect, use } from 'react'
+import { useState, useEffect } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import Link from 'next/link'
@@ -34,8 +34,9 @@ interface Company {
   slug: string
 }
 
-export default function EditCompanyPage({ params }: { params: Promise<{ slug: string }> }) {
-  const { slug } = use(params)
+export default function EditCompanyPage() {
+  const params = useParams<{ slug: string }>()
+  const slug = params?.slug as string
   const router = useRouter()
 
   const [company, setCompany]     = useState<Company | null>(null)
@@ -78,7 +79,28 @@ export default function EditCompanyPage({ params }: { params: Promise<{ slug: st
 
     if (error || !co) { toast.error('Company not found'); setLoading(false); return }
 
-    if (co.owner_id !== user.id) {
+    // Authorized to edit when: the owner, a super admin, or an active
+    // owner/admin team member of this company.
+    const { data: me } = await supabase
+      .from('profiles')
+      .select('is_admin')
+      .eq('id', user.id)
+      .single()
+
+    let canEdit = co.owner_id === user.id || !!me?.is_admin
+
+    if (!canEdit) {
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role, status')
+        .eq('company_id', co.id)
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle()
+      canEdit = membership?.role === 'owner' || membership?.role === 'admin'
+    }
+
+    if (!canEdit) {
       setAuth(false)
       setLoading(false)
       return
@@ -122,9 +144,12 @@ export default function EditCompanyPage({ params }: { params: Promise<{ slug: st
     setSaving(true)
     try {
       const supabase = createClient()
+      // Only send columns that exist on the live company_profiles table.
+      // (`country` is collected in the form but is not a real column.)
+      const { country, ...rest } = form
       const { error } = await supabase
         .from('company_profiles')
-        .update({ ...form, specialties, certifications })
+        .update({ ...rest, specialties, certifications })
         .eq('id', company.id)
       if (error) throw error
       toast.success('Profile updated!')

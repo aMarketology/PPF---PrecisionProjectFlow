@@ -61,11 +61,33 @@ export default function CompanyDetailPage() {
   const [company, setCompany] = useState<Company | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
+  const [canEdit, setCanEdit] = useState(false)
 
   useEffect(() => {
     if (slug) loadCompany()
-    // get current user id for edit button
-    createClient().auth.getUser().then(({ data }) => setCurrentUserId(data.user?.id ?? null))
+    // Resolve whether the current user may edit this company
+    // (owner, super admin, or active owner/admin team member).
+    ;(async () => {
+      const supabase = createClient()
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) return
+      setCurrentUserId(user.id)
+
+      const { data: me } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', user.id)
+        .single()
+      if (me?.is_admin) { setCanEdit(true); return }
+
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('role, status')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle()
+      if (membership?.role === 'owner' || membership?.role === 'admin') setCanEdit(true)
+    })()
   }, [slug])
 
   async function loadCompany() {
@@ -311,8 +333,8 @@ export default function CompanyDetailPage() {
               </div>
             )}
 
-            {/* Owner edit button */}
-            {company.owner_id && currentUserId === company.owner_id && (
+            {/* Edit button — owner, super admin, or company manager */}
+            {canEdit && (
               <Link
                 href={`/companies/${slug}/edit`}
                 className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all text-sm"

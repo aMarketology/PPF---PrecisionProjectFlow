@@ -14,6 +14,7 @@
     "db:fix": "node scripts/db.js --file ./supabase/FIX_MISSING_COLUMNS.sql",
     "db:test": "node scripts/test-database.js",
     "db:seed": "node scripts/seed-test-data.js",
+    "db:seed:social": "node scripts/seed-social-test-users.js",
     "db:cleanup": "node scripts/cleanup-test-data.js",
     "db:setup": "bash scripts/setup-database.sh"
   },

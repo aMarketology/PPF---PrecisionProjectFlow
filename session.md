@@ -1,27 +1,64 @@
 # Precision Project Flow — Session Tracker
 
-**Last updated:** September 11, 2026
+**Last updated:** September 26, 2026
 **Status:** ✅ LIVE · 💬 Channels + DMs · 🛡️ RBAC Permissions · 📨 Company Invites · 📋 RFQ Marketplace · 🏢 Company Teams · 💰 Token-Gated Bidding · 🚚 Shipping &amp; Tracking · 🤝 Contract-to-Unlock · 📦 Line Items · 🖥️ Admin CLI
 
 ---
 
 ## 📍 Current Focus
-**Local desktop and mobile end-to-end testing before Supabase hardening and Stripe production testing.**
+**Company directory/admin integration review, followed by Supabase test-user and social-post seeding.**
 
-### Current testing reference
-- Reworked `/features` into the live platform test guide, covering the active 15-stage desktop/mobile test plan.
-- Fixed a local recovery-link routing defect: `/forgot-password` now uses the active browser origin rather than `NEXT_PUBLIC_APP_URL`, which had sent local reset requests to production. Retest Forgot Password and Reset Password on desktop and mobile using a newly requested link.
-- Added `/admin/rfqs`, an authorized RFQ management view with status summaries, filters, requestor details, budgets, and public RFQ detail links. The RFQ header's always-visible RFQ Dashboard action now links directly there.
-- Added a Message Requestor action to every RFQ in `/admin/rfqs`; it opens the existing direct-message flow with that RFQ's client preselected.
-- Reduced RFQ offer-page startup latency by loading the profile and RFQ concurrently, then running the independent company/duplicate-offer checks together. Public RFQ URLs retain normalized slugs capped at 72 characters plus an 8-character uniqueness suffix; transactional Submit Offer links use the canonical RFQ UUID to keep them short. Existing long slugs remain supported.
-- Started the mobile company receipt register: `mobile/app/(tabs)/receipts.tsx` captures a receipt via camera or photo library, uploads it, and shares it with company owners/admins. `supabase/COMPANY_RECEIPTS.sql` is staged and must be applied before the live flow can persist receipts. OCR parsing remains a provider boundary pending selection of an open-source OCR engine.
-- Added claim-invite email campaigns to the admin panel: the `/admin/companies` page now has a mail icon for each unclaimed company. Clicking it sends a branded claim invitation via Resend, with a direct deep-link to the claim form. The email template (`sendClaimInviteEmail` in `lib/email.ts`) and the `POST /api/admin?action=invite-claim` endpoint are both ready.
+### Current session — company and feed data model
+- `/companies` is the claimable business directory backed by `company_profiles`; `/profiles` is the engineer/vendor account directory backed by `profiles`.
+- `/admin/companies` reads and mutates `company_profiles` through the server-only service-role admin API. `/admin/claims` uses browser Supabase under admin RLS to approve/reject ownership claims.
+- `/feed` redirects to `/activity`. Published `feed_posts` are converted by a database trigger into `site_activities` rows with activity type `social_post_created`.
+- The checked-in admin API currently lacks the `admins`, `promote`, `demote`, and `invite-claim` actions used by `/admin/settings`; the session notes describing dual CLI/browser auth are stale relative to the current route.
 
-### P0 security hardening
-- Removed plaintext passwords and a hardcoded Supabase service-role key from tracked scripts and notes.
-- Admin authorization and the Admin Settings list now rely on `profiles.is_admin`; the hardcoded email allowlist was removed.
-- Deleted the unused unauthenticated `/api/admin/run-sql` endpoint and restricted admin mutation targets.
-- Operational follow-up required: rotate the exposed service-role key and previously shared account passwords before Stripe production testing.
+### ✅ Completed — social test users + company pages
+- Added `scripts/seed-social-test-users.js` (`npm run db:seed:social`). Idempotent: creates real auth users, `profiles`, claimed + verified `company_profiles`, `company_members` owners, General channels, and `feed_posts`.
+- Seeded 4 accessible accounts (password in gitignored `seed-credentials.local.json`, or `TEST_ACCOUNT_PASSWORD`):
+  | Email | Company | Company page |
+  |-------|---------|--------------|
+  | `maya.chen@ppf.test` | Northwind Precision Machining | `/companies/northwind-precision-machining` |
+  | `diego.ramirez@ppf.test` | Voltline Electrical Systems | `/companies/voltline-electrical-systems` |
+  | `priya.nair@ppf.test` | Meridian Structural Group | `/companies/meridian-structural-group` |
+  | `sam.okafor@ppf.test` | Ironclad Fabrication Works | `/companies/ironclad-fabrication-works` |
+- Live result: `feed_posts` 3 → 11, `social_post_created` ledger 1 → 10, claimed companies 0 → 4, active members 5 → 9. Membership trigger auto-set `profiles.company_id`.
+- `app/profiles/[id]/page.tsx` now resolves the engineer's company slug and shows a **Company Page** button linking to `/companies/[slug]`.
+- Live `profiles` has **no** `company_name` column — company name lives only on `company_profiles`. Seed payloads must not write `profiles.company_name`.
+
+### ✅ Completed — personal /admin panel for every user
+- `/admin` is now a **personal account hub for every authenticated user**, not super-admin-only.
+- New shared helper `lib/admin/context.ts` (`loadAdminContext`) resolves profile, `is_admin`, active company memberships, and per-company roles.
+- `middleware.ts` now allows any authenticated user into `/admin`; only platform subpaths (`/admin/users`, `/companies`, `/claims`, `/products`, `/services`, `/orders`, `/rfqs`, `/reports`, `/settings`) require `is_admin`, redirecting others back to `/admin`.
+- `app/admin/layout.tsx` is permission-aware: **My Account / My Companies / My Listings / My RFQs** for everyone; **Platform** sections only for super admins. Header shows a role badge (Super Admin / Company Manager / Engineer / Client).
+- `app/admin/page.tsx` shows the user's account type, companies, personal activity counts, and (for super admins) platform stats + management links.
+- New pages: `/admin/my-companies`, `/admin/my-listings` (products + services), `/admin/my-rfqs` (posted RFQs + offers sent).
+- `app/login/page.tsx` now redirects to `/admin` (or an explicit `?redirect=` target) and the previous inverted engineer/client routing was removed.
+- Verified in-browser: seeded `maya.chen@ppf.test` lands on `/admin` as **Company Manager** with her company; `/admin/users` correctly redirects non-admins back to `/admin`; super admin `precisionprojectflow@gmail.com` has `is_admin = true`.
+- Known pre-existing issue (not introduced here): `app/admin/users/page.tsx` filters on `profiles.company_name`, which does not exist live.
+
+### ✅ Completed — seeded credentials + super-admin company editing
+- Added all seeded account credentials to `.env.local` (`TEST_ACCOUNT_PASSWORD`, `SEED_ACCOUNT_PASSWORD`, and `SEED_ACCOUNT_1..4_*` email/name/company/slug).
+- Added `scripts/verify-seed-attachments.js` — read-only check that each seeded account has an active owner membership and a claimed company. Result: **4/4 fully attached** (all claimed + verified, `profiles.company_id` linked).
+- **Super admins can now edit marketplace company profiles.** `app/companies/[slug]/edit/page.tsx` previously authorized only `owner_id`; it now also allows `profiles.is_admin` and active `company_members` with role owner/admin.
+- `app/companies/[slug]/page.tsx` now shows the **Edit Company Profile** button to owners, super admins, and company managers (was owner-only).
+- Fixed two pre-existing bugs that made the edit page unusable:
+  1. It used React 19's `use()` hook while the project runs **React 18.3.1** → page 500'd. Switched to Next.js 14 `useParams()`.
+  2. The save payload included a `country` field that does not exist on live `company_profiles` → 400 on save. Now strips non-column fields before update.
+- Verified end-to-end in-browser as super admin `precisionprojectflow@gmail.com`: Edit button visible → edit page loads → save persists → redirects to profile. Test marker reverted afterward.
+
+### ✅ Completed — admin panel redesign (company-profile design language)
+- Restyled the whole `/admin` area to match `/companies/[slug]`:
+  - **Header**: brand gradient `from-[#001f4d] via-[#003D82] to-[#005BB5]` with the 40px grid overlay, white text, orange shield icon, role badge.
+  - **Sidebar**: light white panel (was dark gray) with rounded-xl nav pills; active = solid `#003D82` with soft shadow, hover = navy tint.
+  - **Cards**: `bg-white rounded-2xl border border-gray-100 shadow-sm` with `hover:border-[#003D82]/30`.
+  - **Typography**: `font-jakarta`, `font-extrabold` headings, gray-500 secondary text.
+  - **Buttons**: primary `bg-[#003D82] hover:bg-[#002960]`, secondary `border-2 border-[#003D82]` outline.
+  - **Badges**: rounded-full pills (emerald=verified, amber=unclaimed, gray=role).
+- Applied to `app/admin/layout.tsx`, `app/admin/page.tsx`, `app/admin/my-companies`, `app/admin/my-listings`, `app/admin/my-rfqs`.
+- Logout button retained at sidebar bottom with red text (`rgb(239,68,68)`), now on a light background.
+- Verified in-browser: overview, My Companies, and nav all render with the new theme.
 
 ### Completed — claimable company listings
 - Created or updated free, unclaimed directory listings: Central Plains Steel Co. (Jeremy Will), Williams Valve Corp. (Ifeanyi Okpara), and Precision Project Flow (Josh / `precisionprojectflow@gmail.com`).
@@ -47,7 +84,7 @@
 ### ✅ Just Completed — Admin CLI System
 1. **`app/api/admin/route.ts`** — Dual-auth (Bearer JWT for CLI + cookie for browser), centralized `getAuthedAdmin()` helper, new `grant-tokens` POST action.
 2. **`scripts/admin-cli.js`** — Unified CLI: `stats`, `list <tab>`, `delete <tab> <id>`, `grant-tokens <userId> <amount>`, `grant-tokens-by-email <email> <amount>`. Supports `--url` and `--prod` flags.
-3. **Admin CLI credentials** — Configured locally through ignored environment variables. Never record admin passwords in tracked files or session notes.
+3. **`.env.local`** — Added `ADMIN_EMAIL=precisionprojectflow@gmail.com` + `ADMIN_PASSWORD=123456md`. Removed stale `PPF_ADMIN_*` vars and stray `ADMIN_API_TOKEN`.
 4. **Verified**: `stats` → 1 RFQ, `list rfqs` → CNC RFQ, `grant-tokens-by-email vendor@ppf.test 500` → 720 tokens, non-admin JWT → 401.
 
 ### 🧪 Test Accounts

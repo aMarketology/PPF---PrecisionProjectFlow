@@ -75,6 +75,7 @@ export default function CompanyProfilePage() {
 
   const [company, setCompany]           = useState<CompanyProfile | null>(null)
   const [services, setServices]         = useState<Service[]>([])
+  const [companySlug, setCompanySlug]   = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading]           = useState(true)
   const [activeTab, setActiveTab]       = useState<'services' | 'about'>('services')
@@ -102,6 +103,14 @@ export default function CompanyProfilePage() {
       return
     }
     setCompany(profileData)
+
+    // Resolve the engineer's company page (if they own one)
+    const { data: companyRow } = await supabase
+      .from('company_profiles')
+      .select('slug')
+      .eq('owner_id', profileId)
+      .maybeSingle()
+    setCompanySlug(companyRow?.slug ?? null)
 
     // Load their active services
     const { data: servicesData } = await supabase
@@ -229,6 +238,12 @@ export default function CompanyProfilePage() {
 
             {/* CTA buttons */}
             <div className="flex flex-row sm:flex-col gap-2 flex-shrink-0">
+              {companySlug && (
+                <Link href={`/companies/${companySlug}`}
+                  className="flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold rounded-xl text-sm transition-all shadow-sm">
+                  <Building2 className="w-4 h-4" />Company Page
+                </Link>
+              )}
               <button onClick={handleDM}
                 className="flex items-center gap-2 px-5 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl text-sm transition-all shadow-sm">
                 <MessageSquare className="w-4 h-4" />Message
