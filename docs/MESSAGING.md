@@ -1,4 +1,4 @@
-# PPF Messaging System — Feature Spec (Updated July 25, 2026)# PPF Messaging System — Feature Spec
+# PPF Messaging System - Feature Spec (Updated July 25, 2026)# PPF Messaging System - Feature Spec
 
 
 
@@ -62,7 +62,7 @@ Client BrowserClient Browser
 
 |---|---|---|---|
 
-| `direct` | 1-on-1 DM | `participant_one_id` + `participant_two_id` | Free if same company or unlocked; otherwise 100 tokens |## 2. ✅ Features — Currently Built
+| `direct` | 1-on-1 DM | `participant_one_id` + `participant_two_id` | Free if same company or unlocked; otherwise 100 tokens |## 2. ✅ Features - Currently Built
 
 | `group` | Private multi-person | `conversation_participants` | Always free |
 
@@ -74,7 +74,7 @@ Client BrowserClient Browser
 
 - Auto-created via `ensure_company_channel()` RPC when a company is created| Conversation list sidebar | Sorted by `last_message_at` desc |
 
-- Named "General" — company_id scoped| Load message thread on select | Full history, ascending order |
+- Named "General" - company_id scoped| Load message thread on select | Full history, ascending order |
 
 - All company members auto-joined via trigger| Send text messages | Via `/api/messages/send` (token-gated) |
 
@@ -126,7 +126,7 @@ Client BrowserClient Browser
 
 - Message bubbles with timestamps, read receipts, attachments
 
-- Compose box with file upload## 3. 🔴 High Priority — Build Next
+- Compose box with file upload## 3. 🔴 High Priority - Build Next
 
 - Locked state shows unlock prompt (for locked cross-company DMs)
 
@@ -140,7 +140,7 @@ Client BrowserClient Browser
 
 - Team Members list (avatars + roles)```ts
 
-// In loadMessages() — add after initial fetch:
+// In loadMessages() - add after initial fetch:
 
 ---const channel = supabase
 
@@ -190,7 +190,7 @@ Also subscribe to `user_conversations` to update sidebar unread badges in real t
 
 | id | UUID | PK |### 3.2 Real Avatar Images
 
-| conversation_id | UUID | FK to user_conversations |**Problem**: Conversation list and chat header show initials only — no `avatar_url` from profiles.  
+| conversation_id | UUID | FK to user_conversations |**Problem**: Conversation list and chat header show initials only - no `avatar_url` from profiles.  
 
 | user_id | UUID | FK to auth.users |**Solution**: Include `avatar_url` in profile queries, show `<img>` with fallback to initials.
 
@@ -224,7 +224,7 @@ Also subscribe to `user_conversations` to update sidebar unread badges in real t
 
 | attachment_type | TEXT | 'image' / 'pdf' / 'file' |### 3.3 Email Notifications (Resend)
 
-| created_at | TIMESTAMPTZ | |**Problem**: No notification when a new message arrives — users miss messages.  
+| created_at | TIMESTAMPTZ | |**Problem**: No notification when a new message arrives - users miss messages.  
 
 **Solution**: In `app/api/messages/send/route.ts`, after successful insert, send an email to the recipient via Resend.
 
@@ -261,7 +261,7 @@ if (!recipientProfile.is_online) { // optional online check
 ---
 
 ### 3.4 Token Balance in Navigation
-**Problem**: Users don't know their balance until they hit the paywall — bad UX.  
+**Problem**: Users don't know their balance until they hit the paywall - bad UX.  
 **Solution**: Show token balance in `<Navigation />` for logged-in users.
 
 ```tsx
@@ -276,7 +276,7 @@ Fetch balance once on mount, store in context or pass as prop.
 
 ---
 
-## 4. 🟡 Medium Priority — Enhance UX
+## 4. 🟡 Medium Priority - Enhance UX
 
 ### 4.1 "View Profile" Link in Chat Header
 In the conversation header, add a link to the other user's engineer profile.
@@ -322,11 +322,11 @@ channel.on('broadcast', { event: 'typing' }, () => {
 Display milestone events inline in the message thread (styled differently from user messages).
 
 Examples:
-- `🤝 Contract started — all messages now free`
+- `🤝 Contract started - all messages now free`
 - `✅ Order #123 marked complete`
 - `⭐ [Name] left a review`
 
-These use `is_system_message = true` on `user_messages` — already in schema.
+These use `is_system_message = true` on `user_messages` - already in schema.
 
 Render with center-aligned pill style:
 ```tsx
@@ -355,7 +355,7 @@ Allow uploading PDFs, DXF, images via Supabase Storage.
 | Layer | Role |
 |-------|------|
 | **Postgres trigger** (source of truth) | Fires on `AFTER UPDATE OF status ON product_orders`. Calls `get_or_create_conversation()` → sets `is_unlocked = true` → inserts system message. Guarantees consistency from webhook, API, admin panel, or direct DB update. |
-| **Application layer** (fallback) | In `app/api/orders/[id]/update-status/route.ts` after status update succeeds. Mirrors the trigger but enables future realtime broadcast. Non-blocking — trigger is the source of truth. |
+| **Application layer** (fallback) | In `app/api/orders/[id]/update-status/route.ts` after status update succeeds. Mirrors the trigger but enables future realtime broadcast. Non-blocking - trigger is the source of truth. |
 
 ### Flow
 ```
@@ -377,18 +377,18 @@ Order created (pending_payment) → Payment received (paid) → Vendor starts wo
 | Find-or-create convo | `get_or_create_conversation` RPC | Handles storefront purchases where buyer never DM'd vendor before |
 
 ### Migration File
-`supabase/CONTRACT_UNLOCK_TRIGGER.sql` — adds `in_progress_at` column, trigger function, and trigger on `product_orders`.
+`supabase/CONTRACT_UNLOCK_TRIGGER.sql` - adds `in_progress_at` column, trigger function, and trigger on `product_orders`.
 
 ### System Message
 Inserted with `is_system_message = true`:
 ```
-🤝 Contract started — you can now message freely
+🤝 Contract started - you can now message freely
 ```
 Rendered as a centered gray pill (already supported in `app/messages/page.tsx`).
 
 ---
 
-## 5. 🟠 Lower Priority — Polish
+## 5. 🟠 Lower Priority - Polish
 
 | Feature | Notes |
 |---|---|
@@ -469,13 +469,13 @@ token_transactions (
 
 ## 7. Recommended Build Order
 
-1. **Contract-to-Unlock** ✅ Shipped (July 30) — DB trigger auto-unlocks DM when order hits `in_progress`
-2. **Realtime** (3.1) — biggest UX gap, Supabase subscription ~50 lines
-3. **Avatar images** (3.2) — quick wins, huge visual improvement
-4. **Email notifications** (3.3) — drives re-engagement, Resend already wired
-5. **Token balance in nav** (3.4) — reduces paywall surprise
-6. **View Profile link** (4.1) — connects messaging to marketplace
-7. **Conversation search** (4.2) — needed once users have many convos
-8. **Typing indicator** (4.3) — feel premium
-9. **System messages** (4.4) — milestone events, ties to orders
-10. **File attachments** (4.5) — engineering use case, high value
+1. **Contract-to-Unlock** ✅ Shipped (July 30) - DB trigger auto-unlocks DM when order hits `in_progress`
+2. **Realtime** (3.1) - biggest UX gap, Supabase subscription ~50 lines
+3. **Avatar images** (3.2) - quick wins, huge visual improvement
+4. **Email notifications** (3.3) - drives re-engagement, Resend already wired
+5. **Token balance in nav** (3.4) - reduces paywall surprise
+6. **View Profile link** (4.1) - connects messaging to marketplace
+7. **Conversation search** (4.2) - needed once users have many convos
+8. **Typing indicator** (4.3) - feel premium
+9. **System messages** (4.4) - milestone events, ties to orders
+10. **File attachments** (4.5) - engineering use case, high value

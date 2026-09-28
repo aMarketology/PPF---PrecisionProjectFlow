@@ -188,7 +188,7 @@ export default function BlogPostPage({ params }: Props) {
         <div className="mt-10 bg-blue-50 border border-blue-100 rounded-2xl p-7 flex flex-col sm:flex-row items-center justify-between gap-5">
           <div>
             <p className="font-extrabold text-[#003D82] text-lg mb-1">Need an engineer for your project?</p>
-            <p className="text-sm text-gray-600">Browse licensed engineers or post a free RFQ — get proposals within 48 hours.</p>
+            <p className="text-sm text-gray-600">Browse licensed engineers or post a free RFQ - get proposals within 48 hours.</p>
           </div>
           <div className="flex gap-3 flex-shrink-0">
             <Link
@@ -246,7 +246,7 @@ export default function BlogPostPage({ params }: Props) {
               Ready to get started?
             </h2>
             <p className="text-blue-200 text-sm mb-7 max-w-md mx-auto">
-              Connect with a licensed engineer on Precision Project Flow. Browse profiles, compare credentials, and get proposals — for free.
+              Connect with a licensed engineer on Precision Project Flow. Browse profiles, compare credentials, and get proposals - for free.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link

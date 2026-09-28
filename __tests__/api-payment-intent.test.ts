@@ -1,9 +1,14 @@
 /**
  * API Route Tests - Create Payment Intent
+ * @jest-environment node
  */
-import { POST } from '@/app/api/stripe/create-payment-intent/route';
+import { POST as POSTHandler } from '@/app/api/stripe/create-payment-intent/route';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
+
+// Next.js route handlers are typed to accept NextRequest, but these tests build
+// plain Request objects. Wrap the handler so the tests stay framework-agnostic.
+const POST = (request: Request) => POSTHandler(request as any);
 
 // Mock Stripe
 jest.mock('stripe', () => {

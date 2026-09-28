@@ -1,4 +1,4 @@
-# Activity Feed — Feature Spec for React Native
+# Activity Feed - Feature Spec for React Native
 
 > **Source:** `app/activity/page.tsx`, `app/api/activities/route.ts`
 > **Status:** ✅ Production (formerly `/feed`, now 301 → `/activity`)
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The Activity Feed is a **real-time, cryptographically chained** event ledger of all platform actions. Every significant action (RFQ posted, offer submitted, order placed, company joined) is logged as an immutable, hash-linked row in the `site_activities` table — giving the platform a blockchain-style audit trail.
+The Activity Feed is a **real-time, cryptographically chained** event ledger of all platform actions. Every significant action (RFQ posted, offer submitted, order placed, company joined) is logged as an immutable, hash-linked row in the `site_activities` table - giving the platform a blockchain-style audit trail.
 
 ---
 
@@ -25,7 +25,7 @@ The Activity Feed is a **real-time, cryptographically chained** event ledger of 
 | `summary` | TEXT | Human-readable description (e.g., "Acme Corp posted a new RFQ: CNC Parts") |
 | `metadata` | JSONB | Structured data (budget, location, category, offer amount, etc.) |
 | `previous_hash` | TEXT | SHA256 hash of the previous activity row |
-| `row_hash` | TEXT | SHA256(`id` + `activity_type` + `actor` + `previous_hash`) — immutable chain |
+| `row_hash` | TEXT | SHA256(`id` + `activity_type` + `actor` + `previous_hash`) - immutable chain |
 | `created_at` | TIMESTAMPTZ | When the event occurred |
 
 ### Activity Types
@@ -73,8 +73,8 @@ The Activity Feed is a **real-time, cryptographically chained** event ledger of 
 ```
 
 - **Filters:**
-  - `type` — Filter by activity_type (default: `all`)
-  - `search` — ILIKE search on `summary`
+  - `type` - Filter by activity_type (default: `all`)
+  - `search` - ILIKE search on `summary`
 - **Enrichment:** Actor profiles fetched separately, joined client-side
 
 ---
@@ -154,7 +154,7 @@ supabase.channel('sa_live')
 The home page (`/`) also shows a condensed activity feed for authenticated users, fetched from the same API:
 
 ```javascript
-// app/page.tsx — loadActivities()
+// app/page.tsx - loadActivities()
 const res = await fetch('/api/activities?page=0&type=all&search=')
 setActivities(data.activities?.slice(0, 6) ?? [])
 ```
@@ -200,9 +200,9 @@ HomeActivityStrip
 ```
 
 ### Key Libraries
-- `@supabase/supabase-js` — realtime subscription
-- `date-fns` — `formatDistanceToNow`
-- `react-native-reanimated` — smooth card animations
+- `@supabase/supabase-js` - realtime subscription
+- `date-fns` - `formatDistanceToNow`
+- `react-native-reanimated` - smooth card animations
 
 ### Real-time on Mobile
 - Subscribe on mount, unsubscribe on unmount

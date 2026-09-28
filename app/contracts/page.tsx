@@ -63,7 +63,7 @@ export default function ContractsPage() {
   }
 
   const formatPrice = (n: number) => '$' + n.toLocaleString()
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'
 
   const getMilestoneProgress = (c: Contract) => {
     if (!c.milestones?.length) return { done: 0, total: 0 }

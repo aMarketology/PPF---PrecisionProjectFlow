@@ -20,9 +20,9 @@ const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.
   for (const [label, table, col] of checks) {
     try {
       const { error } = await supabase.from(table).select(col).limit(1);
-      console.log(error ? '❌' : '✅', label, error ? '— NEEDS MIGRATION' : '');
+      console.log(error ? '❌' : '✅', label, error ? '- NEEDS MIGRATION' : '');
     } catch(e) {
-      console.log('❌', label, '— NEEDS MIGRATION');
+      console.log('❌', label, '- NEEDS MIGRATION');
     }
   }
   process.exit(0);

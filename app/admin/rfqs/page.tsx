@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
-import { ExternalLink, FileText, Loader2, MessageSquare, Search } from 'lucide-react'
+import { ExternalLink, FileText, Loader2, MessageSquare, Search, Trash2 } from 'lucide-react'
+import { toast } from 'react-hot-toast'
 
 interface RFQ {
   id: string
@@ -31,20 +32,33 @@ export default function AdminRFQsPage() {
   const [statusFilter, setStatusFilter] = useState('all')
 
   useEffect(() => {
-    async function loadRFQs() {
-      try {
-        const response = await fetch('/api/admin?action=data&tab=rfqs')
-        const json = await response.json()
-        setRfqs(json.data || [])
-      } catch (error) {
-        console.error('Failed to load RFQs:', error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
     loadRFQs()
   }, [])
+
+  const loadRFQs = async () => {
+    setLoading(true)
+    try {
+      const response = await fetch('/api/admin?action=data&tab=rfqs')
+      const json = await response.json()
+      setRfqs(json.data || [])
+    } catch (error) {
+      console.error('Failed to load RFQs:', error)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleDelete = async (rfq: RFQ) => {
+    if (!confirm(`Delete "${rfq.title}" permanently? This cannot be undone.`)) return
+    try {
+      const res = await fetch(`/api/admin?action=delete&tab=rfqs&id=${rfq.id}`, { method: 'POST' })
+      if (!res.ok) { const json = await res.json(); toast.error(json.error || 'Delete failed'); return }
+      toast.success('RFQ deleted')
+      setRfqs((prev) => prev.filter((r) => r.id !== rfq.id))
+    } catch {
+      toast.error('Failed to delete')
+    }
+  }
 
   const filteredRFQs = rfqs.filter((rfq) => {
     if (statusFilter !== 'all' && rfq.status !== statusFilter) return false
@@ -134,6 +148,9 @@ export default function AdminRFQsPage() {
                     <Link href={`/rfq/${rfq.slug || rfq.id}`} className="inline-flex rounded-md p-2 text-[#003D82] hover:bg-blue-50" title="View public RFQ" aria-label={`View ${rfq.title}`}>
                       <ExternalLink className="h-4 w-4" />
                     </Link>
+                    <button onClick={() => handleDelete(rfq)} className="inline-flex rounded-md p-2 text-red-600 hover:bg-red-50" title="Delete RFQ" aria-label={`Delete ${rfq.title}`}>
+                      <Trash2 className="h-4 w-4" />
+                    </button>
                   </div>
                 </td>
               </tr>

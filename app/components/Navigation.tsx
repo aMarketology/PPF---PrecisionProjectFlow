@@ -4,9 +4,22 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins, Layers, Shield } from 'lucide-react'
+import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins, Layers, Shield, CheckCheck, Loader2 } from 'lucide-react'
+import { formatDistanceToNow } from 'date-fns'
 import { getUser, signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
+import { notificationStyle } from '@/lib/notifications'
+
+interface NavNotification {
+  id: string
+  type: string
+  title: string
+  body: string | null
+  link: string | null
+  is_read: boolean
+  created_at: string
+  actor: { id: string; full_name: string; avatar_url: string | null } | null
+}
 
 export default function Navigation() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -15,9 +28,16 @@ export default function Navigation() {
   const [user, setUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [unreadCount, setUnreadCount] = useState(0)
+  const [notificationUnread, setNotificationUnread] = useState(0)
   const userMenuRef = useRef<HTMLDivElement>(null)
   const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  // Notification bell dropdown
+  const [bellOpen, setBellOpen] = useState(false)
+  const [notifications, setNotifications] = useState<NavNotification[]>([])
+  const [notificationsLoading, setNotificationsLoading] = useState(false)
+  const bellRef = useRef<HTMLDivElement>(null)
 
   // Search state
   const [searchOpen, setSearchOpen] = useState(false)
@@ -78,7 +98,9 @@ export default function Navigation() {
         setUser(userData)
         if (userData?.id) {
           loadUnreadCount(userData.id)
+          loadNotifications()
           subscribeToUnread(userData.id)
+          subscribeToNotifications(userData.id)
         }
       } catch (error) {
         console.error('Error loading user:', error)
@@ -125,6 +147,76 @@ export default function Navigation() {
     return () => { supabase.removeChannel(channel) }
   }
 
+  // ── Personal notifications (bell) ──────────────────────────────
+  async function loadNotifications() {
+    try {
+      const res = await fetch('/api/notifications?limit=8')
+      if (!res.ok) return
+      const data = await res.json()
+      setNotifications(data.notifications ?? [])
+      setNotificationUnread(data.unreadCount ?? 0)
+    } catch (e) {
+      console.error('loadNotifications:', e)
+    }
+  }
+
+  function subscribeToNotifications(userId: string) {
+    const supabase = createClient()
+    const channel = supabase
+      .channel('nav-notifications')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${userId}` },
+        () => { loadNotifications() }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'user_notifications', filter: `user_id=eq.${userId}` },
+        () => { loadNotifications() }
+      )
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  }
+
+  async function toggleBell() {
+    const next = !bellOpen
+    setBellOpen(next)
+    if (next) {
+      setNotificationsLoading(true)
+      await loadNotifications()
+      setNotificationsLoading(false)
+    }
+  }
+
+  async function markAllNotificationsRead() {
+    // Optimistic update
+    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
+    setNotificationUnread(0)
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ all: true }),
+      })
+    } catch (e) {
+      console.error('markAllNotificationsRead:', e)
+    }
+  }
+
+  async function markNotificationRead(id: string) {
+    setNotifications(prev => prev.map(n => (n.id === id ? { ...n, is_read: true } : n)))
+    setNotificationUnread(prev => Math.max(0, prev - 1))
+    try {
+      await fetch('/api/notifications', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [id] }),
+      })
+    } catch (e) {
+      console.error('markNotificationRead:', e)
+    }
+  }
+
   useEffect(() => {
     const handleScroll = () => {
       setScrolled(window.scrollY > 50)
@@ -140,6 +232,9 @@ export default function Navigation() {
       }
       if (searchRef.current && !searchRef.current.contains(event.target as Node)) {
         closeSearch()
+      }
+      if (bellRef.current && !bellRef.current.contains(event.target as Node)) {
+        setBellOpen(false)
       }
     }
     document.addEventListener('mousedown', handleClickOutside)
@@ -307,22 +402,125 @@ export default function Navigation() {
 
             {/* ── Notification Bell ── */}
             {user && (
-              <Link href="/notifications" className="relative p-2 rounded-lg hover:bg-gray-100 transition-colors" title="Open notifications">
-                <Bell className="w-5 h-5 text-gray-500" />
+              <div ref={bellRef} className="relative">
+                <button
+                  onClick={toggleBell}
+                  className={`relative p-2 rounded-lg transition-colors ${bellOpen ? 'bg-blue-50 text-[#003D82]' : 'hover:bg-gray-100 text-gray-500'}`}
+                  title="Notifications"
+                >
+                  <Bell className="w-5 h-5" />
+                  <AnimatePresence>
+                    {notificationUnread > 0 && (
+                      <motion.span
+                        key="badge"
+                        initial={{ scale: 0 }}
+                        animate={{ scale: 1 }}
+                        exit={{ scale: 0 }}
+                        className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md"
+                      >
+                        {notificationUnread > 99 ? '99+' : notificationUnread}
+                      </motion.span>
+                    )}
+                  </AnimatePresence>
+                </button>
+
                 <AnimatePresence>
-                  {unreadCount > 0 && (
-                    <motion.span
-                      key="badge"
-                      initial={{ scale: 0 }}
-                      animate={{ scale: 1 }}
-                      exit={{ scale: 0 }}
-                      className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md"
+                  {bellOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-[360px] max-w-[calc(100vw-2rem)] bg-white border border-gray-200 rounded-2xl shadow-2xl overflow-hidden z-[9999]"
                     >
-                      {unreadCount > 99 ? '99+' : unreadCount}
-                    </motion.span>
+                      {/* Header */}
+                      <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100 bg-gradient-to-r from-blue-50 to-slate-50">
+                        <div className="flex items-center gap-2">
+                          <Bell className="w-4 h-4 text-[#003D82]" />
+                          <span className="font-bold text-gray-900 text-sm">Notifications</span>
+                          {notificationUnread > 0 && (
+                            <span className="px-1.5 py-0.5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full">
+                              {notificationUnread} new
+                            </span>
+                          )}
+                        </div>
+                        {notificationUnread > 0 && (
+                          <button
+                            onClick={markAllNotificationsRead}
+                            className="flex items-center gap-1 text-[11px] font-semibold text-[#003D82] hover:text-[#002960]"
+                          >
+                            <CheckCheck className="w-3.5 h-3.5" /> Mark all read
+                          </button>
+                        )}
+                      </div>
+
+                      {/* List */}
+                      <div className="max-h-[380px] overflow-y-auto">
+                        {notificationsLoading ? (
+                          <div className="flex items-center justify-center py-10">
+                            <Loader2 className="w-5 h-5 animate-spin text-[#003D82]" />
+                          </div>
+                        ) : notifications.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-10 px-6 text-center">
+                            <CheckCheck className="w-9 h-9 text-emerald-300 mb-2" />
+                            <p className="text-sm font-semibold text-gray-700">You&apos;re all caught up</p>
+                            <p className="text-xs text-gray-400 mt-0.5">New activity will show up here.</p>
+                          </div>
+                        ) : (
+                          notifications.map(n => {
+                            const style = notificationStyle(n.type)
+                            const Icon = style.icon
+                            const inner = (
+                              <div className={`flex items-start gap-3 px-4 py-3 transition-colors ${n.is_read ? 'hover:bg-gray-50' : 'bg-blue-50/40 hover:bg-blue-50'}`}>
+                                <div className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 ${style.chip}`}>
+                                  <Icon className="w-4 h-4" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2">
+                                    <p className="text-sm font-semibold text-gray-900 truncate">{n.title}</p>
+                                    {!n.is_read && <span className="w-2 h-2 rounded-full bg-[#FF6B35] flex-shrink-0" />}
+                                  </div>
+                                  {n.body && <p className="text-xs text-gray-600 line-clamp-2 mt-0.5">{n.body}</p>}
+                                  <p className="text-[10px] text-gray-400 mt-1">
+                                    {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
+                                  </p>
+                                </div>
+                              </div>
+                            )
+                            return n.link ? (
+                              <Link
+                                key={n.id}
+                                href={n.link}
+                                onClick={() => { markNotificationRead(n.id); setBellOpen(false) }}
+                                className="block border-b border-gray-50 last:border-0"
+                              >
+                                {inner}
+                              </Link>
+                            ) : (
+                              <button
+                                key={n.id}
+                                onClick={() => markNotificationRead(n.id)}
+                                className="block w-full text-left border-b border-gray-50 last:border-0"
+                              >
+                                {inner}
+                              </button>
+                            )
+                          })
+                        )}
+                      </div>
+
+                      {/* Footer */}
+                      <Link
+                        href="/notifications"
+                        onClick={() => setBellOpen(false)}
+                        className="block px-4 py-3 text-center text-sm font-semibold text-[#003D82] hover:bg-blue-50 border-t border-gray-100"
+                      >
+                        View all notifications
+                      </Link>
+                    </motion.div>
                   )}
                 </AnimatePresence>
-              </Link>
+              </div>
             )}
           </div>
 
@@ -379,23 +577,13 @@ export default function Navigation() {
                           </span>
                         </div>
                         <div className="py-2">
-                          {user.profile?.user_type === 'engineer' && (
-                            <Link
-                              href="/dashboard/engineer"
-                              className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-[#003D82] to-[#005BB5] text-white hover:from-[#002960] hover:to-[#003D82] transition-colors font-medium mx-2 rounded-lg mb-2"
-                              onClick={() => setUserMenuOpen(false)}
-                            >
-                              <Briefcase className="h-4 w-4" />
-                              <span>Engineer Dashboard</span>
-                            </Link>
-                          )}
                           <Link
-                            href={user.profile?.user_type === 'engineer' ? '/dashboard/engineer' : '/dashboard/client'}
-                            className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
+                            href="/admin"
+                            className="flex items-center gap-3 px-4 py-2.5 bg-gradient-to-r from-[#003D82] to-[#005BB5] text-white hover:from-[#002960] hover:to-[#003D82] transition-colors font-medium mx-2 rounded-lg mb-2"
                             onClick={() => setUserMenuOpen(false)}
                           >
                             <Briefcase className="h-4 w-4" />
-                            <span>Dashboard</span>
+                            <span>My Dashboard</span>
                           </Link>
                           <Link
                             href="/settings"
@@ -412,9 +600,9 @@ export default function Navigation() {
                           >
                             <Bell className="h-4 w-4" />
                             <span>Notifications</span>
-                            {unreadCount > 0 && (
+                            {notificationUnread > 0 && (
                               <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                                {unreadCount > 99 ? '99+' : unreadCount}
+                                {notificationUnread > 99 ? '99+' : notificationUnread}
                               </span>
                             )}
                           </Link>
@@ -596,9 +784,9 @@ export default function Navigation() {
                     >
                       <Bell className="h-4 w-4" />
                       <span>Notifications</span>
-                      {unreadCount > 0 && (
+                      {notificationUnread > 0 && (
                         <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                          {unreadCount > 99 ? '99+' : unreadCount}
+                          {notificationUnread > 99 ? '99+' : notificationUnread}
                         </span>
                       )}
                     </Link>

@@ -137,7 +137,7 @@ export default function ProfileTab() {
                 : [
                     { label: 'Orders', val: orders.length },
                     { label: 'Tokens', val: profile?.token_balance ?? 0 },
-                    { label: 'RFQs', val: '—' },
+                    { label: 'RFQs', val: '-' },
                   ]
               ).map(({ label, val }) => (
                 <View key={label} style={styles.statBox}>

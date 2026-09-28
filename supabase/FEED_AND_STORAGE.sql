@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS public.feed_posts (
   -- Media (array of public URLs from the post-media bucket)
   media_urls      TEXT[]      DEFAULT '{}',
 
-  -- Linked entity (optional — e.g. link to a product or company)
+  -- Linked entity (optional - e.g. link to a product or company)
   linked_type     TEXT        CHECK (linked_type IN ('product', 'company', 'project', NULL)),
   linked_id       UUID,
 

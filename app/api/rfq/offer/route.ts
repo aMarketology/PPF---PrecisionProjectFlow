@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
     // DB operations via service client
     const supabase = createServiceClient();
 
-    // Get the user's profile (no engineer restriction — anyone can bid)
+    // Get the user's profile (no engineer restriction - anyone can bid)
     const { data: profile } = await supabase.from('profiles')
       .select('user_type, token_balance, full_name, company_id').eq('id', user.id).single();
 

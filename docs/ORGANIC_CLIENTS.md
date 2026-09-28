@@ -1,11 +1,11 @@
-# 🎯 10–15 Organic Clients Per Month — Acquisition Playbook
+# 🎯 10–15 Organic Clients Per Month - Acquisition Playbook
 **Precision Project Flow (PPF)**  
 Last updated: May 2026
 
 ---
 
 ## 🧭 North Star
-> Acquire **10–15 paying clients per month** through organic channels only —  
+> Acquire **10–15 paying clients per month** through organic channels only -  
 > no paid ads, no cold outreach. Pure SEO + content + community.
 
 At our average order value of ~$500–$2,000, that's **$5,000–$30,000 MRR from organic alone.**
@@ -29,19 +29,19 @@ See `/docs/100K_SEARCH.md` for the full traffic strategy.
 
 ## 👤 Who Is Our Organic Client?
 
-### Client Type A — The "I Need a Stamp" Client
+### Client Type A - The "I Need a Stamp" Client
 - **Who**: Small developer, solar installer, contractor needing a PE stamp
 - **How they find us**: Googles "PE stamped drawings online" or "hire structural engineer online"
 - **Time to convert**: 1–2 days (urgent need)
 - **Order value**: $300–$800
 
-### Client Type B — The Project Owner
+### Client Type B - The Project Owner
 - **Who**: GC, property developer, municipality needing engineering support
 - **How they find us**: Googles "civil engineering consultant" or "find mechanical engineer for project"
 - **Time to convert**: 1–2 weeks (RFQ process)
 - **Order value**: $2,000–$10,000
 
-### Client Type C — The Startup/Tech Company
+### Client Type C - The Startup/Tech Company
 - **Who**: Hardware startup, SaaS company needing FEA, thermal analysis, PCB review
 - **How they find us**: Googles "freelance engineer for hire" or "FEA analysis service"
 - **Time to convert**: 3–7 days
@@ -51,7 +51,7 @@ See `/docs/100K_SEARCH.md` for the full traffic strategy.
 
 ## 🗓️ Month-by-Month Acquisition Plan
 
-### Months 1–3 — Foundation (0 → 3 clients/month)
+### Months 1–3 - Foundation (0 → 3 clients/month)
 
 | Action | Detail |
 |--------|--------|
@@ -59,37 +59,37 @@ See `/docs/100K_SEARCH.md` for the full traffic strategy.
 | **Optimize /marketplace** | Title tags, meta descriptions, schema markup for each service listing |
 | **Engineer profiles as SEO pages** | Each `/profiles/[id]` page = a rankable "hire [engineer name] in [city]" page |
 | **Submit to directories** | Engineering directories, Clutch, G2, Product Hunt |
-| **Add FAQ schema** | On blog posts and service pages — triggers rich snippets in Google |
+| **Add FAQ schema** | On blog posts and service pages - triggers rich snippets in Google |
 
 **Expected result:** 5,000 impressions/mo → ~15 clicks/day → 2–3 sign-ups/day → 1–2 paying clients
 
 ---
 
-### Months 4–6 — Momentum (3 → 8 clients/month)
+### Months 4–6 - Momentum (3 → 8 clients/month)
 
 | Action | Detail |
 |--------|--------|
 | **Blog: 3 posts/month** | Mix informational + commercial intent (see keyword list) |
-| **RFQ landing pages** | `/rfq/structural-engineering`, `/rfq/mechanical-engineering` etc — dedicated pages per category |
-| **Location pages** | `/engineers/los-angeles`, `/engineers/houston` etc — city-based SEO |
+| **RFQ landing pages** | `/rfq/structural-engineering`, `/rfq/mechanical-engineering` etc - dedicated pages per category |
+| **Location pages** | `/engineers/los-angeles`, `/engineers/houston` etc - city-based SEO |
 | **Backlink outreach** | Guest posts on engineering blogs, AEC publications, LinkedIn articles |
-| **Case studies** | 1 published case study/month — "How [Client] got PE stamps in 3 days" |
-| **Reddit + Discord presence** | Answer questions in r/civilengineering, r/engineering, AEC Discord — link to relevant blog posts |
+| **Case studies** | 1 published case study/month - "How [Client] got PE stamps in 3 days" |
+| **Reddit + Discord presence** | Answer questions in r/civilengineering, r/engineering, AEC Discord - link to relevant blog posts |
 
 **Expected result:** 25,000 impressions/mo → ~80 clicks/day → 10 sign-ups/day → 6–8 paying clients
 
 ---
 
-### Months 7–12 — Scale (8 → 15 clients/month)
+### Months 7–12 - Scale (8 → 15 clients/month)
 
 | Action | Detail |
 |--------|--------|
-| **Blog: 4 posts/month** | Cluster strategy — build topic authority for each engineering category |
-| **YouTube SEO** | Short "How to hire a [type] engineer" videos — embed in blog posts |
-| **Newsletter** | Weekly "Engineering Marketplace Digest" — grows organic return traffic |
-| **LinkedIn thought leadership** | Max posts 3x/week — engineering marketplace insight + client wins |
-| **PR / industry press** | ENR, CE News, Engineering News Record — announce platform milestones |
-| **Referral loop** | Happy clients refer other clients — add referral widget to post-order page |
+| **Blog: 4 posts/month** | Cluster strategy - build topic authority for each engineering category |
+| **YouTube SEO** | Short "How to hire a [type] engineer" videos - embed in blog posts |
+| **Newsletter** | Weekly "Engineering Marketplace Digest" - grows organic return traffic |
+| **LinkedIn thought leadership** | Max posts 3x/week - engineering marketplace insight + client wins |
+| **PR / industry press** | ENR, CE News, Engineering News Record - announce platform milestones |
+| **Referral loop** | Happy clients refer other clients - add referral widget to post-order page |
 
 **Expected result:** 100,000 impressions/mo → 3,000 clicks/mo → 240 sign-ups/mo → 12–15 paying clients ✅
 
@@ -97,7 +97,7 @@ See `/docs/100K_SEARCH.md` for the full traffic strategy.
 
 ## 🔑 14 Keywords That Drive Client Conversions
 
-These are purchase-intent keywords — someone searching these is ready to hire:
+These are purchase-intent keywords - someone searching these is ready to hire:
 
 | Keyword | Monthly Searches | Competition | Priority |
 |---------|-----------------|-------------|----------|
@@ -133,7 +133,7 @@ Each of these needs to exist and be SEO-optimized:
 /rfq/civil-engineering                ← "Hire a Civil Engineer" [TODO]
 /rfq/electrical-engineering           ← "Hire an Electrical Engineer" [TODO]
 /blog/[slug]                          ← Informational content → drives to above pages
-/profiles/[id]                        ← "Hire [Name], PE — [City]" [rankable now]
+/profiles/[id]                        ← "Hire [Name], PE - [City]" [rankable now]
 ```
 
 ---
@@ -142,7 +142,7 @@ Each of these needs to exist and be SEO-optimized:
 
 | Element | Status | Action |
 |---------|--------|--------|
-| Hero CTA "Post an RFQ" | ✅ Live | — |
+| Hero CTA "Post an RFQ" | ✅ Live | - |
 | Trust signals (verified badge, review count) | 🟡 Partial | Add review count to marketplace cards |
 | Exit intent popup "Get 3 quotes in 24 hours" | 🔴 Not built | Build |
 | Post-blog CTA "Find an Engineer Now" | 🔴 Not built | Build on blog posts |
@@ -155,10 +155,10 @@ Each of these needs to exist and be SEO-optimized:
 
 When a client signs up but doesn't post an RFQ within 48 hours, trigger:
 
-1. **Day 1**: "You're 3 steps from your first engineering quote" — walkthrough email
-2. **Day 3**: "Here are 5 engineers in your area" — personalized recommendations  
-3. **Day 7**: "How [Company] got their PE stamps in 48 hours" — case study
-4. **Day 14**: "Still looking for engineering support?" — last-touch CTA
+1. **Day 1**: "You're 3 steps from your first engineering quote" - walkthrough email
+2. **Day 3**: "Here are 5 engineers in your area" - personalized recommendations  
+3. **Day 7**: "How [Company] got their PE stamps in 48 hours" - case study
+4. **Day 14**: "Still looking for engineering support?" - last-touch CTA
 
 > Requires: Resend sequences (currently only single transactional emails are set up)
 

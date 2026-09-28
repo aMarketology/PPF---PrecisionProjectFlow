@@ -13,7 +13,7 @@ export async function POST(request: NextRequest) {
     const { type, serviceId, vendorId, buyerId } = body;
 
     if (type === 'service_listed') {
-      // Vendor listed a new service — post to feed as a project_showcase
+      // Vendor listed a new service - post to feed as a project_showcase
       const { data: service } = await supabase
         .from('services')
         .select('id, title, description, price, category')
@@ -40,7 +40,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (type === 'service_purchased' && buyerId) {
-      // A service was purchased — post milestone to feed (no price revealed, just the activity)
+      // A service was purchased - post milestone to feed (no price revealed, just the activity)
       const { data: service } = await supabase
         .from('services')
         .select('id, title, category, provider_id')

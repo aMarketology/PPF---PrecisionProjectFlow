@@ -61,7 +61,7 @@ BEGIN
     RETURN 'not_participant';
   END IF;
 
-  -- Already unlocked — no charge needed
+  -- Already unlocked - no charge needed
   IF v_conv.is_unlocked THEN
     RETURN NULL;
   END IF;
@@ -88,7 +88,7 @@ BEGIN
     (conversation_id, sender_id, content, is_system_message)
   VALUES
     (p_conversation_id, p_user_id,
-     '🔓 Conversation unlocked — you can now message each other for free.',
+     '🔓 Conversation unlocked - you can now message each other for free.',
      TRUE);
 
   RETURN NULL; -- success

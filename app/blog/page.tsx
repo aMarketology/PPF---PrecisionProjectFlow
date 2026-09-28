@@ -6,7 +6,7 @@ import { blogPosts } from '@/lib/blog'
 import { ArrowRight, Clock, Tag } from 'lucide-react'
 
 export const metadata: Metadata = {
-  title: 'Engineering Blog — Hiring Guides & Industry Insights | Precision Project Flow',
+  title: 'Engineering Blog - Hiring Guides & Industry Insights | Precision Project Flow',
   description:
     'Expert guides on hiring licensed engineers, PE-stamped drawings, engineering RFQs, and more. Resources from the Precision Project Flow engineering marketplace.',
   keywords: [
@@ -162,7 +162,7 @@ export default function BlogPage() {
               Ready to find a licensed engineer?
             </h2>
             <p className="text-blue-200 mb-8 max-w-xl mx-auto">
-              Browse verified engineers, compare credentials, and get proposals on your project — all in one place.
+              Browse verified engineers, compare credentials, and get proposals on your project - all in one place.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link

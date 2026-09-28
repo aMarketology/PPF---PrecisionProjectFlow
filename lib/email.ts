@@ -1,10 +1,21 @@
-// PPF Email via Resend — server-side only, never import in 'use client' files.
+// PPF Email via Resend - server-side only, never import in 'use client' files.
 import { Resend } from 'resend'
 
-const resend = new Resend(process.env.RESEND_API_KEY!)
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL || 'https://precisionprojectflow.com'
 const FROM_NAME = 'Precision Project Flow'
 const FROM_ADDR = 'no-reply@precisionprojectflow.com'
+
+// Lazily construct the Resend client so importing this module never throws
+// when RESEND_API_KEY is absent (e.g. tests, local builds without email).
+let _resend: Resend | null = null
+function getResend(): Resend {
+  if (!_resend) {
+    const key = process.env.RESEND_API_KEY
+    if (!key) throw new Error('RESEND_API_KEY is not set')
+    _resend = new Resend(key)
+  }
+  return _resend
+}
 
 // ── Layout helpers ────────────────────────────────────────────────────────────
 
@@ -49,13 +60,13 @@ export async function sendWelcomeEmail({ to, name, userType }: {
   to: string; name: string; userType: 'engineer' | 'client'
 }) {
   const isEng = userType === 'engineer'
-  const dashUrl = isEng ? `${APP_URL}/dashboard/engineer` : `${APP_URL}/dashboard/client`
+  const dashUrl = isEng ? `${APP_URL}/admin` : `${APP_URL}/admin`
   const list = isEng
     ? `<li>Complete your public profile (avatar, bio, location)</li><li>Add your first service listing</li><li>Connect your Stripe account to receive payouts</li><li>Browse open RFQs and respond to relevant ones</li>`
     : `<li>Browse the marketplace and discover engineering services</li><li>Message a vendor about your project</li><li>Post an RFQ to get multiple quotes at once</li>`
   const body =
     h1(`Welcome to PPF, ${name}!`) +
-    sub("Your account is live — here's how to get started.") +
+    sub("Your account is live - here's how to get started.") +
     pp(isEng
       ? "You've joined as an <strong>engineer / vendor</strong>. List your services, respond to RFQs, and get paid directly."
       : "You've joined as a <strong>client</strong>. Browse services, post RFQs, and message vendors directly.") +
@@ -64,7 +75,7 @@ export async function sendWelcomeEmail({ to, name, userType }: {
     `<p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#0f172a;">Quick-start checklist</p>` +
     `<ul style="margin:0 0 24px;padding-left:20px;color:#334155;font-size:14px;line-height:2;">${list}</ul>` +
     pp(`Questions? Reply to this email or visit <a href="${APP_URL}/contact" style="color:#003D82;">our contact page</a>.`)
-  return resend.emails.send({
+  return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `Welcome to Precision Project Flow, ${name}!`,
     html: emailBase(body),
@@ -84,14 +95,14 @@ export async function sendNewMessageEmail({ to, recipientName, senderName, previ
     `<p style="margin:0;font-size:14px;color:#334155;font-style:italic;">"${truncated}"</p></div>` +
     btn('Reply in Messenger', `${APP_URL}/messages?conv=${conversationId}`) +
     pp('Replying within 24 hours keeps your response rate high and boosts your profile ranking.')
-  return resend.emails.send({
+  return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `New message from ${senderName}`,
     html: emailBase(body),
   })
 }
 
-// ── 3a. New order — vendor ────────────────────────────────────────────────────
+// ── 3a. New order - vendor ────────────────────────────────────────────────────
 
 export async function sendNewOrderEmailVendor({ to, vendorName, clientName, serviceTitle, orderAmount, orderId }: {
   to: string; vendorName: string; clientName: string; serviceTitle: string; orderAmount: number; orderId: string
@@ -107,14 +118,14 @@ export async function sendNewOrderEmailVendor({ to, vendorName, clientName, serv
     ]) +
     btn('View Order Details', `${APP_URL}/orders/sales/${orderId}`) +
     pp('Please confirm the order and reach out to the client if you need any clarification.')
-  return resend.emails.send({
+  return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `New order: ${serviceTitle}`,
     html: emailBase(body),
   })
 }
 
-// ── 3b. Order confirmation — client ──────────────────────────────────────────
+// ── 3b. Order confirmation - client ──────────────────────────────────────────
 
 export async function sendOrderConfirmationEmail({ to, clientName, vendorName, serviceTitle, orderAmount, orderId }: {
   to: string; clientName: string; vendorName: string; serviceTitle: string; orderAmount: number; orderId: string
@@ -131,7 +142,7 @@ export async function sendOrderConfirmationEmail({ to, clientName, vendorName, s
     btn('Track Your Order', `${APP_URL}/orders/${orderId}`) +
     pp('The vendor will typically confirm within 24 hours. You can message them directly if you have questions.') +
     pp('If anything goes wrong, reply to this email and our team will help.')
-  return resend.emails.send({
+  return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `Order confirmed: ${serviceTitle}`,
     html: emailBase(body),
@@ -147,7 +158,7 @@ export async function sendClaimInviteEmail({ to, contactName, companyName, compa
   const claimUrl = `${APP_URL}/claim-company?id=${companyId}&name=${encodeURIComponent(companyName)}`
   const body =
     h1(`Claim your company page, ${contactName}`) +
-    sub(`${companyName} already has a profile on Precision Project Flow. Claim it now — it's free and takes under 2 minutes.`) +
+    sub(`${companyName} already has a profile on Precision Project Flow. Claim it now - it's free and takes under 2 minutes.`) +
     infoBox([
       { label: 'Company', value: companyName },
       { label: 'Location', value: location || 'Nationwide' },
@@ -155,11 +166,44 @@ export async function sendClaimInviteEmail({ to, contactName, companyName, compa
     pp('Once claimed, you can update company details, add team members, receive RFQ notifications, message buyers directly, and build your engineering marketplace presence.') +
     btn('Claim Your Company Now', claimUrl, true) +
     divider() +
-    pp(`Didn't request this? No action needed — ${companyName}'s listing will remain as-is.`) +
+    pp(`Didn't request this? No action needed - ${companyName}'s listing will remain as-is.`) +
     pp(`Questions? Reply to this email or reach us at <a href="${APP_URL}/contact" style="color:#003D82;">${APP_URL}/contact</a>.`)
-  return resend.emails.send({
+  return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `${contactName}, claim ${companyName} on Precision Project Flow`,
+    html: emailBase(body),
+  })
+}
+
+// ── 6. RFQ alert ─────────────────────────────────────────────────────────────
+
+// Sent to matching engineers when a new RFQ is posted, and to the RFQ owner
+// when a new offer arrives.
+export async function sendRFQAlertEmail({ to, engineerName, clientName, rfqTitle, rfqCategory, budget }: {
+  to: string
+  engineerName: string
+  clientName?: string | null
+  rfqTitle: string
+  rfqCategory?: string | null
+  budget?: number | string | null
+}) {
+  const budgetLabel = budget != null && budget !== ''
+    ? (typeof budget === 'number' ? `$${budget.toLocaleString()}` : String(budget))
+    : 'Not specified'
+  const body =
+    h1(`New RFQ: ${rfqTitle}`) +
+    sub(`Hi ${engineerName}, a new request for quote matches your services on PPF.`) +
+    infoBox([
+      { label: 'Project',  value: rfqTitle },
+      { label: 'Category', value: rfqCategory || 'General' },
+      { label: 'Budget',   value: budgetLabel },
+      { label: 'Client',   value: clientName || 'A client' },
+    ]) +
+    btn('View & Submit a Quote', `${APP_URL}/rfq`) +
+    pp('Responding early improves your chances of winning the project. You can message the client directly from the RFQ page.')
+  return getResend().emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`, to,
+    subject: `New RFQ: ${rfqTitle}`,
     html: emailBase(body),
   })
 }

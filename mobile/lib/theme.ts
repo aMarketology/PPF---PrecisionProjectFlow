@@ -1,4 +1,4 @@
-// PPF Mobile — Green Design System
+// PPF Mobile - Green Design System
 export const colors = {
   // Primary greens
   primary: '#16A34A',       // green-600

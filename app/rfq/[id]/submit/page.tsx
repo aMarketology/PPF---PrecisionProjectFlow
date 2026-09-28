@@ -223,7 +223,7 @@ export default function SubmitOfferPage() {
                 <ArrowLeft className="w-4 h-4" /> Back to RFQ
               </Link>
               <Link
-                href="/dashboard/engineer"
+                href="/admin"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-200 hover:border-[#003D82] text-gray-700 font-semibold rounded-xl transition-all"
               >
                 Go to Dashboard
@@ -318,9 +318,9 @@ export default function SubmitOfferPage() {
                     {rfq.line_items.map((item, i) => (
                       <tr key={i}>
                         <td className="px-3 py-2 font-medium text-gray-900">{item.part}</td>
-                        <td className="px-3 py-2 text-gray-700">{item.qty || '—'}</td>
-                        <td className="px-3 py-2 text-gray-700">{item.material || '—'}</td>
-                        <td className="px-3 py-2 text-gray-700 font-mono text-xs">{item.tolerance || '—'}</td>
+                        <td className="px-3 py-2 text-gray-700">{item.qty || '-'}</td>
+                        <td className="px-3 py-2 text-gray-700">{item.material || '-'}</td>
+                        <td className="px-3 py-2 text-gray-700 font-mono text-xs">{item.tolerance || '-'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -331,11 +331,11 @@ export default function SubmitOfferPage() {
                   <div key={i} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
                     <div className="flex items-start justify-between gap-3">
                       <p className="text-sm font-semibold text-gray-900">{item.part}</p>
-                      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-gray-600 border border-gray-200">Qty {item.qty || '—'}</span>
+                      <span className="rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-gray-600 border border-gray-200">Qty {item.qty || '-'}</span>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
-                      <div><span className="text-gray-400">Material</span><p className="font-medium text-gray-700 break-words">{item.material || '—'}</p></div>
-                      <div><span className="text-gray-400">Tolerance</span><p className="font-mono text-gray-700 break-words">{item.tolerance || '—'}</p></div>
+                      <div><span className="text-gray-400">Material</span><p className="font-medium text-gray-700 break-words">{item.material || '-'}</p></div>
+                      <div><span className="text-gray-400">Tolerance</span><p className="font-mono text-gray-700 break-words">{item.tolerance || '-'}</p></div>
                     </div>
                   </div>
                 ))}
@@ -369,7 +369,7 @@ export default function SubmitOfferPage() {
                     Your balance: <span className="font-bold">{tokenBalance.toLocaleString()} tokens</span>
                     {tokenBalance < 50 && (
                       <span className="ml-2 text-red-600 font-semibold">
-                        — Insufficient! <Link href="/tokens" className="underline">Buy tokens</Link>
+                        - Insufficient! <Link href="/tokens" className="underline">Buy tokens</Link>
                       </span>
                     )}
                   </p>
@@ -451,7 +451,7 @@ export default function SubmitOfferPage() {
                       <div key={i} className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-3 bg-gray-50 rounded-lg px-3 py-2">
                         <div className="flex-1 min-w-0">
                           <p className="text-xs font-semibold text-gray-700 truncate">{item.part}</p>
-                          <p className="text-[10px] text-gray-400">Qty: {item.qty || '—'} · {item.material || '—'}</p>
+                          <p className="text-[10px] text-gray-400">Qty: {item.qty || '-'} · {item.material || '-'}</p>
                         </div>
                         <div className="relative w-full sm:w-32 flex-shrink-0">
                           <span className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 text-sm">$</span>
@@ -522,7 +522,7 @@ export default function SubmitOfferPage() {
                     ) : tokenBalance < 50 ? (
                       <><Coins className="w-5 h-5" /> Insufficient Tokens</>
                     ) : (
-                      <><Send className="w-5 h-5" /> Submit Offer — 50 Tokens</>
+                      <><Send className="w-5 h-5" /> Submit Offer - 50 Tokens</>
                     )}
                   </button>
                 </div>

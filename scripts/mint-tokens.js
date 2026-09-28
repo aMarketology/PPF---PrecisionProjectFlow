@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * mint-tokens.js — Admin token minting script
+ * mint-tokens.js - Admin token minting script
  *
  * Usage:
  *   node scripts/mint-tokens.js <email> <amount> [description]
@@ -59,7 +59,7 @@ async function mintTokens(email, amount, description) {
     })
 
   if (ledgerErr) {
-    // Not fatal — balance was already updated. Just warn.
+    // Not fatal - balance was already updated. Just warn.
     console.warn(`  ⚠️  Balance updated but ledger insert failed for ${email}:`, ledgerErr.message)
   }
 
@@ -102,7 +102,7 @@ Usage:
     if (ok) successCount++
   }
 
-  console.log(`\n🎉  Done — ${successCount}/${emails.length} users credited.\n`)
+  console.log(`\n🎉  Done - ${successCount}/${emails.length} users credited.\n`)
 }
 
 main().catch(err => {

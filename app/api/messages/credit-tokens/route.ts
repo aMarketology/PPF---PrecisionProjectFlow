@@ -51,7 +51,7 @@ export async function POST(request: NextRequest) {
       .single();
 
     if (existing) {
-      // Already credited — just return current balance from profile
+      // Already credited - just return current balance from profile
       const { data: profile } = await supabase
         .from('profiles')
         .select('token_balance')

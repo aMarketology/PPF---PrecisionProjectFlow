@@ -5,11 +5,13 @@ import Link from 'next/link'
 import { useRouter, usePathname } from 'next/navigation'
 import {
   Shield, Users, FileText, Building2, Package,
-  BarChart3, Settings, ShoppingCart, Loader2, LayoutDashboard, LogOut,
+  BarChart3, Settings, ShoppingCart, Loader2, LayoutDashboard, LogOut, TrendingUp,
+  MessageSquare,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { loadAdminContext, can, type AdminContext } from '@/lib/admin/context'
 import { signOut } from '@/app/actions/auth'
+import { RoleBadgeList } from '@/app/admin/components/RoleBadges'
 
 export default function AdminLayout({
   children,
@@ -50,15 +52,24 @@ export default function AdminLayout({
 
   if (!ctx) return null
 
-  // Personal sections — available to every authenticated user.
+  // Personal sections - available to every authenticated user.
   const personalItems = [
     { name: 'My Account', href: '/admin', icon: LayoutDashboard },
-    { name: 'My Companies', href: '/admin/my-companies', icon: Building2 },
+    { name: 'My Company', href: '/admin/company', icon: Building2 },
+    // Company group chat - free for team members. Deep-links into the
+    // company's General channel in the messaging UI.
+    ...(ctx.primaryCompany
+      ? [{ name: 'Company Chat', href: '/admin/company-chat', icon: MessageSquare }]
+      : []),
     { name: 'My Listings', href: '/admin/my-listings', icon: Package },
+    { name: 'My Orders', href: '/admin/my-orders', icon: ShoppingCart },
     { name: 'My RFQs', href: '/admin/my-rfqs', icon: FileText },
+    ...(ctx.profile?.user_type === 'engineer'
+      ? [{ name: 'Earnings', href: '/admin/earnings', icon: TrendingUp }]
+      : []),
   ]
 
-  // Platform sections — super admins only.
+  // Platform sections - super admins only.
   const platformItems = [
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Companies', href: '/admin/companies', icon: Building2 },
@@ -101,7 +112,7 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
-      {/* Hero header — brand gradient + grid overlay */}
+      {/* Hero header - brand gradient + grid overlay */}
       <header className="relative bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] sticky top-0 z-50 overflow-hidden">
         <div
           className="absolute inset-0 opacity-10"
@@ -118,9 +129,7 @@ export default function AdminLayout({
                 : <Building2 className="w-4.5 h-4.5 text-[#FF6B35]" />}
             </div>
             <span className="font-extrabold text-lg text-white tracking-tight truncate">{headerTitle}</span>
-            <span className="hidden sm:inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-semibold bg-white/10 border border-white/20 text-white/90 whitespace-nowrap">
-              {roleLabel}
-            </span>
+            <RoleBadgeList badges={ctx.badges} variant="dark" max={3} className="hidden sm:flex" />
           </div>
           <div className="flex items-center gap-4 text-sm">
             <Link href="/" className="text-white/70 hover:text-white transition-colors">← Site</Link>
@@ -130,7 +139,7 @@ export default function AdminLayout({
       </header>
 
       <div className="flex h-[calc(100vh-64px)]">
-        {/* Sidebar — light, brand-accented */}
+        {/* Sidebar - light, brand-accented */}
         <aside className="w-60 bg-white border-r border-gray-100 flex flex-col flex-shrink-0 overflow-y-auto">
           <p className="px-5 pt-5 pb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">My Account</p>
           <div className="space-y-0.5">
@@ -156,7 +165,7 @@ export default function AdminLayout({
             </div>
           )}
 
-          {/* Logout — pinned to the bottom of the sidebar */}
+          {/* Logout - pinned to the bottom of the sidebar */}
           <div className={`${can(ctx, 'view_platform') ? 'mt-auto' : ''} p-3 border-t border-gray-100`}>
             <button
               onClick={handleLogout}

@@ -75,7 +75,7 @@ export default function RFQTab() {
             <FileText size={24} color={colors.primaryLight} />
             <View style={{ marginLeft: 10 }}>
               <Text style={styles.title}>Post an RFQ</Text>
-              <Text style={styles.subtitle}>Request for Quote — engineers will respond</Text>
+              <Text style={styles.subtitle}>Request for Quote - engineers will respond</Text>
             </View>
           </View>
         </SafeAreaView>
@@ -101,7 +101,7 @@ export default function RFQTab() {
             <Text style={styles.label}>Project Description *</Text>
             <TextInput
               style={[styles.input, styles.textarea]}
-              placeholder="Describe your project in detail — scope, requirements, deliverables..."
+              placeholder="Describe your project in detail - scope, requirements, deliverables..."
               placeholderTextColor={colors.textMuted}
               value={description}
               onChangeText={setDescription}

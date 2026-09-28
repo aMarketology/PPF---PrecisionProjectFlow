@@ -1,13 +1,13 @@
-# GitHub Copilot Instructions — Precision Project Flow (PPF)
+# GitHub Copilot Instructions - Precision Project Flow (PPF)
 
 ## 📋 Session Tracking
 Always read and update `/session.md` at the start of every session to track what we are working on, what is done, and what is next.
 
 ## 🏗️ Project Overview
-**Precision Project Flow (PPF)** — A B2B marketplace connecting engineers/vendors with clients for precision manufacturing and engineering services.
+**Precision Project Flow (PPF)** - A B2B marketplace connecting engineers/vendors with clients for precision manufacturing and engineering services.
 
 **Design Vision: Upwork × Facebook for Engineering**
-PPF should feel like a professional social marketplace — the trust, credibility, and job-posting flow of **Upwork** combined with the social feed, profiles, and community feel of **Facebook/LinkedIn**. Engineers have rich public profiles (like FB profiles), clients post RFQs (like Upwork job posts), and the feed surfaces activity across the network.
+PPF should feel like a professional social marketplace - the trust, credibility, and job-posting flow of **Upwork** combined with the social feed, profiles, and community feel of **Facebook/LinkedIn**. Engineers have rich public profiles (like FB profiles), clients post RFQs (like Upwork job posts), and the feed surfaces activity across the network.
 
 - **Framework**: Next.js 14 (App Router), TypeScript  
 - **Styling**: Tailwind CSS, `font-jakarta` (`Plus Jakarta Sans`)  
@@ -19,22 +19,22 @@ PPF should feel like a professional social marketplace — the trust, credibilit
 - **Icons**: Lucide React  
 - **Toasts**: react-hot-toast  
 
-## 🎯 Platform Feel — Design Principles
+## 🎯 Platform Feel - Design Principles
 
 ### Upwork-Inspired (Professional Marketplace)
-- RFQs are **job posts** — clients describe what they need, vendors respond
+- RFQs are **job posts** - clients describe what they need, vendors respond
 - Engineer profiles show **skills, certifications, portfolio, reviews, hourly/project rate**
 - Trust signals everywhere: verified badge, response rate, completed jobs count
 - Clear CTAs: "Hire This Engineer", "Submit Proposal", "Request Quote"
 - Structured service listings with deliverables, pricing tiers, delivery time
 
 ### Facebook/LinkedIn-Inspired (Social Network)
-- **Activity Feed** (`/feed`) — engineers post updates, completed projects, certifications earned
-- **Rich profile pages** — avatar, cover photo area, bio, work history, portfolio gallery
-- **Connection signals** — "X mutual connections", "Also worked with [Company]"
-- **Social proof** — star ratings, review counts, endorsements displayed prominently
-- **Notification-style UX** — unread badges, "X vendors responded to your RFQ"
-- Dashboard feels like a **home feed** — recent activity, recommended engineers, trending RFQs
+- **Activity Feed** (`/feed`) - engineers post updates, completed projects, certifications earned
+- **Rich profile pages** - avatar, cover photo area, bio, work history, portfolio gallery
+- **Connection signals** - "X mutual connections", "Also worked with [Company]"
+- **Social proof** - star ratings, review counts, endorsements displayed prominently
+- **Notification-style UX** - unread badges, "X vendors responded to your RFQ"
+- Dashboard feels like a **home feed** - recent activity, recommended engineers, trending RFQs
 
 ### Combined UX Patterns
 - Navigation: persistent top bar with search (Upwork-style) + notification bell (FB-style)
@@ -57,7 +57,7 @@ PPF should feel like a professional social marketplace — the trust, credibilit
 | `user_conversations` | `id, participant_one_id, participant_two_id, is_contracted, last_message_at` |
 | `user_messages` | `id, conversation_id, sender_id, content, is_read, read_at, is_paid, is_system_message, payment_id, created_at` |
 | `token_purchases` | Legacy receipt log (superseded by `token_transactions`) |
-| `token_transactions` | **$ProjectFlow Token Ledger** — append-only audit of every credit/debit |
+| `token_transactions` | **$ProjectFlow Token Ledger** - append-only audit of every credit/debit |
 
 ## 🔑 Key RPCs
 | Function | Purpose |

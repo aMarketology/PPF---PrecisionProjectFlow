@@ -13,9 +13,9 @@
 --   API, admin panel, or direct DB updates.
 --
 -- Key decisions:
---   - Unlock on 'in_progress' (not 'paid') — "paid" means
+--   - Unlock on 'in_progress' (not 'paid') - "paid" means
 --     money moved but work hasn't started.
---   - Stay unlocked forever — re-gating behind 100 tokens
+--   - Stay unlocked forever - re-gating behind 100 tokens
 --     after a paid contract creates friction for revisions,
 --     support, and repeat business.
 --   - Uses is_unlocked (already exists, already checked by
@@ -88,7 +88,7 @@ BEGIN
   WHERE id = v_conversation_id;
 
   -- Insert a system message to notify both parties
-  v_system_message := '🤝 Contract started — you can now message freely';
+  v_system_message := '🤝 Contract started - you can now message freely';
 
   INSERT INTO user_messages (
     conversation_id,

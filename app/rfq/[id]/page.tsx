@@ -131,7 +131,7 @@ export default function RFQDetailPage() {
   const loadOffers = async (targetId?: string) => {
     try {
       const supabase = createClient();
-      // rfq_offers.rfq_id is a UUID — use the resolved RFQ's id, not the URL slug
+      // rfq_offers.rfq_id is a UUID - use the resolved RFQ's id, not the URL slug
       const actualRfqId = targetId || rfq?.id || (rfqId.match(/^[0-9a-f-]{36}$/i) ? rfqId : null);
       if (!actualRfqId) return;
       
@@ -558,7 +558,7 @@ export default function RFQDetailPage() {
                         <p className="text-xs text-amber-700">
                           Your balance: <span className="font-bold">{tokenBalance.toLocaleString()} tokens</span>
                           {tokenBalance < 50 && (
-                            <span className="ml-2 text-red-600 font-semibold">— Insufficient! <Link href="/tokens" className="underline">Buy tokens</Link></span>
+                            <span className="ml-2 text-red-600 font-semibold">- Insufficient! <Link href="/tokens" className="underline">Buy tokens</Link></span>
                           )}
                         </p>
                       </div>
@@ -673,7 +673,7 @@ export default function RFQDetailPage() {
                           ) : tokenBalance < 50 ? (
                             <><Coins className="w-5 h-5" /> Insufficient Tokens</>
                           ) : (
-                            <><Send className="w-5 h-5" /> Submit Offer — 50 Tokens</>
+                            <><Send className="w-5 h-5" /> Submit Offer - 50 Tokens</>
                           )}
                         </button>
                       </div>

@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server';
 
 export const dynamic = 'force-dynamic';
 
-// POST /api/feed/[id]/like  — toggle like on a post
+// POST /api/feed/[id]/like  - toggle like on a post
 export async function POST(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

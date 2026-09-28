@@ -5,7 +5,7 @@ export const dynamic = 'force-dynamic';
 
 // GET /api/activities?page=0&type=all&search=
 // Returns paginated site_activities with actor profiles
-// Uses service_role key to bypass RLS — activities are public feed data
+// Uses service_role key to bypass RLS - activities are public feed data
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

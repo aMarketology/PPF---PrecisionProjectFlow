@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
 
     const supabase = await createClient()
 
-    // Auth check — must be logged in (the client who just submitted)
+    // Auth check - must be logged in (the client who just submitted)
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
       .eq('id', rfq.client_id)
       .single()
 
-    // Find up to 20 active engineers — ideally matching category
+    // Find up to 20 active engineers - ideally matching category
     // We match on any service they have in the same category
     const { data: matchingProviders } = await supabase
       .from('services')
@@ -64,7 +64,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ notified: 0 })
     }
 
-    // Fire emails in parallel — never block on failure
+    // Fire emails in parallel - never block on failure
     await Promise.allSettled(
       engineers.map((eng: any) =>
         sendRFQAlertEmail({

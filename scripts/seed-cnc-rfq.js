@@ -17,9 +17,9 @@ const svc = createClient(
 );
 
 const RFQ = {
-  title: 'CNC Machined Parts Assembly — Custom Bracket Kit (250 Units)',
+  title: 'CNC Machined Parts Assembly - Custom Bracket Kit (250 Units)',
   category: 'CNC Machining',
-  description: `We are seeking a precision CNC machine shop to manufacture a custom bracket assembly kit for our industrial equipment line. This is a multi-part order with 5 unique part numbers — see the line items below for details.
+  description: `We are seeking a precision CNC machine shop to manufacture a custom bracket assembly kit for our industrial equipment line. This is a multi-part order with 5 unique part numbers - see the line items below for details.
 
 KEY REQUIREMENTS:
 • All parts must be machined from 6061-T6 Aluminum
@@ -42,7 +42,7 @@ TIMELINE:
 • Production run: 2-4 weeks after FAI approval
 • Shipping: UPS Ground, FOB Origin
 
-We are looking for an ongoing production partner — this order is expected to repeat quarterly with quantities increasing to 500+ units per run.`,
+We are looking for an ongoing production partner - this order is expected to repeat quarterly with quantities increasing to 500+ units per run.`,
   quantity: '250 kits',
   budget: '$18,000 - $28,000',
   timeline: '4-6 weeks',
@@ -52,7 +52,7 @@ We are looking for an ongoing production partner — this order is expected to r
   is_asap: false,
   line_items: [
     {
-      part: 'Mounting Bracket — P/N MB-001 Rev C',
+      part: 'Mounting Bracket - P/N MB-001 Rev C',
       qty: 250,
       material: '6061-T6 Aluminum',
       tolerance: '±0.005"',
@@ -60,7 +60,7 @@ We are looking for an ongoing production partner — this order is expected to r
       notes: 'Per DWG-MB-001 Rev C. 4x Ø0.257" thru holes on 1.500" BCD. Deburr all edges.'
     },
     {
-      part: 'Support Plate — P/N SP-002 Rev B',
+      part: 'Support Plate - P/N SP-002 Rev B',
       qty: 250,
       material: '6061-T6 Aluminum',
       tolerance: '±0.002" on mating surface',
@@ -68,7 +68,7 @@ We are looking for an ongoing production partner — this order is expected to r
       notes: 'Per DWG-SP-002 Rev B. .375" thick. Flat within .005" across 8". Counterbored holes for SHCS.'
     },
     {
-      part: 'Pivot Arm — P/N PA-003 Rev A',
+      part: 'Pivot Arm - P/N PA-003 Rev A',
       qty: 250,
       material: '6061-T6 Aluminum',
       tolerance: '±0.003"',
@@ -76,7 +76,7 @@ We are looking for an ongoing production partner — this order is expected to r
       notes: 'Per DWG-PA-003 Rev A. Contains .500" ±.001" bore for bronze bushing. 2x #10-32 tapped holes.'
     },
     {
-      part: 'Spacer Sleeve — P/N SS-004 Rev B',
+      part: 'Spacer Sleeve - P/N SS-004 Rev B',
       qty: 500,
       material: '304 Stainless Steel',
       tolerance: '±0.001" on ID/OD',
@@ -84,7 +84,7 @@ We are looking for an ongoing production partner — this order is expected to r
       notes: 'Per DWG-SS-004 Rev B. OD 0.625" ±.001", ID 0.375" ±.001", length 1.250" ±.005". 32 Ra max finish.'
     },
     {
-      part: 'Retaining Clip — P/N RC-005 Rev A',
+      part: 'Retaining Clip - P/N RC-005 Rev A',
       qty: 500,
       material: '304 Stainless Steel',
       tolerance: '±0.005"',

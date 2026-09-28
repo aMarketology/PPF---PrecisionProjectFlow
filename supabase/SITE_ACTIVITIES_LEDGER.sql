@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_sa_metadata    ON public.site_activities USING gi
 
 ALTER TABLE public.site_activities ENABLE ROW LEVEL SECURITY;
 
--- Anyone (including anonymous) can view activities — it's a public feed
+-- Anyone (including anonymous) can view activities - it's a public feed
 DROP POLICY IF EXISTS "Anyone can view activities" ON public.site_activities;
 CREATE POLICY "Anyone can view activities"
   ON public.site_activities FOR SELECT
@@ -90,7 +90,7 @@ CREATE TRIGGER trg_site_activities_auto_hash
   FOR EACH ROW EXECUTE FUNCTION public.site_activities_auto_hash();
 
 -- ── 5. Insert helper RPC ───────────────────────────────────────────
--- One RPC to rule them all — inserts a verified activity row.
+-- One RPC to rule them all - inserts a verified activity row.
 CREATE OR REPLACE FUNCTION public.insert_activity(
   p_activity_type TEXT,
   p_actor_id      UUID,

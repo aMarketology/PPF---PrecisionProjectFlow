@@ -1,7 +1,7 @@
 # 🧪 PPF Full System Test
 
 **Last updated:** May 29, 2026
-**Environment:** Production — https://www.precisionprojectflow.com
+**Environment:** Production - https://www.precisionprojectflow.com
 **Stripe test card:** `4242 4242 4242 4242` · any future expiry · any CVC · any ZIP
 
 > Run this top-to-bottom. Check each box as you go. If anything fails, note the
@@ -36,7 +36,7 @@
 
 ### 1a. Engineer signup
 - [ ] Go to `/signup`, choose **"I'm an engineer/vendor"**
-- [ ] Complete Step 1 (name, email, password) — password strength meter works
+- [ ] Complete Step 1 (name, email, password) - password strength meter works
 - [ ] Complete Step 2 (company, category, location, bio, specialty chips)
 - [ ] Redirects to `/dashboard/engineer`
 - [ ] Welcome email arrives (check inbox / Resend logs)
@@ -119,7 +119,7 @@
 ### 4e. Idempotency (no double-credit)
 - [ ] In Stripe Dashboard → Webhooks → resend the `payment_intent.succeeded` event
       for the token purchase
-- [ ] **Ledger check:** balance is STILL 8 — no duplicate `purchase` row
+- [ ] **Ledger check:** balance is STILL 8 - no duplicate `purchase` row
   ```sql
   SELECT COUNT(*) FROM token_transactions
   WHERE stripe_payment_id = '<the_payment_intent_id>';

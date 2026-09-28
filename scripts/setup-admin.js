@@ -65,7 +65,7 @@ async function runSQL(sql) {
 }
 
 async function main() {
-  console.log('\n🚀  PPF Admin Setup — max@amarketology.com');
+  console.log('\n🚀  PPF Admin Setup - max@amarketology.com');
   console.log('────────────────────────────────────────────\n');
 
   // ── 1. Add is_admin column if it doesn't exist ────────────────────────────
@@ -73,7 +73,7 @@ async function main() {
   // Check if column exists by querying it
   const { error: colCheckErr } = await admin.from('profiles').select('is_admin').limit(1);
   if (colCheckErr?.message?.includes('column "is_admin" does not exist')) {
-    console.log('  ℹ️   is_admin column not found — skipping flag (add via Supabase SQL editor)');
+    console.log('  ℹ️   is_admin column not found - skipping flag (add via Supabase SQL editor)');
     console.log('  SQL: ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS is_admin BOOLEAN DEFAULT FALSE;');
   }
   console.log('  ✅  Column check done\n');
@@ -118,9 +118,9 @@ async function main() {
       console.log(`  ✅  Migrated ${migrated?.length ?? 0} services`);
     }
   } else if (!OLD_DEALER_ID) {
-    console.log('\n  ℹ️   No old dealer ID in .env — skipping service migration');
+    console.log('\n  ℹ️   No old dealer ID in .env - skipping service migration');
   } else {
-    console.log('\n  ℹ️   Max IS the dealer — no migration needed');
+    console.log('\n  ℹ️   Max IS the dealer - no migration needed');
   }
 
   // ── 4. Upsert Max's profile as PPF Marketplace admin ────────────────────

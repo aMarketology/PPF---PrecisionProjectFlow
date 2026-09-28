@@ -1,199 +1,300 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { motion } from 'framer-motion'
+import {
+  Loader2, TrendingUp, TrendingDown, DollarSign, Users, CheckCircle2,
+  BarChart3, Flag, Package, Wrench, FileText, Gavel, RefreshCw, AlertTriangle,
+} from 'lucide-react'
+import { toast } from 'react-hot-toast'
+
+interface Metrics {
+  revenue: number
+  platformFees: number
+  revenueGrowth: number
+  newUsers: number
+  userGrowth: number
+  completionRate: number
+  totalOrders: number
+}
+interface CategoryRow { name: string; revenue: number; percentage: number }
+interface VendorRow { id: string; name: string; revenue: number; orders: number }
+interface ReportRow {
+  id: string
+  target_type: string
+  reason: string
+  description: string | null
+  status: string
+  created_at: string
+  reporter: { id: string; full_name: string | null; email: string | null } | null
+}
+interface ReportCounts { pending: number; investigating: number; resolved: number; dismissed: number }
+interface Inventory {
+  services: number; activeServices: number; products: number; activeProducts: number
+  rfqs: number; openRfqs: number; offers: number; users: number
+}
+interface ReportsPayload {
+  metrics: Metrics
+  topCategories: CategoryRow[]
+  topVendors: VendorRow[]
+  reportQueue: ReportRow[]
+  reportCounts: ReportCounts
+  inventory: Inventory
+}
+
+const RANGES = [
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+  { value: '1y', label: '1 year' },
+]
+
+const REASON_STYLES: Record<string, string> = {
+  spam: 'bg-amber-100 text-amber-700 border-amber-200',
+  fraud: 'bg-red-100 text-red-700 border-red-200',
+  quality: 'bg-blue-100 text-blue-700 border-blue-200',
+  abuse: 'bg-rose-100 text-rose-700 border-rose-200',
+  other: 'bg-gray-100 text-gray-600 border-gray-200',
+}
+const STATUS_STYLES: Record<string, string> = {
+  pending: 'bg-amber-100 text-amber-700',
+  investigating: 'bg-blue-100 text-blue-700',
+  resolved: 'bg-emerald-100 text-emerald-700',
+  dismissed: 'bg-gray-100 text-gray-500',
+}
 
 export default function AdminReportsPage() {
-  const [timeRange, setTimeRange] = useState('30d')
+  const [range, setRange] = useState('30d')
+  const [data, setData] = useState<ReportsPayload | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [busyId, setBusyId] = useState<string | null>(null)
 
-  const revenueData = {
-    '7d': { total: 12500, growth: 15 },
-    '30d': { total: 52000, growth: 22 },
-    '90d': { total: 145000, growth: 35 },
-    '1y': { total: 520000, growth: 45 },
+  const load = useCallback(async (r: string) => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin?action=reports&range=${r}`)
+      if (!res.ok) { const j = await res.json().catch(() => ({})); toast.error(j.error || 'Failed to load reports'); return }
+      setData(await res.json())
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to load reports')
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { load(range) }, [range, load])
+
+  const setReportStatus = async (id: string, status: string) => {
+    setBusyId(id)
+    try {
+      const res = await fetch(`/api/admin?action=report-status&id=${id}`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status }),
+      })
+      if (!res.ok) { toast.error('Update failed'); return }
+      toast.success(`Marked ${status}`)
+      setData(prev => prev ? {
+        ...prev,
+        reportQueue: prev.reportQueue.map(r => r.id === id ? { ...r, status } : r),
+      } : prev)
+    } catch { toast.error('Update failed') }
+    finally { setBusyId(null) }
   }
 
-  const currentData = revenueData[timeRange as keyof typeof revenueData]
+  const m = data?.metrics
+  const growthTone = (v: number) => v >= 0 ? 'text-emerald-600' : 'text-red-500'
+  const GrowthIcon = ({ v }: { v: number }) => v >= 0 ? <TrendingUp className="w-3.5 h-3.5" /> : <TrendingDown className="w-3.5 h-3.5" />
+
+  const metricCards = m ? [
+    { label: 'Total Revenue', value: `$${m.revenue.toLocaleString()}`, sub: `${m.revenueGrowth >= 0 ? '+' : ''}${m.revenueGrowth}% vs previous period`, growth: m.revenueGrowth, icon: DollarSign, tone: 'text-[#003D82] bg-blue-50' },
+    { label: 'Platform Fees', value: `$${m.platformFees.toLocaleString()}`, sub: 'From product orders', growth: null, icon: BarChart3, tone: 'text-emerald-600 bg-emerald-50' },
+    { label: 'New Users', value: m.newUsers.toLocaleString(), sub: `${m.userGrowth >= 0 ? '+' : ''}${m.userGrowth}% vs previous period`, growth: m.userGrowth, icon: Users, tone: 'text-purple-600 bg-purple-50' },
+    { label: 'Order Completion', value: `${m.completionRate}%`, sub: `${m.totalOrders} total orders`, growth: null, icon: CheckCircle2, tone: 'text-amber-600 bg-amber-50' },
+  ] : []
 
   return (
     <div>
-      <div className="flex justify-between items-center mb-8">
-        <h1 className="text-3xl font-bold text-white">Reports & Analytics</h1>
-        <div className="flex gap-2">
-          {['7d', '30d', '90d', '1y'].map((range) => (
-            <button
-              key={range}
-              onClick={() => setTimeRange(range)}
-              className={`px-4 py-2 rounded-lg text-sm transition-colors ${
-                timeRange === range
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-300 hover:bg-gray-700'
-              }`}
-            >
-              {range}
-            </button>
-          ))}
+      <div className="flex flex-wrap justify-between items-center gap-3 mb-6">
+        <div>
+          <h1 className="text-2xl font-bold text-gray-900">Reports &amp; Analytics</h1>
+          <p className="text-sm text-gray-500 mt-1">Live platform metrics, top performers, and the user report queue.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <div className="flex bg-gray-100 rounded-xl p-0.5">
+            {RANGES.map(r => (
+              <button key={r.value} onClick={() => setRange(r.value)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${range === r.value ? 'bg-white text-[#003D82] shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+                {r.label}
+              </button>
+            ))}
+          </div>
+          <button onClick={() => load(range)} disabled={loading}
+            className="p-2 rounded-xl border border-gray-200 text-gray-500 hover:text-[#003D82] hover:border-[#003D82]/40 disabled:opacity-50" title="Refresh">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          </button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-800 rounded-xl p-6"
-        >
-          <p className="text-gray-400 text-sm">Total Revenue</p>
-          <p className="text-3xl font-bold text-white">${currentData.total.toLocaleString()}</p>
-          <p className="text-sm text-green-400 mt-2">+{currentData.growth}% vs previous period</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="bg-gray-800 rounded-xl p-6"
-        >
-          <p className="text-gray-400 text-sm">Platform Fees</p>
-          <p className="text-3xl font-bold text-white">${Math.round(currentData.total * 0.1).toLocaleString()}</p>
-          <p className="text-sm text-gray-400 mt-2">10% transaction fee</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="bg-gray-800 rounded-xl p-6"
-        >
-          <p className="text-gray-400 text-sm">New Users</p>
-          <p className="text-3xl font-bold text-white">234</p>
-          <p className="text-sm text-green-400 mt-2">+18% vs previous period</p>
-        </motion.div>
-
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          className="bg-gray-800 rounded-xl p-6"
-        >
-          <p className="text-gray-400 text-sm">Order Completion Rate</p>
-          <p className="text-3xl font-bold text-white">94.5%</p>
-          <p className="text-sm text-green-400 mt-2">+2.3% vs previous period</p>
-        </motion.div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-        {/* Top Performing Categories */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
-          className="bg-gray-800 rounded-xl"
-        >
-          <div className="p-6 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-white">Top Performing Categories</h2>
-          </div>
-          <div className="p-6 space-y-4">
-            {[
-              { name: 'Electrical Engineering', revenue: 18500, percentage: 35 },
-              { name: 'Mechanical Engineering', revenue: 12000, percentage: 23 },
-              { name: 'Plumbing Services', revenue: 8500, percentage: 16 },
-              { name: 'HVAC Systems', revenue: 7200, percentage: 14 },
-              { name: 'Welding & Fabrication', revenue: 6300, percentage: 12 },
-            ].map((category, index) => (
-              <div key={index}>
-                <div className="flex justify-between text-sm mb-1">
-                  <span className="text-gray-300">{category.name}</span>
-                  <span className="text-white font-medium">${category.revenue.toLocaleString()}</span>
+      {loading && !data ? (
+        <div className="flex justify-center py-24"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>
+      ) : !data ? (
+        <div className="text-center py-20 bg-white rounded-2xl border border-gray-100">
+          <AlertTriangle className="w-10 h-10 text-amber-400 mx-auto mb-3" />
+          <p className="font-semibold text-gray-700">Could not load reports</p>
+          <p className="text-sm text-gray-400 mt-1">Check that the content_reports migration has been applied.</p>
+        </div>
+      ) : (
+        <>
+          {/* Metric cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            {metricCards.map((c, i) => (
+              <motion.div key={c.label} initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.06 }}
+                className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div className="flex items-center justify-between mb-3">
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{c.label}</p>
+                  <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${c.tone}`}>
+                    <c.icon className="w-4 h-4" />
+                  </div>
                 </div>
-                <div className="w-full bg-gray-700 rounded-full h-2">
-                  <div 
-                    className="bg-blue-500 h-2 rounded-full" 
-                    style={{ width: `${category.percentage}%` }}
-                  ></div>
+                <p className="text-2xl font-extrabold text-gray-900">{c.value}</p>
+                <p className={`text-xs mt-1.5 flex items-center gap-1 font-medium ${c.growth === null ? 'text-gray-400' : growthTone(c.growth)}`}>
+                  {c.growth !== null && <GrowthIcon v={c.growth} />}{c.sub}
+                </p>
+              </motion.div>
+            ))}
+          </div>
+
+          {/* Inventory strip */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            {[
+              { label: 'Services', value: data.inventory.services, active: data.inventory.activeServices, icon: Wrench },
+              { label: 'Products', value: data.inventory.products, active: data.inventory.activeProducts, icon: Package },
+              { label: 'RFQs', value: data.inventory.rfqs, active: data.inventory.openRfqs, icon: FileText },
+              { label: 'Offers', value: data.inventory.offers, active: null, icon: Gavel },
+            ].map(item => (
+              <div key={item.label} className="bg-white rounded-xl border border-gray-100 shadow-sm px-4 py-3 flex items-center gap-3">
+                <div className="w-9 h-9 rounded-lg bg-[#003D82]/8 text-[#003D82] flex items-center justify-center flex-shrink-0">
+                  <item.icon className="w-4 h-4" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-lg font-extrabold text-gray-900 leading-tight">{item.value}</p>
+                  <p className="text-[11px] text-gray-500 truncate">
+                    {item.label}{item.active !== null ? ` · ${item.active} active` : ''}
+                  </p>
                 </div>
               </div>
             ))}
           </div>
-        </motion.div>
 
-        {/* Top Engineers */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-          className="bg-gray-800 rounded-xl"
-        >
-          <div className="p-6 border-b border-gray-700">
-            <h2 className="text-lg font-semibold text-white">Top Engineers by Revenue</h2>
-          </div>
-          <div className="divide-y divide-gray-700">
-            {[
-              { name: 'ElectricDisk Inc', revenue: 12500, orders: 45 },
-              { name: 'MCG Plumbing LLC', revenue: 9800, orders: 38 },
-              { name: 'CoolAir Specialists', revenue: 8200, orders: 32 },
-              { name: 'Allens Performance', revenue: 7500, orders: 28 },
-              { name: 'Pro Welders', revenue: 6100, orders: 24 },
-            ].map((engineer, index) => (
-              <div key={index} className="p-4 flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-gray-600 rounded-full flex items-center justify-center text-white text-sm font-semibold">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="text-white font-medium">{engineer.name}</p>
-                    <p className="text-sm text-gray-400">{engineer.orders} orders</p>
-                  </div>
-                </div>
-                <div className="text-green-400 font-semibold">${engineer.revenue.toLocaleString()}</div>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Top categories */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-bold text-gray-900">Top Categories by Revenue</h2>
               </div>
-            ))}
-          </div>
-        </motion.div>
-      </div>
+              <div className="p-6 space-y-4">
+                {data.topCategories.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-6">No revenue recorded yet.</p>
+                ) : data.topCategories.map(c => (
+                  <div key={c.name}>
+                    <div className="flex justify-between text-sm mb-1.5">
+                      <span className="text-gray-700 font-medium truncate">{c.name}</span>
+                      <span className="text-gray-900 font-bold flex-shrink-0 ml-2">${c.revenue.toLocaleString()}</span>
+                    </div>
+                    <div className="w-full bg-gray-100 rounded-full h-2">
+                      <div className="bg-[#003D82] h-2 rounded-full transition-all" style={{ width: `${Math.max(c.percentage, 2)}%` }} />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
 
-      {/* Recent Reports */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.6 }}
-        className="bg-gray-800 rounded-xl mt-8"
-      >
-        <div className="p-6 border-b border-gray-700 flex justify-between items-center">
-          <h2 className="text-lg font-semibold text-white">User Reports</h2>
-          <button className="text-blue-400 hover:text-blue-300 text-sm">View All</button>
-        </div>
-        <div className="divide-y divide-gray-700">
-          {[
-            { type: 'Spam', description: 'Reported user posting spam content', status: 'pending', date: '2024-01-20' },
-            { type: 'Fraud', description: 'Suspected fraudulent service listing', status: 'investigating', date: '2024-01-18' },
-            { type: 'Quality', description: 'Poor quality work delivered', status: 'resolved', date: '2024-01-15' },
-          ].map((report, index) => (
-            <div key={index} className="p-4 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <span className={`px-2 py-1 text-xs rounded-full ${
-                  report.type === 'Spam' ? 'bg-yellow-500/20 text-yellow-400' :
-                  report.type === 'Fraud' ? 'bg-red-500/20 text-red-400' :
-                  'bg-blue-500/20 text-blue-400'
-                }`}>
-                  {report.type}
-                </span>
-                <div>
-                  <p className="text-white">{report.description}</p>
-                  <p className="text-sm text-gray-400">{report.date}</p>
-                </div>
+            {/* Top vendors */}
+            <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}
+              className="bg-white rounded-2xl border border-gray-100 shadow-sm">
+              <div className="px-6 py-4 border-b border-gray-100">
+                <h2 className="font-bold text-gray-900">Top Vendors by Revenue</h2>
               </div>
-              <span className={`px-2 py-1 text-xs rounded-full ${
-                report.status === 'pending' ? 'bg-yellow-500/20 text-yellow-400' :
-                report.status === 'investigating' ? 'bg-blue-500/20 text-blue-400' :
-                'bg-green-500/20 text-green-400'
-              }`}>
-                {report.status}
-              </span>
+              <div className="divide-y divide-gray-50">
+                {data.topVendors.length === 0 ? (
+                  <p className="text-sm text-gray-400 text-center py-10">No vendor revenue yet.</p>
+                ) : data.topVendors.map((v, i) => (
+                  <div key={v.id} className="px-6 py-3.5 flex items-center justify-between">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <div className="w-8 h-8 rounded-full bg-[#003D82] text-white flex items-center justify-center text-xs font-bold flex-shrink-0">{i + 1}</div>
+                      <div className="min-w-0">
+                        <p className="font-semibold text-gray-900 text-sm truncate">{v.name}</p>
+                        <p className="text-xs text-gray-400">{v.orders} order{v.orders !== 1 ? 's' : ''}</p>
+                      </div>
+                    </div>
+                    <span className="font-bold text-emerald-600 text-sm flex-shrink-0 ml-2">${v.revenue.toLocaleString()}</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Report queue */}
+          <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.12 }}
+            className="bg-white rounded-2xl border border-gray-100 shadow-sm mt-6">
+            <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <Flag className="w-4 h-4 text-[#FF6B35]" />
+                <h2 className="font-bold text-gray-900">User Reports</h2>
+              </div>
+              <div className="flex items-center gap-2 text-[11px] font-semibold">
+                <span className="px-2 py-0.5 rounded-full bg-amber-100 text-amber-700">{data.reportCounts.pending} pending</span>
+                <span className="px-2 py-0.5 rounded-full bg-blue-100 text-blue-700">{data.reportCounts.investigating} investigating</span>
+                <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700">{data.reportCounts.resolved} resolved</span>
+              </div>
             </div>
-          ))}
-        </div>
-      </motion.div>
+            <div className="divide-y divide-gray-50">
+              {data.reportQueue.length === 0 ? (
+                <div className="text-center py-12">
+                  <CheckCircle2 className="w-10 h-10 text-emerald-300 mx-auto mb-2" />
+                  <p className="font-semibold text-gray-700 text-sm">No reports filed</p>
+                  <p className="text-xs text-gray-400 mt-1">User-submitted reports will appear here for review.</p>
+                </div>
+              ) : data.reportQueue.map(r => (
+                <div key={r.id} className="px-6 py-4 flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border uppercase ${REASON_STYLES[r.reason] || REASON_STYLES.other}`}>{r.reason}</span>
+                      <span className="text-[10px] text-gray-400 uppercase font-semibold">{r.target_type}</span>
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold ${STATUS_STYLES[r.status] || STATUS_STYLES.pending}`}>{r.status}</span>
+                    </div>
+                    <p className="text-sm text-gray-800">{r.description || 'No description provided'}</p>
+                    <p className="text-xs text-gray-400 mt-0.5">
+                      by {r.reporter?.full_name || r.reporter?.email || 'Unknown'} · {new Date(r.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-1.5 flex-shrink-0">
+                    {r.status !== 'investigating' && (
+                      <button onClick={() => setReportStatus(r.id, 'investigating')} disabled={busyId === r.id}
+                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-blue-200 text-blue-700 hover:bg-blue-50 disabled:opacity-50">
+                        Investigate
+                      </button>
+                    )}
+                    {r.status !== 'resolved' && (
+                      <button onClick={() => setReportStatus(r.id, 'resolved')} disabled={busyId === r.id}
+                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-emerald-200 text-emerald-700 hover:bg-emerald-50 disabled:opacity-50">
+                        Resolve
+                      </button>
+                    )}
+                    {r.status !== 'dismissed' && (
+                      <button onClick={() => setReportStatus(r.id, 'dismissed')} disabled={busyId === r.id}
+                        className="px-2.5 py-1.5 text-xs font-semibold rounded-lg border border-gray-200 text-gray-500 hover:bg-gray-50 disabled:opacity-50">
+                        Dismiss
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        </>
+      )}
     </div>
   )
 }

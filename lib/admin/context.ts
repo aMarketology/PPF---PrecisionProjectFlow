@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * Every authenticated user gets a personal /admin panel. Super admins
  * (profiles.is_admin) additionally get platform-wide management pages.
  *
- * NOTE: the live `profiles` table has no `company_name` column — the company
+ * NOTE: the live `profiles` table has no `company_name` column - the company
  * name lives on `company_profiles`. Do not select profiles.company_name.
  */
 
@@ -57,6 +57,19 @@ export interface AdminContext {
   roleLabel: string;
   /** Longer human description of the user's access. */
   roleDescription: string;
+  /** Every role/permission badge the user qualifies for. */
+  badges: AdminBadge[];
+}
+
+export type BadgeTone = 'navy' | 'orange' | 'emerald' | 'amber' | 'purple' | 'gray';
+
+export interface AdminBadge {
+  /** Stable key for React lists. */
+  key: string;
+  label: string;
+  tone: BadgeTone;
+  /** Optional short explanation shown as a tooltip. */
+  hint?: string;
 }
 
 /** Actions the UI can gate on. Enforcement still happens in RLS + server code. */
@@ -82,18 +95,94 @@ export function can(ctx: AdminContext, action: AdminAction): boolean {
   }
 }
 
-function deriveIdentity(ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' | 'roleDescription'>) {
+/**
+ * Builds the full badge set from real permissions. A user can hold several
+ * roles at once (e.g. super admin AND owner of two companies), so we surface
+ * every one rather than collapsing to a single label.
+ */
+function deriveBadges(
+  ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' | 'roleDescription' | 'badges'>,
+  primaryCompany: AdminCompany | null
+): AdminBadge[] {
+  const badges: AdminBadge[] = [];
+
+  if (ctx.isAdmin) {
+    badges.push({
+      key: 'super-admin',
+      label: 'Super Admin',
+      tone: 'orange',
+      hint: 'Full platform access across every company and account.',
+    });
+  }
+
+  // Company roles - one badge per company the user belongs to.
+  // The primary company's name is already the header title, so its badge
+  // shows just the role; other companies include the name for clarity.
+  for (const c of ctx.companies) {
+    const roleLabel =
+      c.role === 'owner' ? 'Owner' : c.role === 'admin' ? 'Admin' : 'Member';
+    const isPrimary = primaryCompany?.id === c.id;
+    badges.push({
+      key: `company-${c.id}`,
+      label: isPrimary ? roleLabel : `${roleLabel} · ${c.company_name}`,
+      tone: c.role === 'owner' ? 'navy' : c.role === 'admin' ? 'purple' : 'gray',
+      hint: `You are ${c.role === 'owner' ? 'the owner' : `an ${c.role}`} of ${c.company_name}.`,
+    });
+  }
+
+  // Account-type badge.
+  if (ctx.profile?.user_type === 'engineer') {
+    badges.push({ key: 'engineer', label: 'Engineer', tone: 'emerald', hint: 'Vendor / engineer account.' });
+  } else if (ctx.profile?.user_type === 'client') {
+    badges.push({ key: 'client', label: 'Client', tone: 'gray', hint: 'Client / buyer account.' });
+  }
+
+  // Capability badges.
+  if (ctx.managedCompanies.length > 1) {
+    badges.push({
+      key: 'multi-company',
+      label: `Manages ${ctx.managedCompanies.length} Companies`,
+      tone: 'purple',
+      hint: 'You can manage more than one company.',
+    });
+  }
+  if (ctx.companies.length > 0 && ctx.managedCompanies.length === 0) {
+    badges.push({
+      key: 'team-member',
+      label: 'Team Member',
+      tone: 'gray',
+      hint: 'You belong to a company but cannot manage it.',
+    });
+  }
+  if (ctx.companies.length === 0 && !ctx.isAdmin) {
+    badges.push({
+      key: 'no-company',
+      label: 'No Company',
+      tone: 'amber',
+      hint: 'You are not part of a company yet.',
+    });
+  }
+
+  // De-duplicate by key, preserving order.
+  const seen = new Set<string>();
+  return badges.filter(b => (seen.has(b.key) ? false : (seen.add(b.key), true)));
+}
+
+function deriveIdentity(ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' | 'roleDescription' | 'badges'>) {
   // Prefer the highest-privilege company the user can manage.
   const ranked = [...ctx.companies].sort(
     (a, b) => ROLE_RANK[b.role] - ROLE_RANK[a.role]
   );
   const primaryCompany = ranked[0] ?? null;
 
+  const badges = deriveBadges(ctx, primaryCompany);
+
   if (ctx.isAdmin) {
     return {
       primaryCompany,
       roleLabel: 'Super Admin',
       roleDescription: 'Full platform access across every company and account.',
+      badges,
     };
   }
 
@@ -102,6 +191,7 @@ function deriveIdentity(ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' |
       primaryCompany,
       roleLabel: primaryCompany.role === 'owner' ? 'Company Owner' : 'Company Admin',
       roleDescription: `Manages ${primaryCompany.company_name}.`,
+      badges,
     };
   }
 
@@ -110,13 +200,15 @@ function deriveIdentity(ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' |
       primaryCompany,
       roleLabel: 'Team Member',
       roleDescription: `Member of ${primaryCompany.company_name}.`,
+      badges,
     };
   }
 
   return {
     primaryCompany: null,
     roleLabel: ctx.profile?.user_type === 'engineer' ? 'Engineer' : 'Client',
-    roleDescription: 'Personal account — not part of a company yet.',
+    roleDescription: 'Personal account - not part of a company yet.',
+    badges,
   };
 }
 

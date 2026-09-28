@@ -27,7 +27,7 @@ async function addColumn() {
     .limit(1);
   
   if (colErr) {
-    console.log('   ❌ delivery_days column missing — needs manual SQL');
+    console.log('   ❌ delivery_days column missing - needs manual SQL');
     console.log('   Run in Supabase SQL Editor:');
     console.log('   ALTER TABLE public.rfq_offers ADD COLUMN IF NOT EXISTS delivery_days INT;');
     return false;
@@ -51,7 +51,7 @@ async function createAcceptFunction() {
     return true;
   }
 
-  console.log('   ❌ accept_rfq_offer missing — needs manual SQL');
+  console.log('   ❌ accept_rfq_offer missing - needs manual SQL');
   return false;
 }
 
@@ -69,7 +69,7 @@ async function createRejectFunction() {
     return true;
   }
 
-  console.log('   ❌ reject_rfq_offer missing — needs manual SQL');
+  console.log('   ❌ reject_rfq_offer missing - needs manual SQL');
   return false;
 }
 
@@ -87,7 +87,7 @@ async function createWithdrawFunction() {
     return true;
   }
 
-  console.log('   ❌ withdraw_rfq_offer missing — needs manual SQL');
+  console.log('   ❌ withdraw_rfq_offer missing - needs manual SQL');
   return false;
 }
 

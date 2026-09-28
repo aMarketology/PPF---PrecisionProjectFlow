@@ -35,7 +35,7 @@ async function ask(question) {
   console.log('\nOptions:');
   console.log('  1) Delete all RFQs (keep products & services)');
   console.log('  2) Delete all products + RFQs (keep services)');
-  console.log('  3) Delete ALL (products, RFQs, services — fresh start)');
+  console.log('  3) Delete ALL (products, RFQs, services - fresh start)');
   console.log('  4) Cancel (do nothing)');
   console.log('  5) Delete only closed/old RFQs');
 

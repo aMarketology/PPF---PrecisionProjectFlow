@@ -59,10 +59,10 @@ export default function CheckoutForm({ productId, amount, currency }: CheckoutFo
     }
   };
 
-  const formatPrice = (price: number, curr: string) => {
+  const formatPrice = (price: number, curr?: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: curr.toUpperCase(),
+      currency: (curr || 'USD').toUpperCase(),
     }).format(price);
   };
 

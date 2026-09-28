@@ -66,7 +66,7 @@ export default function AdminOrdersPage() {
     .filter(o => o.status === 'completed')
     .reduce((sum, o) => sum + (Number(o.total_amount) - Number(o.platform_fee || 0)), 0)
 
-  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—'
+  const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'
   const formatPrice = (n: number) => '$' + n.toLocaleString()
 
   return (
@@ -140,10 +140,10 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3 font-mono text-xs text-gray-500 max-w-[100px] truncate">{order.order_number}</td>
                     <td className="px-4 py-3 font-medium text-gray-900 max-w-[180px] truncate">{order.product_name}</td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell max-w-[150px] truncate">
-                      {order.buyer?.full_name || '—'}<br />
+                      {order.buyer?.full_name || '-'}<br />
                       <span className="text-xs text-gray-400">{order.buyer?.email}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{order.company?.company_name || '—'}</td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{order.company?.company_name || '-'}</td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatPrice(order.total_amount)}</td>
                     <td className="px-4 py-3 hidden lg:table-cell">
                       {order.shipping_carrier ? (
@@ -152,7 +152,7 @@ export default function AdminOrdersPage() {
                           <span className="text-gray-700">{order.shipping_carrier}</span>
                           {order.shipping_tracking && <span className="text-gray-400 font-mono">{order.shipping_tracking}</span>}
                         </div>
-                      ) : <span className="text-xs text-gray-400">—</span>}
+                      ) : <span className="text-xs text-gray-400">-</span>}
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[order.status] || 'bg-gray-100 text-gray-600 border-gray-300'}`}>

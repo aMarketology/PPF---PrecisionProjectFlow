@@ -5,7 +5,7 @@
 -- Run once in Supabase SQL Editor.
 -- ─────────────────────────────────────────────────────────────────────────────
 
--- ── 1. Create company_profiles (safe — does nothing if already exists) ────────
+-- ── 1. Create company_profiles (safe - does nothing if already exists) ────────
 CREATE TABLE IF NOT EXISTS company_profiles (
   id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
 
@@ -103,7 +103,7 @@ CREATE INDEX IF NOT EXISTS idx_company_claims_user_id        ON company_claims(u
 ALTER TABLE company_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE company_claims   ENABLE ROW LEVEL SECURITY;
 
--- ── 7. RLS Policies — company_profiles ───────────────────────────────────────
+-- ── 7. RLS Policies - company_profiles ───────────────────────────────────────
 -- Anyone can browse the directory
 DROP POLICY IF EXISTS "Public can view company_profiles" ON company_profiles;
 CREATE POLICY "Public can view company_profiles"
@@ -121,7 +121,7 @@ CREATE POLICY "Auth users can insert company"
   ON company_profiles FOR INSERT
   WITH CHECK (auth.uid() IS NOT NULL);
 
--- ── 8. RLS Policies — company_claims ─────────────────────────────────────────
+-- ── 8. RLS Policies - company_claims ─────────────────────────────────────────
 DROP POLICY IF EXISTS "Auth users can submit claims" ON company_claims;
 CREATE POLICY "Auth users can submit claims"
   ON company_claims FOR INSERT
@@ -144,7 +144,7 @@ CREATE TRIGGER set_company_profiles_updated_at
   FOR EACH ROW EXECUTE FUNCTION update_updated_at_column();
 
 -- ── Done ──────────────────────────────────────────────────────────────────────
-COMMENT ON TABLE  company_profiles                  IS 'Company directory — claimable by real owners';
+COMMENT ON TABLE  company_profiles                  IS 'Company directory - claimable by real owners';
 COMMENT ON COLUMN company_profiles.is_claimed       IS 'false = unclaimed directory entry';
 COMMENT ON COLUMN company_profiles.source           IS 'tsv_import | signup | manual';
 COMMENT ON COLUMN company_profiles.slug             IS 'URL slug e.g. algonquin-products';

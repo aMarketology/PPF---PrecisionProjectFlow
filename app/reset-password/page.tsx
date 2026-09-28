@@ -78,7 +78,7 @@ function ResetPasswordForm() {
           if (exchangeError) throw exchangeError;
         }
 
-        // Session may not be ready immediately — retry after delay
+        // Session may not be ready immediately - retry after delay
         const { data: { session } } = await supabase.auth.getSession();
         console.log('[reset-password] getSession:', session ? 'session found' : 'no session');
 
@@ -87,7 +87,7 @@ function ResetPasswordForm() {
             setIsValidToken(true);
             setValidating(false);
           } else {
-            // Retry after 1.5s — session propagation can be delayed
+            // Retry after 1.5s - session propagation can be delayed
             timerId = setTimeout(async () => {
               const { data: { session: retrySession } } = await supabase.auth.getSession();
               if (mounted) {

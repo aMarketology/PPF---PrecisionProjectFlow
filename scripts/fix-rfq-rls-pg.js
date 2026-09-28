@@ -19,7 +19,7 @@ CREATE POLICY "Anyone can view RFQs" ON public.rfqs FOR SELECT USING (true);
 async function main() {
   try {
     await pool.query(SQL);
-    console.log('✅ RLS policy updated — RFQs now visible to everyone');
+    console.log('✅ RLS policy updated - RFQs now visible to everyone');
   } catch (e) {
     console.error('❌ Failed:', e.message);
     console.log('\nRun this SQL manually at:');

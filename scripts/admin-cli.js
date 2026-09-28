@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * admin-cli.js — Admin CLI for Precision Project Flow
+ * admin-cli.js - Admin CLI for Precision Project Flow
  *
  * Authenticates as the admin user (ADMIN_EMAIL / ADMIN_PASSWORD from .env.local),
  * gets a Supabase JWT, and calls /api/admin with Bearer auth.
@@ -166,7 +166,7 @@ async function main() {
     case 'grant-tokens-by-email':
       return cmdGrantTokensByEmail(rest[0], rest[1]);
     default:
-      console.log(`PPF Admin CLI — manage the marketplace from the terminal
+      console.log(`PPF Admin CLI - manage the marketplace from the terminal
 
 Usage:
   node scripts/admin-cli.js stats

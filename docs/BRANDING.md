@@ -1,6 +1,6 @@
-# 🎨 Precision Project Flow — Branding Guide
+# 🎨 Precision Project Flow - Branding Guide
 
-> **Version 1.0** — Last updated: August 2026
+> **Version 1.0** - Last updated: August 2026
 
 ---
 
@@ -32,7 +32,7 @@
 
 ## 🎨 Color System
 
-### Primary Blue — Trust & Authority
+### Primary Blue - Trust & Authority
 
 The backbone of the PPF brand. Blue anchors the interface, appearing on navigation, primary CTAs, links, and hero sections.
 
@@ -41,8 +41,8 @@ The backbone of the PPF brand. Blue anchors the interface, appearing on navigati
 | ██████ | **Primary** | `#003D82` | `bg-[#003D82]` | Main buttons, nav bar, active states, links |
 | ██████ | **Primary Hover** | `#002960` | `hover:bg-[#002960]` | Button hover, link hover |
 | ██████ | **Primary Light** | `#0052A3` | `bg-[#0052A3]` | Lighter accents, focus rings, selected states |
-| ██████ | **Hero Start** | `#001F4D` | — | Hero gradient start |
-| ██████ | **Hero End** | `#005BB5` | — | Hero gradient end |
+| ██████ | **Hero Start** | `#001F4D` | - | Hero gradient start |
+| ██████ | **Hero End** | `#005BB5` | - | Hero gradient end |
 
 **Hero Gradient:**
 ```
@@ -62,9 +62,9 @@ repeating-linear-gradient(
 
 ---
 
-### Accent Orange — Energy & Action
+### Accent Orange - Energy & Action
 
-Orange is the **call-to-action color**. It draws the eye to the most important conversion points on any page. Use it sparingly — when everything is orange, nothing is.
+Orange is the **call-to-action color**. It draws the eye to the most important conversion points on any page. Use it sparingly - when everything is orange, nothing is.
 
 | Swatch | Name | Hex | Tailwind | Usage |
 |--------|------|-----|----------|-------|
@@ -107,7 +107,7 @@ Used for badges, alerts, and state indicators. Always use the **pill pattern** (
 
 ### Font Family
 
-**Plus Jakarta Sans** is the single typeface for all PPF surfaces — web, mobile, and marketing.
+**Plus Jakarta Sans** is the single typeface for all PPF surfaces - web, mobile, and marketing.
 
 ```css
 font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', 
@@ -117,7 +117,7 @@ font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI',
 **Why Plus Jakarta Sans?**
 - Geometric, modern, and highly legible at small sizes
 - Wide weight range (300–800) gives us flexibility without loading multiple fonts
-- Friendly but professional — bridges the "social" and "marketplace" feel
+- Friendly but professional - bridges the "social" and "marketplace" feel
 - Excellent number rendering for pricing, ratings, and engineering specs
 
 ### Available Weights
@@ -163,26 +163,26 @@ font-family: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI',
 ### Buttons
 
 ```html
-<!-- Primary Button (Blue) — Default action -->
+<!-- Primary Button (Blue) - Default action -->
 <button class="bg-[#003D82] hover:bg-[#002960] text-white font-semibold 
                rounded-xl px-6 py-3 transition-colors">
   Save Changes
 </button>
 
-<!-- Accent Button (Orange) — Main CTA, one per screen max -->
+<!-- Accent Button (Orange) - Main CTA, one per screen max -->
 <button class="bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-semibold 
                rounded-xl px-6 py-3 transition-colors">
   Hire This Engineer
 </button>
 
-<!-- Outline Button — Secondary actions -->
+<!-- Outline Button - Secondary actions -->
 <button class="border-2 border-[#003D82] text-[#003D82] font-semibold 
                rounded-xl px-6 py-3 hover:bg-[#003D82] hover:text-white 
                transition-colors">
   View Profile
 </button>
 
-<!-- Ghost Button — Tertiary / low emphasis -->
+<!-- Ghost Button - Tertiary / low emphasis -->
 <button class="text-[#003D82] font-medium hover:text-[#002960] 
                transition-colors">
   Learn More →
@@ -241,9 +241,9 @@ Every full page follows this wrapper:
 
 ### The 80/20 Color Rule
 
-- **80% Blue & Neutrals** — Navigation, text, backgrounds, secondary buttons, links, icons
-- **15% Supporting Colors** — Status badges, category tags, success/error states
-- **5% Orange** — The single most important action on the page
+- **80% Blue & Neutrals** - Navigation, text, backgrounds, secondary buttons, links, icons
+- **15% Supporting Colors** - Status badges, category tags, success/error states
+- **5% Orange** - The single most important action on the page
 
 ### When to Use Orange
 
@@ -277,7 +277,7 @@ Every full page follows this wrapper:
 2. **Semibold (600) is the default heading weight.** Reserve Bold (700) for heroes and major sections.
 3. **Body text is always Regular (400) at `text-base`.**
 4. **Line height never goes below 1.4** for readability.
-5. **Use `font-jakarta` class** on every page wrapper — it's configured as a Tailwind utility.
+5. **Use `font-jakarta` class** on every page wrapper - it's configured as a Tailwind utility.
 
 ---
 
@@ -287,7 +287,7 @@ Every full page follows this wrapper:
 
 | ✅ Do | ❌ Don't |
 |------|---------|
-| Use `#003D82` for all primary UI elements | Use a different shade of blue — stick to the defined palette |
+| Use `#003D82` for all primary UI elements | Use a different shade of blue - stick to the defined palette |
 | Use `#FF6B35` for exactly one CTA per screen | Make two things orange on the same page |
 | Use the hero gradient + grid overlay on all hero sections | Use a flat color for heroes |
 | Use `#F8FAFC` as the default page background | Use pure white `#FFFFFF` as page background (reserve for cards) |

@@ -108,14 +108,14 @@ function ValuePanel({ userType }: { userType: 'client' | 'engineer' }) {
   const engineerPoints = [
     { icon: <TrendingUp className="w-5 h-5" />, text: 'Get discovered by 1,200+ active buyers' },
     { icon: <Star className="w-5 h-5" />,       text: 'Build a verified profile that wins trust' },
-    { icon: <DollarSign className="w-5 h-5" />, text: 'No commissions — keep every dollar' },
+    { icon: <DollarSign className="w-5 h-5" />, text: 'No commissions - keep every dollar' },
     { icon: <Shield className="w-5 h-5" />,     text: 'Respond to live RFQs in your category' },
   ]
   const clientPoints = [
     { icon: <Users className="w-5 h-5" />,      text: '500+ verified engineering firms ready' },
     { icon: <Star className="w-5 h-5" />,        text: 'Post RFQs and get quotes in 24 hrs' },
     { icon: <Shield className="w-5 h-5" />,      text: 'All vendors are background-checked' },
-    { icon: <TrendingUp className="w-5 h-5" />,  text: 'Token-based messaging — no spam' },
+    { icon: <TrendingUp className="w-5 h-5" />,  text: 'Token-based messaging - no spam' },
   ]
   const points = userType === 'engineer' ? engineerPoints : clientPoints
 
@@ -134,7 +134,7 @@ function ValuePanel({ userType }: { userType: 'client' | 'engineer' }) {
         <p className="text-blue-200 text-sm mb-8">
           {userType === 'engineer'
             ? 'PPF connects you with qualified clients actively searching for your expertise.'
-            : 'PPF connects you with verified engineers, vendors, and suppliers — fast.'}
+            : 'PPF connects you with verified engineers, vendors, and suppliers - fast.'}
         </p>
         <div className="space-y-4">
           {points.map((p, i) => (
@@ -215,7 +215,7 @@ function SignUpContent() {
 
       toast.success('Welcome to PPF! 🎉')
       setStep(3)
-      setTimeout(() => router.push('/dashboard/engineer'), 2500)
+      setTimeout(() => router.push('/admin'), 2500)
     } catch (err: any) {
       toast.error(err.message || 'Failed to create account')
     } finally {
@@ -249,7 +249,7 @@ function SignUpContent() {
 
       toast.success('Welcome to PPF! 🎉')
       setStep(3)
-      setTimeout(() => router.push('/dashboard/client'), 2500)
+      setTimeout(() => router.push('/admin'), 2500)
     } catch (err: any) {
       toast.error(err.message || 'Failed to create account')
     } finally {
@@ -401,12 +401,12 @@ function SignUpContent() {
               </motion.div>
             )}
 
-            {/* STEP 2 — Engineer */}
+            {/* STEP 2 - Engineer */}
             {step === 2 && accountData?.userType === 'engineer' && (
               <motion.div key="step2-eng" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
                 <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Build your vendor profile</h2>
-                <p className="text-sm text-gray-500 mb-7">This is what clients see when they find you — make it count.</p>
+                <p className="text-sm text-gray-500 mb-7">This is what clients see when they find you - make it count.</p>
 
                 <form onSubmit={engineerForm.handleSubmit(onEngineerSubmit)} className="space-y-5">
                   <Field label="Company or Display Name *" error={engineerForm.formState.errors.companyName?.message}>
@@ -423,7 +423,7 @@ function SignUpContent() {
                     </select>
                   </Field>
 
-                  <Field label="Location *" error={engineerForm.formState.errors.location?.message} hint="City, State — e.g. Dallas, TX">
+                  <Field label="Location *" error={engineerForm.formState.errors.location?.message} hint="City, State - e.g. Dallas, TX">
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input {...engineerForm.register('location')} className={iconInputCls} placeholder="Dallas, TX" />
@@ -486,7 +486,7 @@ function SignUpContent() {
               </motion.div>
             )}
 
-            {/* STEP 2 — Client */}
+            {/* STEP 2 - Client */}
             {step === 2 && accountData?.userType === 'client' && (
               <motion.div key="step2-cli" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
@@ -508,7 +508,7 @@ function SignUpContent() {
                     </select>
                   </Field>
 
-                  <Field label="Location *" error={clientForm.formState.errors.location?.message} hint="City, State — e.g. Houston, TX">
+                  <Field label="Location *" error={clientForm.formState.errors.location?.message} hint="City, State - e.g. Houston, TX">
                     <div className="relative">
                       <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                       <input {...clientForm.register('location')} className={iconInputCls} placeholder="Houston, TX" />
@@ -536,7 +536,7 @@ function SignUpContent() {
               </motion.div>
             )}
 
-            {/* STEP 3 — Success */}
+            {/* STEP 3 - Success */}
             {step === 3 && (
               <motion.div key="step3" initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-10 text-center">
@@ -554,8 +554,8 @@ function SignUpContent() {
                   <ul className="space-y-2.5">
                     {(accountData?.userType === 'engineer' ? [
                       ['Upload a profile photo', '/settings'],
-                      ['Add your first service listing', '/dashboard/engineer'],
-                      ['Browse open RFQs', '/dashboard/engineer'],
+                      ['Add your first service listing', '/admin'],
+                      ['Browse open RFQs', '/admin'],
                     ] : [
                       ['Browse the marketplace', '/marketplace'],
                       ['Post your first RFQ', '/rfq/create'],

@@ -72,44 +72,60 @@ export default function CompanySettingsPage() {
 
       if (profile?.user_type !== 'engineer') {
         toast.error('Only engineers can access company settings');
-        router.push('/dashboard/client');
+        router.push('/admin');
         return;
       }
 
-      // Get company profile (either as owner or team member)
-      const { data: companies, error: companyError } = await supabase
-        .from('company_profiles')
-        .select(`
-          *,
-          company_team_members!inner(role)
-        `)
-        .or(`owner_id.eq.${user.id},company_team_members.user_id.eq.${user.id}`);
+      // Resolve the user's company via company_members (authoritative),
+      // falling back to direct ownership on company_profiles.
+      const { data: membership } = await supabase
+        .from('company_members')
+        .select('company_id, role')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .maybeSingle();
 
-      if (companyError) throw companyError;
+      let company: any = null;
 
-      if (!companies || companies.length === 0) {
+      if (membership?.company_id) {
+        const { data, error } = await supabase
+          .from('company_profiles')
+          .select('*')
+          .eq('id', membership.company_id)
+          .maybeSingle();
+        if (error) throw error;
+        company = data;
+      } else {
+        const { data, error } = await supabase
+          .from('company_profiles')
+          .select('*')
+          .eq('owner_id', user.id)
+          .maybeSingle();
+        if (error) throw error;
+        company = data;
+      }
+
+      if (!company) {
         toast.error('No company profile found. Please complete signup.');
         router.push('/signup');
         return;
       }
 
-      // Use the first company (user should only have access to one)
-      const company = companies[0];
       setCompanyId(company.id);
       setCanEdit(true);
 
       // Populate form with company data
       form.reset({
-        name: company.name,
+        name: company.company_name,
         description: company.description,
         email: company.email,
         phone: company.phone,
         website: company.website || '',
-        address: company.address,
+        address: company.street_address || company.address || '',
         city: company.city,
         state: company.state,
         zipCode: company.zip_code,
-        specialties: company.specialties.join(', '),
+        specialties: (company.specialties || []).join(', '),
       });
 
     } catch (error: any) {
@@ -131,12 +147,12 @@ export default function CompanySettingsPage() {
       const { error } = await supabase
         .from('company_profiles')
         .update({
-          name: data.name,
+          company_name: data.name,
           description: data.description,
           email: data.email,
           phone: data.phone,
           website: data.website || null,
-          address: data.address,
+          street_address: data.address,
           city: data.city,
           state: data.state,
           zip_code: data.zipCode,

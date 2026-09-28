@@ -75,6 +75,7 @@ export default function ServiceDetailPage() {
   const [isFavorite, setIsFavorite]       = useState(false)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [copied, setCopied]               = useState(false)
+  const [vendorRating, setVendorRating]   = useState<{ avg: number; count: number }>({ avg: 0, count: 0 })
 
   useEffect(() => {
     loadService()
@@ -102,7 +103,21 @@ export default function ServiceDetailPage() {
         .single()
 
       if (error) console.error('Error loading service:', error)
-      else setService(data as any)
+      else {
+        setService(data as any)
+        // Real vendor rating (public vendor_reviews table)
+        const providerId = (data as any)?.provider?.id
+        if (providerId) {
+          const { data: reviews } = await supabase
+            .from('vendor_reviews')
+            .select('rating')
+            .eq('vendor_id', providerId)
+          if (reviews && reviews.length > 0) {
+            const avg = reviews.reduce((s, r) => s + r.rating, 0) / reviews.length
+            setVendorRating({ avg, count: reviews.length })
+          }
+        }
+      }
     } catch (error) {
       console.error('Error:', error)
     } finally {
@@ -234,7 +249,7 @@ export default function ServiceDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
 
-          {/* ── LEFT — Main content ──────────────────────────────────────── */}
+          {/* ── LEFT - Main content ──────────────────────────────────────── */}
           <div className="lg:col-span-2 space-y-6">
 
             {/* Image Gallery */}
@@ -343,7 +358,7 @@ export default function ServiceDetailPage() {
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
                 <h2 className="text-xl font-extrabold text-gray-900 mb-4">About the Vendor</h2>
-                <div className="flex items-start gap-4">
+                <Link href={`/profiles/${service.provider.id}`} className="flex items-start gap-4 group/vendor">
                   {service.provider.avatar_url ? (
                     <img src={service.provider.avatar_url} alt={service.provider.full_name}
                       className="w-16 h-16 rounded-2xl object-cover flex-shrink-0 border-2 border-gray-100" />
@@ -354,7 +369,7 @@ export default function ServiceDetailPage() {
                   )}
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h3 className="font-extrabold text-gray-900 text-lg">{service.provider.full_name}</h3>
+                      <h3 className="font-extrabold text-gray-900 text-lg group-hover/vendor:text-[#003D82] group-hover/vendor:underline">{service.provider.full_name}</h3>
                       <BadgeCheck className="w-5 h-5 text-[#003D82] flex-shrink-0" />
                     </div>
                     {service.provider.location && (
@@ -366,17 +381,21 @@ export default function ServiceDetailPage() {
                       <p className="text-sm text-gray-600 mt-2 leading-relaxed line-clamp-3">{service.provider.bio}</p>
                     )}
                     <div className="flex items-center gap-3 mt-3 flex-wrap">
-                      <div className="flex items-center gap-1">
-                        {[1,2,3,4,5].map(s => (
-                          <Star key={s} className={`w-3.5 h-3.5 ${s <= 5 ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
-                        ))}
-                        <span className="text-xs text-gray-500 ml-1">5.0</span>
-                      </div>
+                      {vendorRating.count > 0 ? (
+                        <div className="flex items-center gap-1">
+                          {[1,2,3,4,5].map(s => (
+                            <Star key={s} className={`w-3.5 h-3.5 ${s <= Math.round(vendorRating.avg) ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
+                          ))}
+                          <span className="text-xs text-gray-500 ml-1">{vendorRating.avg.toFixed(1)} ({vendorRating.count})</span>
+                        </div>
+                      ) : (
+                        <span className="text-xs text-gray-400">No reviews yet</span>
+                      )}
                       <span className="text-xs text-gray-400">·</span>
                       <span className="text-xs text-gray-500">Verified Vendor</span>
                     </div>
                   </div>
-                </div>
+                </Link>
                 {!isOwnService && (
                   <div className="flex gap-3 mt-5 pt-5 border-t border-gray-100">
                     <Link href={`/profiles/${service.provider.id}`}
@@ -393,7 +412,7 @@ export default function ServiceDetailPage() {
             )}
           </div>
 
-          {/* ── RIGHT — Purchase sticky card ─────────────────────────────── */}
+          {/* ── RIGHT - Purchase sticky card ─────────────────────────────── */}
           <div className="lg:col-span-1">
             <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }}
               className="sticky top-24 bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -433,7 +452,7 @@ export default function ServiceDetailPage() {
 
                 {/* CTAs */}
                 {isOwnService ? (
-                  <Link href="/dashboard/engineer"
+                  <Link href="/admin"
                     className="block w-full text-center bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold py-3.5 rounded-xl transition-all text-sm">
                     Manage in Dashboard
                   </Link>

@@ -1,4 +1,4 @@
-# Messaging System — Feature Spec for React Native
+# Messaging System - Feature Spec for React Native
 
 > **Source:** `app/messages/page.tsx` + `app/api/messages/**`
 > **Status:** ✅ Production
@@ -66,13 +66,13 @@ PPF's messaging system is a Slack/Discord-style chat platform supporting **Direc
 ### 2. Sidebar
 
 The sidebar has 3 sections:
-- **Company Panel** — Shows company name, team members list, pending invites (Accept/Decline), "Invite Member" action
-- **Section Tabs** — Toggle between All / Channels / Groups / DMs
-- **Conversation List** — Each item shows: avatar, name, last message preview, unread badge (red pill), timestamp. Sorted by `last_message_at` DESC.
+- **Company Panel** - Shows company name, team members list, pending invites (Accept/Decline), "Invite Member" action
+- **Section Tabs** - Toggle between All / Channels / Groups / DMs
+- **Conversation List** - Each item shows: avatar, name, last message preview, unread badge (red pill), timestamp. Sorted by `last_message_at` DESC.
 
 **Unread badges** are computed via `SELECT count(*) FROM user_messages WHERE conversation_id = X AND is_read = false AND sender_id != currentUserId`.
 
-**Search** — Filter conversations by `other_user.full_name`.
+**Search** - Filter conversations by `other_user.full_name`.
 
 ### 3. Chat Panel
 
@@ -86,10 +86,10 @@ The sidebar has 3 sections:
 - Standard chat bubbles: own messages right-aligned (blue gradient `from-[#003D82]`), others left-aligned (white/gray)
 - **System messages** rendered centered in gray
 - **Company invites** shown as styled cards with Accept/Decline inline buttons
-- **RFQ Offer cards** — special compact proposal cards (see §5)
-- **Attachment display** — images rendered inline (signed URLs), files as download links
+- **RFQ Offer cards** - special compact proposal cards (see §5)
+- **Attachment display** - images rendered inline (signed URLs), files as download links
 - **Mentions** (`@username`) rendered as highlighted spans
-- **Thumbs-up reactions** — toggle on/off below each message, show count
+- **Thumbs-up reactions** - toggle on/off below each message, show count
 
 #### Typing Indicators
 - Uses **Supabase Realtime Broadcast** (`event: 'typing'`)
@@ -109,10 +109,10 @@ The sidebar has 3 sections:
 isFree = isUnlocked || areFriends || isSameCompany || isRfqApplicant
 ```
 
-- `isUnlocked` — conversation's `is_unlocked` column = true
-- `areFriends` — `are_friends(user_a, user_b)` RPC returns true
-- `isSameCompany` — `same_company(user_a, user_b)` RPC returns true
-- `isRfqApplicant` — user has a `rfq_offers` row linked to this conversation
+- `isUnlocked` - conversation's `is_unlocked` column = true
+- `areFriends` - `are_friends(user_a, user_b)` RPC returns true
+- `isSameCompany` - `same_company(user_a, user_b)` RPC returns true
+- `isRfqApplicant` - user has a `rfq_offers` row linked to this conversation
 
 **If locked (402 response):**
 - Show unlock modal with token pack options (Starter 100 tokens/$10, Pro 500/$45, Business 1200/$99)
@@ -257,12 +257,12 @@ ChatScreen
 ```
 
 ### Key Libraries
-- `@supabase/supabase-js` — realtime + DB
-- `@stripe/stripe-react-native` — payments
-- `react-native-image-picker` — attachments
-- `react-native-document-picker` — file uploads
-- `date-fns` — time formatting
-- `react-native-gifted-chat` or custom FlatList — message list
+- `@supabase/supabase-js` - realtime + DB
+- `@stripe/stripe-react-native` - payments
+- `react-native-image-picker` - attachments
+- `react-native-document-picker` - file uploads
+- `date-fns` - time formatting
+- `react-native-gifted-chat` or custom FlatList - message list
 
 ### Token Unlock Flow (Mobile)
 1. User sends message → 402 response

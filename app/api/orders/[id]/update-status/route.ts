@@ -187,7 +187,7 @@ export async function POST(
 
     // ── Contract-to-Unlock: auto-unlock DM on in_progress ──
     // App-layer fallback. The DB trigger (trg_auto_unlock_conversation)
-    // is the source of truth — this mirrors it and enables future
+    // is the source of truth - this mirrors it and enables future
     // realtime broadcast. Non-blocking: wrapped in try/catch.
     if (newStatus === 'in_progress' && currentStatus !== 'in_progress') {
       try {
@@ -206,20 +206,20 @@ export async function POST(
           });
 
           if (convId) {
-            // Unlock (no-op if already unlocked — DB trigger handles it)
+            // Unlock (no-op if already unlocked - DB trigger handles it)
             await supabase
               .from('user_conversations')
               .update({ is_unlocked: true })
               .eq('id', convId);
 
-            // Insert system message (idempotent — DB trigger also inserts,
+            // Insert system message (idempotent - DB trigger also inserts,
             // but this ensures the message appears even if trigger is removed)
             await supabase
               .from('user_messages')
               .insert({
                 conversation_id:  convId,
                 sender_id:        updatedOrder.buyer_id,
-                content:          '🤝 Contract started — you can now message freely',
+                content:          '🤝 Contract started - you can now message freely',
                 is_system_message: true,
                 is_read:          true,
                 created_at:       new Date().toISOString(),
@@ -229,7 +229,7 @@ export async function POST(
           }
         }
       } catch (e) {
-        // Non-blocking — DB trigger is the source of truth
+        // Non-blocking - DB trigger is the source of truth
         console.error('[contract-unlock] App-layer fallback failed:', e);
       }
     }

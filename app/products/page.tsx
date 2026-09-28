@@ -148,10 +148,10 @@ export default function ProductsManagementPage() {
     }
   };
 
-  const formatPrice = (price: number, currency: string) => {
+  const formatPrice = (price: number, currency?: string) => {
     return new Intl.NumberFormat('en-US', {
       style: 'currency',
-      currency: currency.toUpperCase(),
+      currency: (currency || 'USD').toUpperCase(),
     }).format(price);
   };
 

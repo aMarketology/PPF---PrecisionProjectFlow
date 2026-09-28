@@ -47,7 +47,7 @@ export async function POST(request: NextRequest) {
       isParticipant = conv.participant_one_id === user.id || conv.participant_two_id === user.id;
       otherUserId = conv.participant_one_id === user.id ? conv.participant_two_id : conv.participant_one_id;
     } else {
-      // Group/Channel — check conversation_participants
+      // Group/Channel - check conversation_participants
       const { data: membership } = await supabase
         .from('conversation_participants')
         .select('id')
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
     let isFree = isGroupOrChannel; // groups & channels are always free
 
     if (!isFree) {
-      // Direct message — check unlock status
+      // Direct message - check unlock status
       const isUnlocked = conv.is_unlocked ?? false;
       let areFriends = false;
       let isSameCompany = false;

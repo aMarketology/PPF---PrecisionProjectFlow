@@ -1,0 +1,366 @@
+﻿ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+  LIVE SCHEMA ΓÇö 29 TABLES
+ΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉΓòÉ
+
+ΓöÇΓöÇ company_claims (8 cols)
+   id:uuid PK NOT NULL
+   company_id:uuid NOT NULL
+   user_id:uuid NOT NULL
+   reason:text
+   status:text NOT NULL
+   reviewed_by:uuid
+   reviewed_at:timestamp with time zone
+   created_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ company_members (8 cols)
+   id:uuid PK NOT NULL
+   company_id:uuid NOT NULL
+   user_id:uuid NOT NULL
+   role:text NOT NULL
+   status:text NOT NULL
+   invited_by:uuid
+   created_at:timestamp with time zone NOT NULL
+   updated_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ company_profiles (31 cols)
+   id:uuid PK NOT NULL
+   owner_id:uuid
+   company_name:text NOT NULL
+   description:text
+   email:text
+   phone:text
+   website:text
+   address:text
+   city:text
+   state:text
+   zip_code:text
+   specialties:string[]
+   certifications:string[]
+   is_verified:boolean
+   is_claimed:boolean
+   created_at:timestamp with time zone
+   slug:text
+   industry:text
+   source:text
+   contact_name:text
+   contact_title:text
+   contact_email:text
+   contact_phone:text
+   contact_mobile:text
+   contact_linkedin:text
+   name:text
+   street_address:text
+   updated_at:timestamp with time zone NOT NULL
+   claimed_by:uuid
+   claimed_at:timestamp with time zone
+   stripe_account_id:text
+
+ΓöÇΓöÇ conversation_participants (5 cols)
+   id:uuid PK NOT NULL
+   conversation_id:uuid NOT NULL
+   user_id:uuid NOT NULL
+   role:text NOT NULL
+   joined_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ conversations (9 cols)
+   id:uuid PK NOT NULL
+   subject:text
+   product_id:uuid
+   order_id:uuid
+   company_id:uuid
+   status:text
+   last_message_at:timestamp with time zone
+   created_at:timestamp with time zone
+   created_by:uuid
+
+ΓöÇΓöÇ feed_bids (7 cols)
+   id:uuid PK NOT NULL
+   post_id:uuid NOT NULL
+   bidder_id:uuid NOT NULL
+   amount:numeric NOT NULL
+   note:text
+   status:text
+   created_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ feed_comments (5 cols)
+   id:uuid PK NOT NULL
+   post_id:uuid NOT NULL
+   author_id:uuid NOT NULL
+   content:text NOT NULL
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ feed_likes (3 cols)
+   post_id:uuid PK NOT NULL
+   user_id:uuid PK NOT NULL
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ feed_posts (15 cols)
+   id:uuid PK NOT NULL
+   author_id:uuid NOT NULL
+   content:text NOT NULL
+   post_type:text NOT NULL
+   media_urls:string[]
+   linked_type:text
+   linked_id:uuid
+   likes_count:integer NOT NULL
+   comments_count:integer NOT NULL
+   is_published:boolean NOT NULL
+   created_at:timestamp with time zone
+   updated_at:timestamp with time zone
+   bids_count:integer
+   budget:numeric
+   deadline:text
+
+ΓöÇΓöÇ friends (5 cols)
+   id:uuid PK NOT NULL
+   requester_id:uuid NOT NULL
+   addressee_id:uuid NOT NULL
+   status:text
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ message_mentions (5 cols)
+   id:uuid PK NOT NULL
+   message_id:uuid NOT NULL
+   conversation_id:uuid NOT NULL
+   mentioned_user_id:uuid NOT NULL
+   created_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ messages (8 cols)
+   id:uuid PK NOT NULL
+   conversation_id:uuid
+   sender_id:uuid
+   content:text NOT NULL
+   attachments:jsonb
+   edited_at:timestamp with time zone
+   is_system_message:boolean
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ orders (7 cols)
+   id:uuid PK NOT NULL
+   client_id:uuid NOT NULL
+   engineer_id:uuid NOT NULL
+   service_id:uuid
+   status:text
+   total_amount:numeric NOT NULL
+   created_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ product_orders (14 cols)
+   id:uuid PK NOT NULL
+   order_number:text NOT NULL
+   product_id:uuid
+   company_id:uuid
+   buyer_id:uuid
+   product_name:text NOT NULL
+   product_price:bigint NOT NULL
+   platform_fee:bigint
+   total_amount:bigint NOT NULL
+   status:text
+   stripe_payment_intent_id:text
+   created_at:timestamp with time zone
+   completed_at:timestamp with time zone
+   in_progress_at:timestamp with time zone
+
+ΓöÇΓöÇ products (10 cols)
+   id:uuid PK NOT NULL
+   company_id:uuid
+   name:text NOT NULL
+   description:text
+   price:bigint NOT NULL
+   category:text
+   delivery_time_days:integer
+   is_active:boolean
+   requires_consultation:boolean
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ profiles (13 cols)
+   id:uuid PK NOT NULL
+   email:text NOT NULL
+   full_name:text
+   user_type:text
+   bio:text
+   location:text
+   created_at:timestamp with time zone
+   avatar_url:text
+   updated_at:timestamp with time zone
+   token_balance:integer NOT NULL
+   is_admin:boolean NOT NULL
+   company_id:uuid
+   job_title:text
+
+ΓöÇΓöÇ receipts (18 cols)
+   id:uuid PK NOT NULL
+   user_id:uuid NOT NULL
+   job_number:text
+   vendor_name:text
+   transaction_date:date
+   total_amount:numeric
+   tax_amount:numeric
+   subtotal:numeric
+   line_items:jsonb
+   cost_code:text
+   cost_code_desc:text
+   notes:text
+   image_url:text
+   ocr_raw_text:text
+   ocr_confidence:real
+   status:text NOT NULL
+   created_at:timestamp with time zone NOT NULL
+   updated_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ refunds (9 cols)
+   id:uuid PK NOT NULL
+   order_id:uuid NOT NULL
+   stripe_refund_id:text NOT NULL
+   amount:numeric NOT NULL
+   currency:text
+   reason:text
+   status:text
+   refunded_at:timestamp with time zone
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ rfq_offers (15 cols)
+   id:uuid PK NOT NULL
+   rfq_id:uuid NOT NULL
+   vendor_id:uuid NOT NULL
+   client_id:uuid NOT NULL
+   conversation_id:uuid
+   message_id:uuid
+   amount:numeric NOT NULL
+   timeline:text
+   terms:text
+   notes:text
+   status:text NOT NULL
+   accepted_at:timestamp with time zone
+   rejected_at:timestamp with time zone
+   created_at:timestamp with time zone NOT NULL
+   updated_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ rfqs (19 cols)
+   id:uuid PK NOT NULL
+   client_id:uuid NOT NULL
+   title:text NOT NULL
+   category:text NOT NULL
+   description:text NOT NULL
+   quantity:text
+   budget:text
+   timeline:text
+   location:text
+   attachment_urls:string[]
+   status:text NOT NULL
+   created_at:timestamp with time zone NOT NULL
+   updated_at:timestamp with time zone NOT NULL
+   slug:text
+   material:text
+   rfq_type:text NOT NULL
+   nda_required:boolean NOT NULL
+   is_asap:boolean NOT NULL
+   line_items:jsonb NOT NULL
+
+ΓöÇΓöÇ services (13 cols)
+   id:uuid PK NOT NULL
+   provider_id:uuid NOT NULL
+   title:text NOT NULL
+   description:text NOT NULL
+   price:numeric NOT NULL
+   category:text NOT NULL
+   tags:string[]
+   active:boolean
+   created_at:timestamp with time zone NOT NULL
+   images:string[]
+   delivery_time:text
+   service_area:text
+   certifications:string[]
+
+ΓöÇΓöÇ site_activities (10 cols)
+   id:uuid PK NOT NULL
+   activity_type:text NOT NULL
+   actor_id:uuid
+   target_type:text
+   target_id:uuid
+   summary:text NOT NULL
+   metadata:jsonb
+   previous_hash:text
+   row_hash:text NOT NULL
+   created_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ stripe_connect_accounts (8 cols)
+   id:uuid PK NOT NULL
+   company_id:uuid
+   stripe_account_id:text NOT NULL
+   charges_enabled:boolean
+   payouts_enabled:boolean
+   details_submitted:boolean
+   created_at:timestamp with time zone
+   updated_at:timestamp with time zone
+
+ΓöÇΓöÇ stripe_transfers (10 cols)
+   id:uuid PK NOT NULL
+   order_id:uuid NOT NULL
+   stripe_transfer_id:text NOT NULL
+   destination_account_id:text NOT NULL
+   amount:numeric NOT NULL
+   currency:text
+   status:text
+   transferred_at:timestamp with time zone
+   created_at:timestamp with time zone
+   updated_at:timestamp with time zone
+
+ΓöÇΓöÇ token_account_summary (6 cols)
+   user_id:uuid PK
+   full_name:text
+   current_balance:integer
+   lifetime_credited:bigint
+   lifetime_spent:bigint
+   total_transactions:bigint
+
+ΓöÇΓöÇ token_purchases (5 cols)
+   id:uuid PK NOT NULL
+   user_id:uuid NOT NULL
+   tokens:integer NOT NULL
+   stripe_payment_id:text
+   created_at:timestamp with time zone
+
+ΓöÇΓöÇ token_transactions (9 cols)
+   id:uuid PK NOT NULL
+   user_id:uuid NOT NULL
+   amount:integer NOT NULL
+   balance_after:integer NOT NULL
+   type:text NOT NULL
+   description:text
+   stripe_payment_id:text
+   reference_id:uuid
+   created_at:timestamp with time zone NOT NULL
+
+ΓöÇΓöÇ user_conversations (13 cols)
+   id:uuid PK NOT NULL
+   participant_one_id:uuid
+   participant_two_id:uuid
+   last_message_at:timestamp with time zone
+   created_at:timestamp with time zone
+   updated_at:timestamp with time zone
+   is_unlocked:boolean NOT NULL
+   conversation_type:text NOT NULL
+   name:text
+   description:text
+   is_public:boolean NOT NULL
+   company_id:uuid
+   created_by:uuid
+
+ΓöÇΓöÇ user_messages (16 cols)
+   id:uuid PK NOT NULL
+   conversation_id:uuid NOT NULL
+   sender_id:uuid NOT NULL
+   content:text NOT NULL
+   is_read:boolean
+   read_at:timestamp with time zone
+   created_at:timestamp with time zone
+   updated_at:timestamp with time zone
+   attachment_url:text
+   attachment_name:text
+   attachment_type:text
+   is_system_message:boolean NOT NULL
+   is_paid:boolean NOT NULL
+   payment_id:text
+   message_type:text NOT NULL
+   message_metadata:jsonb NOT NULL
+

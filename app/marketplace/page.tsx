@@ -9,7 +9,7 @@ import Footer from '../components/Footer'
 import { createClient } from '@/lib/supabase/client'
 import {
   Search, Star, Heart, MapPin, Loader, Clock, Award, Wifi, HardHat,
-  X, CheckCircle2, ArrowRight, Layers
+  X, CheckCircle2, ArrowRight, Layers, ExternalLink
 } from 'lucide-react'
 
 interface Service {
@@ -26,6 +26,21 @@ interface Service {
   active: boolean
   created_at: string
   provider: { id: string; full_name: string; location: string | null; avatar_url: string | null } | null
+}
+
+interface VendorRating { avg: number; count: number }
+
+/** Renders 5 stars for a rating value (supports half-ish rounding). */
+function Stars({ value, size = 14 }: { value: number; size?: number }) {
+  return (
+    <span className="inline-flex items-center gap-0.5">
+      {[1, 2, 3, 4, 5].map(i => (
+        <Star key={i}
+          style={{ width: size, height: size }}
+          className={i <= Math.round(value) ? 'text-amber-400 fill-amber-400' : 'text-gray-200 fill-gray-100'} />
+      ))}
+    </span>
+  )
 }
 
 const categories = [
@@ -59,6 +74,7 @@ function MarketplaceInner() {
   const [sortBy, setSortBy] = useState('newest')
   const [favorites, setFavorites] = useState<Set<string>>(new Set())
   const [services, setServices] = useState<Service[]>([])
+  const [vendorRatings, setVendorRatings] = useState<Record<string, VendorRating>>({})
   const [loading, setLoading] = useState(true)
 
   useEffect(() => { fetchServices() }, [])
@@ -86,6 +102,20 @@ function MarketplaceInner() {
           ...s,
           provider: profileMap[s.provider_id] || null,
         }))
+
+        // Real vendor ratings (public, read-only)
+        const { data: reviewRows } = await supabase
+          .from('vendor_reviews')
+          .select('vendor_id, rating')
+          .in('vendor_id', providerIds)
+        const agg: Record<string, VendorRating> = {}
+        for (const r of (reviewRows || [])) {
+          const cur = agg[r.vendor_id] || { avg: 0, count: 0 }
+          cur.avg = (cur.avg * cur.count + r.rating) / (cur.count + 1)
+          cur.count += 1
+          agg[r.vendor_id] = cur
+        }
+        setVendorRatings(agg)
       }
 
       setServices(serviceCards)
@@ -151,7 +181,7 @@ function MarketplaceInner() {
               <p className="text-blue-200/90 text-lg max-w-2xl leading-relaxed">
                 {loading
                   ? 'Loading services...'
-                  : `Browse ${serviceCount.toLocaleString()} professional engineering services — all in one place.`
+                  : `Browse ${serviceCount.toLocaleString()} professional engineering services - all in one place.`
                 }
               </p>
             </motion.div>
@@ -184,7 +214,7 @@ function MarketplaceInner() {
                   onChange={e => setPriceRange([Number(e.target.value) || 0, priceRange[1]])}
                   className="w-16 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
                   onFocus={e => e.target.select()} />
-                <span className="text-gray-300 text-xs">—</span>
+                <span className="text-gray-300 text-xs">-</span>
                 <input type="number" placeholder="Max" value={priceRange[1] === 50000 ? '' : priceRange[1]}
                   onChange={e => setPriceRange([priceRange[0], Number(e.target.value) || 50000])}
                   className="w-16 px-2 py-2 bg-gray-50 border border-gray-200 rounded-lg text-xs outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
@@ -241,7 +271,8 @@ function MarketplaceInner() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
               {filtered.map((service, index) => (
-                <Link key={service.id} href={`/marketplace/service/${service.id}`}>
+                <div key={service.id} className="relative h-full">
+                <Link href={`/marketplace/service/${service.id}`} aria-label={service.title}>
                   <motion.div
                     initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: Math.min(index * 0.02, 0.4) }}
@@ -281,29 +312,54 @@ function MarketplaceInner() {
                     </div>
                     <div className="p-5 flex flex-col flex-1">
                       <div className="flex items-center gap-2 mb-2.5">
-                        {service.provider?.avatar_url ? (
-                          <img src={service.provider.avatar_url} alt={service.provider.full_name} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-gray-100" />
+                        {service.provider ? (
+                          <Link
+                            href={`/profiles/${service.provider.id}`}
+                            className="flex items-center gap-2 flex-1 min-w-0 group/vendor"
+                            title={`View ${service.provider.full_name}'s profile`}
+                          >
+                            {service.provider.avatar_url ? (
+                              <img src={service.provider.avatar_url} alt={service.provider.full_name} className="w-7 h-7 rounded-full object-cover flex-shrink-0 ring-2 ring-gray-100" />
+                            ) : (
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 ring-2 ring-gray-100">
+                                <span className="text-white text-[10px] font-bold">{(service.provider.full_name || 'V').charAt(0).toUpperCase()}</span>
+                              </div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-semibold text-gray-900 truncate group-hover/vendor:text-[#003D82] group-hover/vendor:underline flex items-center gap-1">
+                                {service.provider.full_name}
+                                <ExternalLink className="w-3 h-3 opacity-0 group-hover/vendor:opacity-100 transition-opacity" />
+                              </p>
+                              {service.provider.location && (
+                                <p className="text-[10px] text-gray-400 truncate flex items-center gap-0.5">
+                                  <MapPin className="w-2.5 h-2.5 inline" />{service.provider.location}
+                                </p>
+                              )}
+                            </div>
+                          </Link>
                         ) : (
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 ring-2 ring-gray-100">
-                            <span className="text-white text-[10px] font-bold">{(service.provider?.full_name || 'V').charAt(0).toUpperCase()}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-gray-900 truncate">Vendor</p>
                           </div>
                         )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-gray-900 truncate">{service.provider?.full_name || 'Vendor'}</p>
-                          {service.provider?.location && (
-                            <p className="text-[10px] text-gray-400 truncate flex items-center gap-0.5">
-                              <MapPin className="w-2.5 h-2.5 inline" />{service.provider.location}
-                            </p>
-                          )}
-                        </div>
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" aria-label="Verified" />
                       </div>
                       <h3 className="font-bold text-gray-900 text-sm leading-snug mb-2 line-clamp-2 group-hover:text-[#003D82] transition-colors">{service.title}</h3>
                       <p className="text-xs text-gray-500 line-clamp-2 mb-3">{service.description}</p>
                       <div className="flex items-center gap-1 mb-3">
-                        {[1,2,3,4,5].map(i => <Star key={i} className={`w-3.5 h-3.5 ${i <= 4 ? 'text-amber-400 fill-amber-400' : 'text-amber-200 fill-amber-100'}`} />)}
-                        <span className="text-[11px] text-gray-500 font-semibold ml-1">4.9</span>
-                        <span className="text-[11px] text-gray-400">(12 reviews)</span>
+                        {(() => {
+                          const r = service.provider ? vendorRatings[service.provider.id] : undefined
+                          if (!r || r.count === 0) {
+                            return <span className="text-[11px] text-gray-400">No reviews yet</span>
+                          }
+                          return (
+                            <>
+                              <Stars value={r.avg} />
+                              <span className="text-[11px] text-gray-500 font-semibold ml-1">{r.avg.toFixed(1)}</span>
+                              <span className="text-[11px] text-gray-400">({r.count} review{r.count !== 1 ? 's' : ''})</span>
+                            </>
+                          )
+                        })()}
                       </div>
                       <div className="flex flex-wrap gap-1.5 mt-auto">
                         {service.service_area && (
@@ -321,6 +377,7 @@ function MarketplaceInner() {
                     </div>
                   </motion.div>
                 </Link>
+                </div>
               ))}
             </div>
           )}

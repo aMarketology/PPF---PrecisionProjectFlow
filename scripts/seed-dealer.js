@@ -97,7 +97,7 @@ const SERVICES = [
     images: ['https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&h=500&fit=crop'],
   },
   {
-    title: 'Plumbing Engineering Design — Commercial (up to 50,000 sq ft)',
+    title: 'Plumbing Engineering Design - Commercial (up to 50,000 sq ft)',
     description: 'Complete plumbing engineering design for commercial buildings. Includes water supply sizing, drain-waste-vent (DWV) layout, hot water demand calculations, grease interceptor sizing, and fixture unit calculations per IPC/UPC. AutoCAD or Revit MEP drawings ready for permit submission. Experience with office buildings, retail, healthcare, and hospitality projects.',
     price: 3800,
     category: 'Mechanical Engineering',
@@ -110,7 +110,7 @@ const SERVICES = [
 
   // ── ELECTRICAL ──────────────────────────────────────────────────────────────
   {
-    title: 'Electrical Engineering Design — Service & Distribution (NEC 2020)',
+    title: 'Electrical Engineering Design - Service & Distribution (NEC 2020)',
     description: 'Full electrical engineering design for commercial and industrial facilities. Includes service entrance sizing, panel schedules, branch circuit design, lighting layouts, emergency power (generator/ATS), and NEC 2020 code compliance review. Deliverables: single-line diagram, panel schedules, load calculations, and permit-ready drawings in PDF/DWG format.',
     price: 3500,
     category: 'Electrical Engineering',
@@ -145,7 +145,7 @@ const SERVICES = [
     images: ['https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&h=500&fit=crop'],
   },
   {
-    title: 'FEA Analysis — Finite Element Analysis for Mechanical Components',
+    title: 'FEA Analysis - Finite Element Analysis for Mechanical Components',
     description: 'Advanced finite element analysis (FEA) using ANSYS or SolidWorks Simulation for mechanical components, pressure vessels, weldments, and custom fabrications. Static, fatigue, thermal, and modal analysis available. Deliverables: color stress/deformation contour plots, safety factor summary, written engineering report, and recommendations. Ideal for ASME, PED, or CE compliance.',
     price: 2200,
     category: 'Analysis & Testing',
@@ -158,7 +158,7 @@ const SERVICES = [
 
   // ── CONSULTING / PROJECT MANAGEMENT ────────────────────────────────────────
   {
-    title: 'Engineering Project Management — Construction Phase Services',
+    title: 'Engineering Project Management - Construction Phase Services',
     description: 'Experienced engineering PM provides construction-phase support including RFI/submittal review, change order analysis, schedule oversight, and owner representation. Available for commercial, industrial, and infrastructure projects. Daily or weekly site visit options. Reduces risk and keeps projects on budget. PMP and PE certified.',
     price: 500,
     category: 'Project Management',
@@ -194,7 +194,7 @@ const SERVICES = [
   },
   {
     title: 'CAD Drafting & As-Built Documentation Services',
-    description: 'Professional CAD drafting for as-built drawings, shop drawings, and record documents. Supported formats: AutoCAD, MicroStation, PDF to CAD conversion, hand sketch to CAD. Industries served: industrial plants, commercial buildings, oil & gas, and municipal infrastructure. Fast turnaround — standard 48-hr delivery for straightforward projects. Pricing per sheet.',
+    description: 'Professional CAD drafting for as-built drawings, shop drawings, and record documents. Supported formats: AutoCAD, MicroStation, PDF to CAD conversion, hand sketch to CAD. Industries served: industrial plants, commercial buildings, oil & gas, and municipal infrastructure. Fast turnaround - standard 48-hr delivery for straightforward projects. Pricing per sheet.',
     price: 150,
     category: 'Design Services',
     tags: ['AutoCAD', 'As-Built Drawings', 'Shop Drawings', 'PDF to CAD', 'MicroStation', 'Record Drawings'],
@@ -248,7 +248,7 @@ async function main() {
 
   if (createError) {
     if (createError.message?.includes('already been registered') || createError.message?.includes('already exists')) {
-      console.log('  ℹ️   Dealer already exists — looking up existing user…');
+      console.log('  ℹ️   Dealer already exists - looking up existing user…');
       const { data: listData } = await admin.auth.admin.listUsers();
       const existing = listData?.users?.find(u => u.email === DEALER_EMAIL);
       if (existing) {
@@ -327,7 +327,7 @@ async function main() {
   }
 
   inserted.forEach((s, i) => {
-    console.log(`  ✅  [${String(i+1).padStart(2,'0')}] $${s.price.toLocaleString().padStart(6)} — ${s.title.substring(0,65)}`);
+    console.log(`  ✅  [${String(i+1).padStart(2,'0')}] $${s.price.toLocaleString().padStart(6)} - ${s.title.substring(0,65)}`);
   });
 
   // 5. Save credentials to .env.local

@@ -21,8 +21,8 @@ const CATEGORIES = [
 ]
 
 const SERVICE_AREAS = [
-  'Nationwide (Remote)','Local — On-site only','Regional (multi-state)',
-  'Hybrid — Remote + On-site','Custom (specify in description)',
+  'Nationwide (Remote)','Local - On-site only','Regional (multi-state)',
+  'Hybrid - Remote + On-site','Custom (specify in description)',
 ]
 
 const DELIVERY_OPTIONS = [
@@ -128,10 +128,10 @@ export default function EditServicePage() {
     if (!user) { router.push('/login'); return }
 
     const { data, error } = await supabase.from('services').select('*').eq('id', id).single()
-    if (error || !data) { toast.error('Service not found'); router.push('/dashboard/engineer'); return }
+    if (error || !data) { toast.error('Service not found'); router.push('/admin'); return }
     if (data.provider_id !== user.id) {
       toast.error('You can only edit your own services')
-      router.push('/dashboard/engineer'); return
+      router.push('/admin'); return
     }
 
     setTitle(data.title || '')
@@ -187,7 +187,7 @@ export default function EditServicePage() {
     setDeleting(false)
     if (error) { toast.error(error.message || 'Failed to delete'); return }
     toast.success('Service deleted')
-    setTimeout(() => router.push('/dashboard/engineer'), 500)
+    setTimeout(() => router.push('/admin'), 500)
   }
 
   if (loading) return (
@@ -206,7 +206,7 @@ export default function EditServicePage() {
         <div className="absolute inset-0 opacity-10"
           style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px)' }} />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
-          <Link href="/dashboard/engineer" className="inline-flex items-center gap-2 text-blue-200 hover:text-white text-sm font-semibold mb-6 transition-colors">
+          <Link href="/admin" className="inline-flex items-center gap-2 text-blue-200 hover:text-white text-sm font-semibold mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4" />Back to Dashboard
           </Link>
           <div className="flex items-center gap-3 mb-3">
@@ -349,7 +349,7 @@ export default function EditServicePage() {
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Link href="/dashboard/engineer"
+            <Link href="/admin"
               className="px-6 py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold rounded-xl text-sm text-center transition-all">
               Cancel
             </Link>

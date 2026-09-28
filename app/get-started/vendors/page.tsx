@@ -22,7 +22,7 @@ const BENEFITS = [
   {
     icon: Globe,
     title: 'National Reach',
-    desc: 'Get discovered by engineering firms, construction companies, and procurement teams across the country — without a sales team.',
+    desc: 'Get discovered by engineering firms, construction companies, and procurement teams across the country - without a sales team.',
   },
   {
     icon: Package,
@@ -32,7 +32,7 @@ const BENEFITS = [
   {
     icon: MessageSquare,
     title: 'Direct Client Messaging',
-    desc: 'Communicate directly with qualified buyers through our token-gated messaging system — no spam, only serious leads.',
+    desc: 'Communicate directly with qualified buyers through our token-gated messaging system - no spam, only serious leads.',
   },
   {
     icon: DollarSign,
@@ -42,7 +42,7 @@ const BENEFITS = [
   {
     icon: Award,
     title: 'Verified Badge',
-    desc: 'Get a Verified Engineer badge on your profile — signal credibility and win trust before the first conversation.',
+    desc: 'Get a Verified Engineer badge on your profile - signal credibility and win trust before the first conversation.',
   },
   {
     icon: BarChart3,
@@ -56,7 +56,7 @@ const STEPS = [
   { n: '02', title: 'Build Your Profile',   desc: 'Add your company name, bio, location, certifications, and avatar.' },
   { n: '03', title: 'List Your Services',   desc: 'Create one or more service listings with pricing and scope.' },
   { n: '04', title: 'Receive RFQs & DMs',  desc: 'Clients find you, send RFQs, and message you directly.' },
-  { n: '05', title: 'Win Projects',         desc: 'Quote, negotiate, and close deals — all on PPF.' },
+  { n: '05', title: 'Win Projects',         desc: 'Quote, negotiate, and close deals - all on PPF.' },
 ]
 
 const TESTIMONIALS = [
@@ -108,7 +108,7 @@ export default function VendorsPage() {
               <span className="block text-[#FF6B35]">Business on PPF</span>
             </h1>
             <p className="text-lg md:text-xl text-blue-200 max-w-2xl mx-auto mb-10">
-              List your services, get discovered by qualified clients, and receive inbound RFQs — without a sales team or cold outreach.
+              List your services, get discovered by qualified clients, and receive inbound RFQs - without a sales team or cold outreach.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <Link
@@ -254,7 +254,7 @@ export default function VendorsPage() {
       <div className="max-w-3xl mx-auto px-4 py-20 text-center">
         <motion.div initial={{ opacity: 0, y: 16 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }}>
           <h2 className="text-3xl md:text-4xl font-extrabold text-gray-900 mb-4">Ready to grow your business?</h2>
-          <p className="text-gray-500 mb-8">Join hundreds of engineering vendors already on PPF. Free to list — no commissions.</p>
+          <p className="text-gray-500 mb-8">Join hundreds of engineering vendors already on PPF. Free to list - no commissions.</p>
           <div className="flex flex-col sm:flex-row gap-4 justify-center">
             <Link
               href="/signup?type=engineer"

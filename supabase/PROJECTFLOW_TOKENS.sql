@@ -1,8 +1,8 @@
 -- ════════════════════════════════════════════════════════════════════
--- $ProjectFlow Token Ledger — Unified Token Economy for PPF
+-- $ProjectFlow Token Ledger - Unified Token Economy for PPF
 -- ════════════════════════════════════════════════════════════════════
 -- This REPLACES the old split system (token_purchases + bare add/spend).
--- It introduces a single source of truth: `token_transactions` — an
+-- It introduces a single source of truth: `token_transactions` - an
 -- append-only ledger that records EVERY credit and debit. The
 -- `profiles.token_balance` column stays as the fast-read wallet, and the
 -- ledger is the auditable history behind it.
@@ -46,7 +46,7 @@ DROP POLICY IF EXISTS "Users see own token transactions" ON public.token_transac
 CREATE POLICY "Users see own token transactions" ON public.token_transactions
   FOR SELECT USING (auth.uid() = user_id);
 
--- ── 3. add_tokens — credit the wallet + log the ledger ──────────────
+-- ── 3. add_tokens - credit the wallet + log the ledger ──────────────
 -- Matches the signature the app calls:
 --   add_tokens(p_user_id, p_amount, p_description, p_stripe_payment_id)
 CREATE OR REPLACE FUNCTION public.add_tokens(
@@ -90,7 +90,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ── 4. spend_tokens — debit the wallet + log the ledger ─────────────
+-- ── 4. spend_tokens - debit the wallet + log the ledger ─────────────
 -- Returns NULL on success, 'insufficient_tokens' if the user is broke.
 --   spend_tokens(p_user_id, p_amount, p_description, p_reference_id)
 CREATE OR REPLACE FUNCTION public.spend_tokens(
@@ -129,7 +129,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- ── 5. refund_tokens — credit back on a failed/cancelled spend ──────
+-- ── 5. refund_tokens - credit back on a failed/cancelled spend ──────
 CREATE OR REPLACE FUNCTION public.refund_tokens(
   p_user_id      UUID,
   p_amount       INT,

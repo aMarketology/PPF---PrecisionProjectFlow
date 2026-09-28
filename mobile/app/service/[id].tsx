@@ -199,7 +199,7 @@ export default function ServiceDetailScreen() {
           <Text style={styles.msgBtnText}>Message</Text>
         </TouchableOpacity>
         <Button
-          title={`Hire — $${Number(service.price).toLocaleString()}`}
+          title={`Hire - $${Number(service.price).toLocaleString()}`}
           onPress={() => Alert.alert('Checkout', 'Stripe checkout coming in next release.')}
           variant="accent"
           style={styles.hireBtn}

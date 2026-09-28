@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Check admin permission (pass user ID explicitly — RPC auth.uid() is NULL in server context)
+    // Check admin permission (pass user ID explicitly - RPC auth.uid() is NULL in server context)
     const { data: isAdmin } = await supabase.rpc('is_channel_admin', {
       p_conversation_id: conversationId,
       p_user_id: user.id,

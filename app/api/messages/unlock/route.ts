@@ -62,7 +62,7 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 2. Already unlocked — return success without charging again
+    // 2. Already unlocked - return success without charging again
     if (conv.is_unlocked) {
       const { data: profile } = await supabase
         .from('profiles')

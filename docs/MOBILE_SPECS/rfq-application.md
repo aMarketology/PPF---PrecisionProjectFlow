@@ -1,4 +1,4 @@
-# RFQ Offer Application Flow — Feature Spec for React Native
+# RFQ Offer Application Flow - Feature Spec for React Native
 
 > **Source:** `app/rfq/[id]/submit/page.tsx`, `app/api/rfq/offer/route.ts`, `app/messages/page.tsx` (RFQ offer card section)
 > **Status:** ✅ Production
@@ -58,9 +58,9 @@ ENGINEER (Vendor)                          CLIENT (RFQ Owner)
 ## Step 1: Browse & Discovery
 
 ### Entry Points
-1. **RFQ Marketplace** (`/rfq`) — LinearRFQCard "Bid" button
-2. **RFQ Detail** (`/rfq/[id]`) — "Submit Offer" CTA
-3. **Direct link** — `/rfq/[slug-or-id]/submit`
+1. **RFQ Marketplace** (`/rfq`) - LinearRFQCard "Bid" button
+2. **RFQ Detail** (`/rfq/[id]`) - "Submit Offer" CTA
+3. **Direct link** - `/rfq/[slug-or-id]/submit`
 
 ### Pre-checks (client-side on SubmitOfferPage mount)
 ```
@@ -209,7 +209,7 @@ This structured note is stored in `rfq_offers.note`.
 
 ## Step 5: Client Reviews Offer (In Messages)
 
-### In Chat — RFQ Offer Card
+### In Chat - RFQ Offer Card
 
 The client sees the offer as a styled card in their DM conversation:
 
@@ -245,7 +245,7 @@ The client sees the offer as a styled card in their DM conversation:
 3. Card updates: lock icon → file icon, "Review full application"
 4. Token balance decremented by 50
 
-### After Unlock — Actions
+### After Unlock - Actions
 Once unlocked, the card footer shows:
 
 ```
@@ -323,10 +323,10 @@ SubmitOfferScreen
 
 ### Messaging Integration
 The RFQ offer card component is shared between the Messages screen and needs to handle:
-1. **Bidder view** — "Application sent. The RFQ owner can unlock and review it." (blue banner, no actions)
-2. **Owner locked view** — "Unlock for 50 tokens" (amber banner, unlock button)
-3. **Owner unlocked view** — "Send Contract" + "Schedule Meeting" buttons
-4. **Meeting Scheduler Modal** — Date picker, duration selector, note input
+1. **Bidder view** - "Application sent. The RFQ owner can unlock and review it." (blue banner, no actions)
+2. **Owner locked view** - "Unlock for 50 tokens" (amber banner, unlock button)
+3. **Owner unlocked view** - "Send Contract" + "Schedule Meeting" buttons
+4. **Meeting Scheduler Modal** - Date picker, duration selector, note input
 
 ### API Calls (Mobile)
 | Endpoint | Method | Payload | Response |

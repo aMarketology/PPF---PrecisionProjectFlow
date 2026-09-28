@@ -53,17 +53,36 @@ export default function AdminClaimsPage() {
   async function loadClaims() {
     setLoading(true)
     const supabase = createClient()
+    // NOTE: company_claims.user_id references auth.users, NOT profiles, so
+    // PostgREST cannot embed the claimant. Fetch claims + companies, then
+    // resolve claimant profiles in a second query.
     const { data, error } = await supabase
       .from('company_claims')
       .select(`
         id, company_id, user_id, reason, status, reviewed_by, reviewed_at, created_at,
-        company:company_profiles(company_name, city, state, slug),
-        claimant:profiles!company_claims_user_id_fkey(full_name, email)
+        company:company_profiles(company_name, city, state, slug)
       `)
       .order('created_at', { ascending: false })
 
-    if (error) { console.error(error); toast.error('Failed to load claims') }
-    else setClaims((data as any) || [])
+    if (error) {
+      console.error(error)
+      toast.error('Failed to load claims')
+      setLoading(false)
+      return
+    }
+
+    const rows = (data as any[]) || []
+    const userIds = Array.from(new Set(rows.map(r => r.user_id).filter(Boolean)))
+    let profileMap = new Map<string, { full_name: string | null; email: string | null }>()
+    if (userIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, email')
+        .in('id', userIds)
+      profileMap = new Map((profiles || []).map(p => [p.id, { full_name: p.full_name, email: p.email }]))
+    }
+
+    setClaims(rows.map(r => ({ ...r, claimant: profileMap.get(r.user_id) ?? null })))
     setLoading(false)
   }
 
@@ -247,7 +266,7 @@ export default function AdminClaimsPage() {
                 {claim.status === 'approved' && (
                   <p className="mt-3 text-xs text-emerald-600 font-medium">
                     ✅ Approved {claim.reviewed_at ? `on ${new Date(claim.reviewed_at).toLocaleDateString()}` : ''}
-                    — {claim.company?.company_name} is now owned by this user.
+                    - {claim.company?.company_name} is now owned by this user.
                   </p>
                 )}
               </motion.div>

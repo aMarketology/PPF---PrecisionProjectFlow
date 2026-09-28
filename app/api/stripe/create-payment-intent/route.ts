@@ -56,7 +56,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // price is stored as DECIMAL in dollars — convert to cents for Stripe
+    // price is stored as DECIMAL in dollars - convert to cents for Stripe
     const totalAmount = Math.round(Number(service.price) * 100);
     const platformFee = Math.round(totalAmount * 0.10);
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
 
     if (orderError) {
       console.error('Error creating order record:', orderError);
-      // Don't fail the checkout — order can be reconciled via webhook
+      // Don't fail the checkout - order can be reconciled via webhook
     }
 
     // Fetch buyer profile for emails

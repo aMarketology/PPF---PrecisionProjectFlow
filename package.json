@@ -1,7 +1,7 @@
 {
   "name": "precision-project-flow",
   "version": "1.0.0",
-  "description": "Precision Project Flow — B2B Engineering Marketplace",
+  "description": "Precision Project Flow - B2B Engineering Marketplace",
   "scripts": {
     "dev": "next dev",
     "build": "next build",
@@ -15,6 +15,8 @@
     "db:test": "node scripts/test-database.js",
     "db:seed": "node scripts/seed-test-data.js",
     "db:seed:social": "node scripts/seed-social-test-users.js",
+    "db:seed:market": "node scripts/seed-real-marketplace.js",
+    "db:seed:reviews": "node scripts/seed-vendor-reviews.js",
     "db:cleanup": "node scripts/cleanup-test-data.js",
     "db:setup": "bash scripts/setup-database.sh"
   },

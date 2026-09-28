@@ -10,6 +10,7 @@ import {
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { loadAdminContext, can, type AdminContext } from '@/lib/admin/context';
+import { RoleBadgeList } from '@/app/admin/components/RoleBadges';
 
 interface Stats { users: number; companies: number; products: number; services: number; rfqs: number; orders?: number }
 interface PersonalStats { products: number; services: number; rfqs: number; offers: number }
@@ -65,7 +66,7 @@ export default function AdminOverviewPage() {
   const roleLabel = ctx.roleLabel;
 
   const personalCards = [
-    { label: 'Companies', value: ctx.companies.length, href: '/admin/my-companies', icon: Building2 },
+    { label: 'My Company', value: ctx.companies.length, href: '/admin/company', icon: Building2 },
     { label: 'Products', value: personal.products, href: '/admin/my-listings', icon: Package },
     { label: 'Services', value: personal.services, href: '/admin/my-listings', icon: Wrench },
     { label: 'My RFQs', value: personal.rfqs, href: '/admin/my-rfqs', icon: FileText },
@@ -115,13 +116,15 @@ export default function AdminOverviewPage() {
                 <BadgeCheck className="w-3 h-3" /> {roleLabel}
               </span>
             </div>
-            <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+            <div className="flex flex-wrap gap-4 text-sm text-gray-500 mb-3">
               <span>{ctx.profile?.email}</span>
               {ctx.profile?.location && (
                 <span className="flex items-center gap-1.5"><MapPin className="w-4 h-4" />{ctx.profile.location}</span>
               )}
               <span className="flex items-center gap-1.5"><Coins className="w-4 h-4" />{ctx.profile?.token_balance ?? 0} tokens</span>
             </div>
+            {/* All roles & permissions this account holds */}
+            <RoleBadgeList badges={ctx.badges} max={6} />
           </div>
         </div>
       </div>
@@ -152,7 +155,7 @@ export default function AdminOverviewPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-gray-900 truncate">{c.company_name}</p>
-                      <p className="text-xs text-gray-500">{[c.city, c.state].filter(Boolean).join(', ') || c.industry || '—'}</p>
+                      <p className="text-xs text-gray-500">{[c.city, c.state].filter(Boolean).join(', ') || c.industry || '-'}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -168,8 +171,8 @@ export default function AdminOverviewPage() {
         </>
       )}
 
-      {/* Platform overview — super admins only */}
-      {ctx.isAdmin && (
+      {/* Platform overview - super admins only */}
+      {can(ctx, 'view_platform') && (
         <>
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">
             <BarChart3 className="w-5 h-5 text-[#003D82]" /> Platform Overview

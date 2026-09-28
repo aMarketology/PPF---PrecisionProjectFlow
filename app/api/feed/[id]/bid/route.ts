@@ -47,7 +47,7 @@ export async function POST(
       .eq('id', user.id)
       .single();
 
-    // Upsert bid (one bid per user per post — they can update their bid)
+    // Upsert bid (one bid per user per post - they can update their bid)
     const { data: bid, error: bidError } = await supabase
       .from('feed_bids')
       .upsert({
@@ -72,7 +72,7 @@ export async function POST(
   }
 }
 
-// GET /api/feed/[id]/bid — fetch all bids for a post
+// GET /api/feed/[id]/bid - fetch all bids for a post
 export async function GET(
   _request: NextRequest,
   { params }: { params: { id: string } }

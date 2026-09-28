@@ -39,7 +39,7 @@ export default function CreateCompanyPage() {
       setUser(user);
       // Check if user already has a company
       supabase.from('company_profiles').select('id').eq('owner_id', user.id).maybeSingle().then(({ data }) => {
-        if (data) { router.push(`/dashboard/company/${data.id}`); return; }
+        if (data) { router.push(`/admin/company`); return; }
         setLoading(false);
       });
       // Pre-fill email
@@ -130,7 +130,7 @@ export default function CreateCompanyPage() {
               <strong>{companyName}</strong> is now live on Precision Project Flow. Your team channel is ready.
             </p>
             <div className="flex flex-col gap-3">
-              <Link href={`/dashboard/company/${createdCompanyId}`}
+              <Link href={`/admin/company`}
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-bold rounded-xl transition-all text-sm">
                 <Building2 className="w-4 h-4" /> Go to Company Dashboard
               </Link>

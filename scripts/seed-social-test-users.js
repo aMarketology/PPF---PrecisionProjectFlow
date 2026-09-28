@@ -80,7 +80,7 @@ const ACCOUNTS = [
     posts: [
       {
         post_type: 'project_showcase',
-        content: 'Just wrapped a 250-unit titanium bracket run for a satellite customer. Held ±0.0005" across every part — first article passed on the first submission. 🛰️',
+        content: 'Just wrapped a 250-unit titanium bracket run for a satellite customer. Held ±0.0005" across every part - first article passed on the first submission. 🛰️',
       },
       {
         post_type: 'milestone',
@@ -126,7 +126,7 @@ const ACCOUNTS = [
     posts: [
       {
         post_type: 'project_showcase',
-        content: 'Completed a seismic retrofit package for a 1970s warehouse in Denver. Added shear walls and upgraded the diaphragm — the owner kept the building in service the entire time.',
+        content: 'Completed a seismic retrofit package for a 1970s warehouse in Denver. Added shear walls and upgraded the diaphragm - the owner kept the building in service the entire time.',
       },
       {
         post_type: 'parts_request',
@@ -150,7 +150,7 @@ const ACCOUNTS = [
     posts: [
       {
         post_type: 'milestone',
-        content: 'Ironclad Fabrication passed our annual AISC audit with zero findings. Our welders earned it — the shop floor has been flawless all year.',
+        content: 'Ironclad Fabrication passed our annual AISC audit with zero findings. Our welders earned it - the shop floor has been flawless all year.',
       },
       {
         post_type: 'update',
@@ -191,7 +191,7 @@ async function ensureAuthUser(account) {
 }
 
 async function upsertProfile(userId, account) {
-  // NOTE: the live profiles table has no company_name column — the company
+  // NOTE: the live profiles table has no company_name column - the company
   // name lives on company_profiles. Keep this payload to real columns only.
   const { error } = await supabase.from('profiles').upsert({
     id: userId,
@@ -319,7 +319,7 @@ async function main() {
     JSON.stringify(
       {
         password: PASSWORD,
-        note: 'Local test credentials for seeded PPF accounts. Gitignored — do not commit.',
+        note: 'Local test credentials for seeded PPF accounts. Gitignored - do not commit.',
         accounts: summary.map(s => ({
           email: s.account.email,
           company: s.account.company_name,

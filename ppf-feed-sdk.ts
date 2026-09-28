@@ -2,7 +2,7 @@
  * PPF Feed SDK
  * ─────────────────────────────────────────────────────────────────────────────
  * Drop-in TypeScript/JavaScript SDK for integrating the Precision Project Flow
- * community feed into any client — React Native (Expo), web, or Node.js.
+ * community feed into any client - React Native (Expo), web, or Node.js.
  *
  * Media bucket:  "post-media"  (Supabase Storage, public)
  * Base URL:       your Next.js deployment, e.g. https://app.precisionprojectflow.com
@@ -11,7 +11,7 @@
  *   import { PPFFeedSDK } from './ppf-feed-sdk';
  *   const feed = new PPFFeedSDK('https://app.precisionprojectflow.com', supabaseSession.access_token);
  *
- * All methods return { data, error } — mirror of the Supabase client pattern.
+ * All methods return { data, error } - mirror of the Supabase client pattern.
  * ─────────────────────────────────────────────────────────────────────────────
  */
 
@@ -220,7 +220,7 @@ export class PPFFeedSDK {
 
   /**
    * Fetch all comments for a post, ordered oldest-first.
-   * This queries Supabase directly — install @supabase/supabase-js in your mobile app.
+   * This queries Supabase directly - install @supabase/supabase-js in your mobile app.
    *
    * @example
    * const { data } = await feed.getComments('post-uuid');
@@ -250,7 +250,7 @@ export class PPFFeedSDK {
 
   /**
    * Place or update a bid on a parts_request post.
-   * One bid per user per post — calling again updates the existing bid.
+   * One bid per user per post - calling again updates the existing bid.
    * Requires authentication.
    *
    * @example
@@ -346,7 +346,7 @@ export class PPFFeedSDK {
    *
    * @param supabaseClient  Authenticated @supabase/supabase-js client
    * @param callbacks       Event handlers
-   * @returns               Unsubscribe function — call on component unmount
+   * @returns               Unsubscribe function - call on component unmount
    */
   subscribeToFeed(
     supabaseClient: any,
@@ -381,7 +381,7 @@ export class PPFFeedSDK {
 
 // ─── Utility ──────────────────────────────────────────────────────────────────
 
-/** Convert Blob to ArrayBuffer — needed for Supabase storage upload in React Native */
+/** Convert Blob to ArrayBuffer - needed for Supabase storage upload in React Native */
 function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
@@ -395,7 +395,7 @@ function blobToArrayBuffer(blob: Blob): Promise<ArrayBuffer> {
 
 /**
  * Fetch comments directly via Supabase client.
- * Faster than going through the Next.js API — use this in your mobile app.
+ * Faster than going through the Next.js API - use this in your mobile app.
  *
  * @example
  * const comments = await fetchCommentsViaSupabase(supabase, 'post-uuid');

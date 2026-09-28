@@ -94,46 +94,52 @@ export default function ContactCompanyForm({
       const supabase = createClient();
       const { data: { user } } = await supabase.auth.getUser();
       
-      // Step 1: Create conversation
-      const conversationData: any = {
-        company_id: companyId,
-        subject: data.subject,
-        status: 'open',
-        context_type: contextType,
-        context_id: contextId,
-      };
-      
-      // Add user info or guest info
-      if (user) {
-        conversationData.user_id = user.id;
-      } else {
-        conversationData.guest_name = data.name;
-        conversationData.guest_email = data.email;
-        conversationData.guest_phone = data.phone || null;
+      if (!user) {
+        toast.error('Please sign in to contact this company.');
+        return;
       }
       
-      const { data: conversation, error: convError } = await supabase
-        .from('conversations')
-        .insert(conversationData)
-        .select()
-        .single();
+      // Step 1: Resolve the company owner to open a direct conversation with.
+      const { data: company, error: companyError } = await supabase
+        .from('company_profiles')
+        .select('owner_id, claimed_by')
+        .eq('id', companyId)
+        .maybeSingle();
+      
+      if (companyError) throw companyError;
+      
+      const recipientId = company?.owner_id || company?.claimed_by;
+      if (!recipientId) {
+        toast.error('This company has no owner to contact yet.');
+        return;
+      }
+      
+      // Step 2: Get or create the direct conversation.
+      const { data: conversationId, error: convError } = await supabase.rpc(
+        'get_or_create_conversation',
+        { user_one_id: user.id, user_two_id: recipientId }
+      );
       
       if (convError) throw convError;
+      if (!conversationId) throw new Error('Could not open a conversation');
       
-      // Step 2: Create first message
-      const messageData = {
-        conversation_id: conversation.id,
-        sender_id: user?.id || null,
-        sender_type: user ? 'user' : 'guest',
-        sender_name: data.name,
-        content: data.message,
-      };
+      // Step 3: Send the first message through the token-gated API.
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          conversationId,
+          content: `${data.subject}\n\n${data.message}`,
+        }),
+      });
       
-      const { error: msgError } = await supabase
-        .from('messages')
-        .insert(messageData);
-      
-      if (msgError) throw msgError;
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        if (res.status === 402) {
+          throw new Error('This conversation is locked. Unlock it to send your message.');
+        }
+        throw new Error(body.error || 'Failed to send message');
+      }
       
       // Success!
       setIsSuccess(true);

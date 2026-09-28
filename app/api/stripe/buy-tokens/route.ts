@@ -4,7 +4,7 @@ import Stripe from 'stripe';
 
 export const dynamic = 'force-dynamic';
 
-// Token packs — calibrated so 100 tokens (1 conversation unlock) ≈ $10.
+// Token packs - calibrated so 100 tokens (1 conversation unlock) ≈ $10.
 // Bulk packs give progressively better value.
 const TOKEN_PACKS: Record<string, { id: string; name: string; tokens: number; price_cents: number; unlocks: number }> = {
   starter:  { id: 'starter',  name: 'Starter',  tokens: 100,  price_cents: 1000, unlocks: 1  },
@@ -44,7 +44,7 @@ export async function POST(request: NextRequest) {
         pack_id: pack.id,
         tokens:  String(pack.tokens),
       },
-      description: `${pack.name} token pack — ${pack.tokens} tokens`,
+      description: `${pack.name} token pack - ${pack.tokens} tokens`,
     });
 
     return NextResponse.json({ clientSecret: paymentIntent.client_secret, pack });

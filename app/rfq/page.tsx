@@ -12,7 +12,7 @@ import {
   Search, MapPin, Clock, DollarSign, Filter, X, ChevronRight,
   FileText, Wrench, Zap, Building2, Tag, Loader2, Package,
   ArrowUpDown, MessageSquare, Plus, AlertCircle, Send, Calendar,
-  BarChart3, TrendingUp, Users, Layers, Gavel, Eye, Award, ChevronDown, ChevronUp, Shield,
+  BarChart3, TrendingUp, Users, Layers, Gavel, Eye, Award, ChevronDown, ChevronUp, Shield, ExternalLink,
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 
@@ -214,23 +214,48 @@ export default function RFQMarketplacePage() {
     <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
       <Navigation />
 
-      {/* Slim Hero */}
-      <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-20 pb-5 relative overflow-hidden">
+      {/* Hero */}
+      <div className="bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] pt-24 pb-8 relative overflow-hidden">
         <div className="absolute inset-0 opacity-10" style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px)' }} />
         <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-white/10 flex items-center justify-center"><FileText className="w-5 h-5 text-[#FF6B35]" /></div>
-              <div><h1 className="text-xl md:text-2xl font-extrabold text-white">RFQ Marketplace</h1><p className="text-blue-200 text-xs">{openCount} open · {totalRFQs} total</p></div>
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div className="flex items-start gap-3">
+              <div className="w-12 h-12 rounded-2xl bg-white/10 border border-white/20 flex items-center justify-center flex-shrink-0">
+                <FileText className="w-6 h-6 text-[#FF6B35]" />
+              </div>
+              <div>
+                <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white/90 rounded-full px-3 py-1 text-xs font-medium mb-2">
+                  <Gavel className="w-3.5 h-3.5 text-[#FF6B35]" /> Live Request Marketplace
+                </div>
+                <h1 className="text-2xl md:text-3xl font-extrabold text-white">RFQ Marketplace</h1>
+                <p className="text-blue-200 text-sm mt-1">Post what you need, compare offers from verified vendors, and award with confidence.</p>
+              </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
-              <Link href="/admin/rfqs" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl transition-all text-xs sm:text-sm">
+              <Link href="/admin/rfqs" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2.5 bg-white/10 hover:bg-white/20 border border-white/20 text-white font-bold rounded-xl transition-all text-xs sm:text-sm">
                 <BarChart3 className="w-4 h-4" /> <span className="hidden sm:inline">RFQ Dashboard</span><span className="sm:hidden">Dashboard</span>
               </Link>
-              <Link href="/rfq/create" className="inline-flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg text-xs sm:text-sm">
+              <Link href="/rfq/create" className="inline-flex items-center gap-1.5 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl transition-all shadow-lg text-xs sm:text-sm">
                 <Plus className="w-4 h-4" /> <span className="hidden sm:inline">Post an </span>RFQ
               </Link>
             </div>
+          </div>
+
+          {/* Stat tiles */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-6">
+            {[
+              { label: 'Open RFQs', value: openCount, icon: <TrendingUp className="w-4 h-4" />, tone: 'text-emerald-300' },
+              { label: 'Total Posted', value: totalRFQs, icon: <FileText className="w-4 h-4" />, tone: 'text-blue-200' },
+              { label: 'In Review', value: rfqs.filter(r => r.status === 'in_review').length, icon: <BarChart3 className="w-4 h-4" />, tone: 'text-amber-300' },
+              { label: 'Top Budget', value: maxBudget ? `$${maxBudget.toLocaleString()}+` : '-', icon: <DollarSign className="w-4 h-4" />, tone: 'text-[#FF6B35]' },
+            ].map(stat => (
+              <div key={stat.label} className="rounded-2xl bg-white/10 border border-white/15 backdrop-blur-sm px-4 py-3">
+                <div className={`flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide ${stat.tone}`}>
+                  {stat.icon}{stat.label}
+                </div>
+                <p className="text-white text-xl font-extrabold mt-1">{stat.value}</p>
+              </div>
+            ))}
           </div>
         </div>
       </div>
@@ -509,7 +534,7 @@ function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
       onOfferPlaced();
       onClose();
     } catch (err: any) {
-      toast.error(err.message || 'Network error — check console');
+      toast.error(err.message || 'Network error - check console');
       console.error('[OfferModal] submit error:', err);
       setSubmitting(false);
     }
@@ -632,7 +657,7 @@ function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
           <button type="submit" disabled={submitting || !amount}
             className="w-full flex items-center justify-center gap-2 px-6 py-3.5 bg-[#003D82] hover:bg-[#002960] text-white font-bold rounded-xl disabled:opacity-50 transition-all text-base">
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
-            {submitting ? 'Submitting...' : 'Submit Offer — 50 Tokens'}
+            {submitting ? 'Submitting...' : 'Submit Offer - 50 Tokens'}
           </button>
           <p className="text-xs text-gray-400 text-center">Your offer will be sent to the client. You can withdraw it anytime.</p>
         </form>
@@ -679,9 +704,17 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
           <div className="flex flex-col sm:flex-row items-stretch sm:items-start gap-3 sm:gap-4">
             {/* Left: Status + Avatar + Match Badge */}
             <div className="flex flex-row sm:flex-col items-center gap-2 min-w-0 sm:min-w-[56px]">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm">
-                {rfq.client?.full_name?.charAt(0)?.toUpperCase() || '?'}
-              </div>
+              {rfq.client?.id ? (
+                <Link href={`/profiles/${rfq.client.id}`} title={`View ${rfq.client?.full_name || 'client'} profile`}>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm hover:ring-2 hover:ring-[#FF6B35] transition-all">
+                    {rfq.client?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                </Link>
+              ) : (
+                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-sm">
+                  {rfq.client?.full_name?.charAt(0)?.toUpperCase() || '?'}
+                </div>
+              )}
               <span className={`px-2 py-0.5 rounded-full text-[10px] font-semibold border ${STATUS_STYLES[rfq.status]}`}>
                 {rfq.status === 'open' ? 'Open' : rfq.status === 'in_review' ? 'Review' : rfq.status === 'awarded' ? 'Awarded' : 'Closed'}
               </span>
@@ -701,8 +734,17 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
             {/* Center: Content */}
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2 mb-1">
-                <span className="text-xs font-semibold text-gray-900">{rfq.client?.company_name || rfq.client?.full_name || 'Anonymous'}</span>
-                <span className="flex items-center gap-1 text-[10px] text-gray-400"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(rfq.created_at), { addSuffix: true })}</span>
+                {rfq.client?.id ? (
+                  <Link href={`/profiles/${rfq.client.id}`} className="group/buyer flex items-center gap-1.5 min-w-0">
+                    <span className="text-xs font-semibold text-gray-900 truncate group-hover/buyer:text-[#003D82] group-hover/buyer:underline">
+                      {rfq.client?.company_name || rfq.client?.full_name || 'Anonymous'}
+                    </span>
+                    <ExternalLink className="w-3 h-3 text-gray-300 group-hover/buyer:text-[#003D82] opacity-0 group-hover/buyer:opacity-100 transition-opacity flex-shrink-0" />
+                  </Link>
+                ) : (
+                  <span className="text-xs font-semibold text-gray-900 truncate">{rfq.client?.full_name || 'Anonymous'}</span>
+                )}
+                <span className="flex items-center gap-1 text-[10px] text-gray-400 flex-shrink-0"><Clock className="w-3 h-3" />{formatDistanceToNow(new Date(rfq.created_at), { addSuffix: true })}</span>
               </div>
               <Link href={`/rfq/${rfq.slug || rfq.id}`}>
                 <h3 className="font-bold text-gray-900 text-base hover:text-[#003D82] transition-colors">{rfq.title}</h3>

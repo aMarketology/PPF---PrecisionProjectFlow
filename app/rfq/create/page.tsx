@@ -243,7 +243,7 @@ export default function CreateRFQPage() {
             </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
               <Link
-                href="/dashboard/client"
+                href="/admin"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all"
               >
                 Go to My Dashboard

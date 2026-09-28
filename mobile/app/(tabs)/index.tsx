@@ -169,7 +169,7 @@ export default function FeedTab() {
         ListEmptyComponent={
           loading ? null : (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>No services yet — check back soon!</Text>
+              <Text style={styles.emptyText}>No services yet - check back soon!</Text>
             </View>
           )
         }

@@ -1,5 +1,5 @@
 /**
- * Fix RFQ RLS — allow public (anon) viewing
+ * Fix RFQ RLS - allow public (anon) viewing
  * Run: node scripts/fix-rfq-rls.js
  */
 const { createClient } = require('@supabase/supabase-js');

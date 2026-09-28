@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server'
 
-// TEMPORARY debug endpoint — remove after confirming Railway env vars
+// TEMPORARY debug endpoint - remove after confirming Railway env vars
 export async function GET() {
   return NextResponse.json({
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL

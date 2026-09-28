@@ -141,7 +141,7 @@ export default function SettingsPage() {
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path)
     setAvatarUrl(publicUrl)
     setUploadingAvatar(false)
-    toast.success('Avatar uploaded — click Save to apply')
+    toast.success('Avatar uploaded - click Save to apply')
   }
 
   async function handleChangePassword(e: React.FormEvent) {
@@ -363,7 +363,7 @@ export default function SettingsPage() {
                         <p className="text-sm text-gray-700">
                           {profile?.created_at
                             ? new Date(profile.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
-                            : '—'}
+                            : '-'}
                         </p>
                       </div>
                     </div>
@@ -442,7 +442,7 @@ export default function SettingsPage() {
                         type="button"
                         onClick={() => {
                           if (confirm('Are you sure? This cannot be undone.')) {
-                            toast.error('Account deletion — contact support')
+                            toast.error('Account deletion - contact support')
                           }
                         }}
                         className="flex items-center gap-2 px-5 py-2.5 border border-red-200 text-red-600 bg-red-50 hover:bg-red-100 font-semibold rounded-xl text-sm transition"

@@ -26,7 +26,7 @@ CREATE POLICY "Participants can update their conversations"
   ON public.user_conversations FOR UPDATE
   USING (auth.uid() = participant_one_id OR auth.uid() = participant_two_id);
 
--- Unique index on the sorted pair — prevents duplicate conversations
+-- Unique index on the sorted pair - prevents duplicate conversations
 -- (expressions in UNIQUE constraints aren't valid SQL; use CREATE UNIQUE INDEX instead)
 CREATE UNIQUE INDEX IF NOT EXISTS idx_unique_conversation_pair
   ON public.user_conversations (

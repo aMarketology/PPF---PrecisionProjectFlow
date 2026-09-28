@@ -160,7 +160,7 @@ function buildCompanyRecord(row) {
   const baseSlug = slugify(row.company);
 
   return {
-    // No owner_id — unclaimed
+    // No owner_id - unclaimed
     owner_id:      null,
     company_name:  titleCase(row.company),
     slug:          baseSlug,
@@ -189,7 +189,7 @@ function buildCompanyRecord(row) {
 // ─── Insert in batches ─────────────────────────────────────────────────────────
 async function insertBatch(companies, dryRun) {
   if (dryRun) {
-    companies.forEach(c => console.log(`  [DRY RUN] ${c.company_name} — ${c.industry} — ${c.city}, ${c.state}`));
+    companies.forEach(c => console.log(`  [DRY RUN] ${c.company_name} - ${c.industry} - ${c.city}, ${c.state}`));
     return { inserted: companies.length, errors: 0 };
   }
 
@@ -216,7 +216,7 @@ async function main() {
 
   console.log('\n🏭  PPF Company Directory Seeder');
   console.log('─'.repeat(60));
-  if (dryRun) console.log('⚠️   DRY RUN — no data will be written\n');
+  if (dryRun) console.log('⚠️   DRY RUN - no data will be written\n');
 
   // 1. Parse TSV
   console.log(`📂  Reading ${TSV_PATH}`);
@@ -231,7 +231,7 @@ async function main() {
   const toProcess = limit < Infinity ? unique.slice(0, limit) : unique;
   console.log(`📦  Processing ${toProcess.length} companies\n`);
 
-  // 4. Build records — handle duplicate slugs by appending city suffix
+  // 4. Build records - handle duplicate slugs by appending city suffix
   const slugsSeen = new Set();
   const records = [];
   for (const row of toProcess) {

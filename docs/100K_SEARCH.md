@@ -1,4 +1,4 @@
-# 🚀 100K Monthly Search Impressions — PPF Traffic Playbook
+# 🚀 100K Monthly Search Impressions - PPF Traffic Playbook
 **Precision Project Flow (PPF)**  
 Last updated: May 2026  
 Goal: **100,000 organic search impressions/month by Month 12**
@@ -29,7 +29,7 @@ This is not a vanity metric. Every 33 impressions = 1 site visit = potential cli
 
 ---
 
-## 📝 Pillar 1 — Blog (45,000 impressions)
+## 📝 Pillar 1 - Blog (45,000 impressions)
 
 ### Content Clusters
 Each cluster = 1 pillar post + 4–6 supporting posts.  
@@ -113,14 +113,14 @@ Target people searching for engineers in specific cities.
 | July 2026 | 3 | Cluster 1 (2 more), Cluster 2 (pillar) |
 | August 2026 | 3 | Cluster 2 (2 more), Cluster 3 (pillar) |
 | September 2026 | 4 | Cluster 3 (3 more) |
-| October 2026 | 4 | Cluster 4 (all 6 — 2 per week) |
+| October 2026 | 4 | Cluster 4 (all 6 - 2 per week) |
 | November 2026 | 4 | Cluster 5 (all 5) |
 | December 2026 | 4 | Catch-up + seasonal ("engineering in 2027") |
 | **Total** | **24 posts** | **5 clusters fully built** |
 
 ---
 
-## 🏪 Pillar 2 — Marketplace & Service Pages (20,000 impressions)
+## 🏪 Pillar 2 - Marketplace & Service Pages (20,000 impressions)
 
 Every service listing on PPF is a **rankable page**.
 
@@ -130,7 +130,7 @@ Every service listing on PPF is a **rankable page**.
 - [ ] Add `Service` schema markup (name, provider, areaServed, price)
 - [ ] Breadcrumb schema: Home → Marketplace → [Category] → [Service Name]
 
-### Category Landing Pages (TODO — high value)
+### Category Landing Pages (TODO - high value)
 These pages don't exist yet but each could rank for 1,000–3,000 searches/month:
 
 ```
@@ -143,15 +143,15 @@ These pages don't exist yet but each could rank for 1,000–3,000 searches/month
 
 ---
 
-## 👤 Pillar 3 — Engineer Profile Pages (15,000 impressions)
+## 👤 Pillar 3 - Engineer Profile Pages (15,000 impressions)
 
 Each public profile at `/profiles/[id]` can rank for:
-- `"[Full Name] engineer"` — branded searches
-- `"[speciality] engineer [city]"` — local + category
-- `"hire [specialty] engineer [state]"` — transactional
+- `"[Full Name] engineer"` - branded searches
+- `"[speciality] engineer [city]"` - local + category
+- `"hire [specialty] engineer [state]"` - transactional
 
 ### Optimizations Needed
-- [ ] Dynamic `<title>` tag: `"Hire [Full Name] — [Specialty] Engineer | PPF"`
+- [ ] Dynamic `<title>` tag: `"Hire [Full Name] - [Specialty] Engineer | PPF"`
 - [ ] Dynamic meta description: `"[Full Name] is a [specialty] engineer in [city] with X years of experience. Available for remote and on-site projects on Precision Project Flow."`
 - [ ] `Person` + `ProfessionalService` JSON-LD schema
 - [ ] Link from blog posts to relevant engineer profiles (drives authority + conversions)
@@ -160,10 +160,10 @@ Each public profile at `/profiles/[id]` can rank for:
 
 ---
 
-## 📍 Pillar 4 — Category + Location Landing Pages (10,000 impressions)
+## 📍 Pillar 4 - Category + Location Landing Pages (10,000 impressions)
 
 ### Location Pages (TODO)
-These are city-specific pages — extremely high intent:
+These are city-specific pages - extremely high intent:
 
 ```
 /engineers/los-angeles          ← "engineers for hire Los Angeles"
@@ -194,14 +194,14 @@ Each page lists engineers from that city, with:
 - [x] `output: standalone` (fast TTFB on Railway)
 
 ### 🔴 Still Needed
-- [ ] `sitemap.xml` — auto-generated including all blog posts, services, profiles
-- [ ] `robots.txt` — allow all, discard `/admin/*`, `/api/*`, `/dashboard/*`
+- [ ] `sitemap.xml` - auto-generated including all blog posts, services, profiles
+- [ ] `robots.txt` - allow all, discard `/admin/*`, `/api/*`, `/dashboard/*`
 - [ ] Open Graph images for all blog posts (use `next/og` dynamic image generation)
-- [ ] Core Web Vitals audit — LCP < 2.5s, CLS < 0.1, FID < 100ms
+- [ ] Core Web Vitals audit - LCP < 2.5s, CLS < 0.1, FID < 100ms
 - [ ] Canonical tags on all pages
 - [ ] 301 redirects for any old URLs
-- [ ] Google Search Console — submit sitemap
-- [ ] Google Analytics 4 — track sign-up funnel as conversion events
+- [ ] Google Search Console - submit sitemap
+- [ ] Google Analytics 4 - track sign-up funnel as conversion events
 
 ---
 
@@ -210,7 +210,7 @@ Each page lists engineers from that city, with:
 | Source | Action | Target Links |
 |--------|--------|-------------|
 | **LinkedIn** | Max posts 3x/week + link to blog | 10 referring domains |
-| **Reddit** | r/civilengineering, r/mechanical, r/AEC — genuine answers | 5 referring domains |
+| **Reddit** | r/civilengineering, r/mechanical, r/AEC - genuine answers | 5 referring domains |
 | **Guest posts** | ENR, CE News, Engineering.com | 5 high-DA links |
 | **Engineer partner profiles** | Ask onboarded engineers to link to their PPF profile from their personal site | 20+ links |
 | **Press** | "PPF launches engineering marketplace" pitch to trade press | 3–5 high-DA links |

@@ -10,7 +10,8 @@ interface Profile {
   email: string
   full_name: string | null
   user_type: 'client' | 'engineer'
-  company_name: string | null
+  company_id: string | null
+  company_name?: string | null
   location: string | null
   created_at: string
 }
@@ -31,7 +32,28 @@ export default function AdminUsersPage() {
         .order('created_at', { ascending: false })
 
       if (data) {
-        setUsers(data)
+        // profiles has no company_name column - resolve names from company_profiles
+        const companyIds = Array.from(
+          new Set(data.map(p => p.company_id).filter(Boolean))
+        ) as string[]
+
+        let nameById: Record<string, string> = {}
+        if (companyIds.length > 0) {
+          const { data: companies } = await supabase
+            .from('company_profiles')
+            .select('id, company_name')
+            .in('id', companyIds)
+          nameById = Object.fromEntries(
+            (companies || []).map(c => [c.id, c.company_name])
+          )
+        }
+
+        setUsers(
+          data.map(p => ({
+            ...p,
+            company_name: p.company_id ? nameById[p.company_id] ?? null : null,
+          }))
+        )
       }
       setLoading(false)
     }

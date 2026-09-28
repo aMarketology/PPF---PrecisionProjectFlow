@@ -10,7 +10,7 @@ import { formatDistanceToNow } from 'date-fns'
 import {
   TrendingUp, FileText, Award, MessageCircle, ShoppingCart, CheckCircle2,
   Building2, UserPlus, Hash, Search, ChevronDown, Plus, Loader, X, Loader2,
-  ExternalLink, Clock,
+  ExternalLink, Clock, Bell,
 } from 'lucide-react'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 
@@ -78,6 +78,7 @@ export default function ActivityPage() {
   const [filterType, setFilterType] = useState('all')
   const [searchQuery, setSearchQuery] = useState('')
   const [showSearch, setShowSearch] = useState(false)
+  const [unreadNotifications, setUnreadNotifications] = useState(0)
   const realtimeRef = useRef<RealtimeChannel | null>(null)
 
   useEffect(() => {
@@ -91,6 +92,21 @@ export default function ActivityPage() {
       .subscribe()
     realtimeRef.current = channel
     return () => { supabase.removeChannel(channel) }
+  }, [])
+
+  // Load the signed-in user's unread notification count for the bell CTA
+  useEffect(() => {
+    let mounted = true
+    const loadUnread = async () => {
+      try {
+        const res = await fetch('/api/notifications?limit=1&unreadOnly=true')
+        if (!res.ok) return
+        const data = await res.json()
+        if (mounted) setUnreadNotifications(data.unreadCount ?? 0)
+      } catch { /* signed-out or network error - leave at 0 */ }
+    }
+    loadUnread()
+    return () => { mounted = false }
   }, [])
 
   const loadActorThenAdd = async (activity: SiteActivity) => {
@@ -126,8 +142,24 @@ export default function ActivityPage() {
               <Hash className="w-4 h-4 text-[#FF6B35]" /> Blockchain Activity Feed
             </div>
             <h1 className="text-3xl md:text-4xl font-extrabold text-white mb-2">Activity Feed</h1>
-            <p className="text-blue-200 text-lg">Real-time platform activity — cryptographically chained</p>
+            <p className="text-blue-200 text-lg">Real-time platform activity - cryptographically chained</p>
             <p className="text-blue-300/70 text-sm mt-1">{totalActivities} total events on the ledger</p>
+            <div className="mt-5 flex flex-wrap items-center gap-3">
+              <Link
+                href="/notifications"
+                className="inline-flex items-center gap-2 rounded-xl bg-[#FF6B35] hover:bg-[#E55A2B] px-4 py-2.5 text-sm font-semibold text-white transition-colors"
+              >
+                <Bell className="w-4 h-4" /> My Notifications
+                {unreadNotifications > 0 && (
+                  <span className="ml-1 min-w-[20px] h-5 bg-white text-[#FF6B35] text-[10px] font-bold rounded-full flex items-center justify-center px-1">
+                    {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                  </span>
+                )}
+              </Link>
+              <span className="text-blue-200/80 text-xs max-w-md">
+                This feed shows every event platform-wide. Your bell flags the ones relevant to you.
+              </span>
+            </div>
           </div>
         </div>
       </div>

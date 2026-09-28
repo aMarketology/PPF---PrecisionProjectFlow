@@ -1,4 +1,4 @@
-# PPF Mobile — Feature Specs Index
+# PPF Mobile - Feature Specs Index
 
 > **Transfer target:** React Native (Expo) mobile app
 > **Source codebase:** `PPF---PrecisionProjectFlow` (Next.js 14 + Supabase)
@@ -103,13 +103,13 @@ Tab Navigator
 
 These components appear across multiple features and should be built as shared primitives:
 
-- **Avatar** — Profile image or initial letter (messages, RFQ, activity)
-- **StatusBadge** — Colored pill (RFQ status, offer status)
-- **CategoryIcon** — Maps 19 engineering categories to Lucide icons
-- **TimeAgo** — `formatDistanceToNow` wrapper
-- **TokenBalanceDisplay** — Token count with lightning icon
-- **EmptyState** — Icon + message + optional CTA button
-- **LoadingSpinner** — Consistent loading indicator
-- **ErrorBanner** — Inline error display
-- **RFQOfferCard** — Shared between messages and RFQ detail (3 viewer states)
-- **ActivityCard** — Used in both activity feed and home page mini-feed
+- **Avatar** - Profile image or initial letter (messages, RFQ, activity)
+- **StatusBadge** - Colored pill (RFQ status, offer status)
+- **CategoryIcon** - Maps 19 engineering categories to Lucide icons
+- **TimeAgo** - `formatDistanceToNow` wrapper
+- **TokenBalanceDisplay** - Token count with lightning icon
+- **EmptyState** - Icon + message + optional CTA button
+- **LoadingSpinner** - Consistent loading indicator
+- **ErrorBanner** - Inline error display
+- **RFQOfferCard** - Shared between messages and RFQ detail (3 viewer states)
+- **ActivityCard** - Used in both activity feed and home page mini-feed

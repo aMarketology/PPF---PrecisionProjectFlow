@@ -27,12 +27,12 @@ async function addColumnIfMissing(table, column, definition) {
     .maybeSingle()
 
   if (error) {
-    // information_schema might be blocked by RLS — assume it needs adding
-    console.log(`  ⚠️  Could not check ${table}.${column} — will attempt add anyway`)
+    // information_schema might be blocked by RLS - assume it needs adding
+    console.log(`  ⚠️  Could not check ${table}.${column} - will attempt add anyway`)
   }
 
   if (data) {
-    console.log(`  ✅  ${table}.${column} — already exists, skipping`)
+    console.log(`  ✅  ${table}.${column} - already exists, skipping`)
     return true
   }
 
@@ -156,7 +156,7 @@ $func$;
     .select('id')
     .limit(1)
 
-  console.log('\n🎉  Schema check passed — user_messages table is accessible.')
+  console.log('\n🎉  Schema check passed - user_messages table is accessible.')
   console.log('    The unlock flow should now work.\n')
 }
 

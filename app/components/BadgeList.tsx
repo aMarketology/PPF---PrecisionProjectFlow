@@ -16,7 +16,7 @@ export default function BadgeList({ badges, size = 'md', className = '', showEmp
     if (!showEmpty) return null
     return (
       <p className={`text-xs text-gray-400 italic ${className}`}>
-        No badges yet — list a service or complete an order to earn your first.
+        No badges yet - list a service or complete an order to earn your first.
       </p>
     )
   }

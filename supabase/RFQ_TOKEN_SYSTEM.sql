@@ -61,7 +61,7 @@ CREATE TRIGGER trg_rfq_offers_updated_at
   BEFORE UPDATE ON public.rfq_offers
   FOR EACH ROW EXECUTE FUNCTION public.rfq_offers_updated_at();
 
--- ── 3. submit_rfq_offer — token-gated offer submission ─────────────
+-- ── 3. submit_rfq_offer - token-gated offer submission ─────────────
 -- Spends 50 tokens from the vendor, inserts the offer.
 -- Returns: { success: true, offer_id: uuid } or { success: false, error: text }
 CREATE OR REPLACE FUNCTION public.submit_rfq_offer(
@@ -115,7 +115,7 @@ BEGIN
 END;
 $$;
 
--- ── 4. accept_rfq_offer — client accepts, auto-unlocks DM ───────────
+-- ── 4. accept_rfq_offer - client accepts, auto-unlocks DM ───────────
 -- Sets offer to 'accepted', closes RFQ, unlocks the DM between client & vendor.
 -- Returns: { success: true, conversation_id: uuid }
 CREATE OR REPLACE FUNCTION public.accept_rfq_offer(
@@ -191,7 +191,7 @@ BEGIN
 END;
 $$;
 
--- ── 5. reject_rfq_offer — client rejects an offer ──────────────────
+-- ── 5. reject_rfq_offer - client rejects an offer ──────────────────
 CREATE OR REPLACE FUNCTION public.reject_rfq_offer(
   p_offer_id      UUID,
   p_client_id     UUID
@@ -222,7 +222,7 @@ BEGIN
 END;
 $$;
 
--- ── 6. withdraw_rfq_offer — vendor withdraws their own offer ────────
+-- ── 6. withdraw_rfq_offer - vendor withdraws their own offer ────────
 CREATE OR REPLACE FUNCTION public.withdraw_rfq_offer(
   p_offer_id      UUID,
   p_vendor_id     UUID

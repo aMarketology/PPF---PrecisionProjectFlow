@@ -1,4 +1,4 @@
--- TOKENS.sql — dead simple token system
+-- TOKENS.sql - dead simple token system
 -- token_balance lives on profiles. That's it.
 -- ─────────────────────────────────────────
 
@@ -6,7 +6,7 @@
 ALTER TABLE public.profiles
   ADD COLUMN IF NOT EXISTS token_balance INT NOT NULL DEFAULT 0;
 
--- 2. Purchase log (for receipts only — not required for balance logic)
+-- 2. Purchase log (for receipts only - not required for balance logic)
 CREATE TABLE IF NOT EXISTS public.token_purchases (
   id                UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
   user_id           UUID        NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -20,7 +20,7 @@ DROP POLICY IF EXISTS "Users see own purchases" ON public.token_purchases;
 CREATE POLICY "Users see own purchases" ON public.token_purchases
   FOR SELECT USING (auth.uid() = user_id);
 
--- 3. add_tokens — call after Stripe payment succeeds
+-- 3. add_tokens - call after Stripe payment succeeds
 CREATE OR REPLACE FUNCTION public.add_tokens(
   p_user_id UUID, p_amount INT, p_stripe_payment_id TEXT DEFAULT NULL
 ) RETURNS INT AS $$
@@ -36,7 +36,7 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
--- 4. spend_tokens — returns NULL on success, 'insufficient_tokens' if broke
+-- 4. spend_tokens - returns NULL on success, 'insufficient_tokens' if broke
 CREATE OR REPLACE FUNCTION public.spend_tokens(
   p_user_id UUID, p_amount INT, p_description TEXT DEFAULT NULL
 ) RETURNS TEXT AS $$

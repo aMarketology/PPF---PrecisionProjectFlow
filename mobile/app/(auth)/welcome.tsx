@@ -43,7 +43,7 @@ export default function WelcomeScreen() {
               {'\n'}in minutes.
             </Text>
             <Text style={styles.heroSub}>
-              Post an RFQ, browse vetted professionals, and manage your entire project — all in one app.
+              Post an RFQ, browse vetted professionals, and manage your entire project - all in one app.
             </Text>
           </View>
 
@@ -75,7 +75,7 @@ export default function WelcomeScreen() {
           {/* CTAs */}
           <View style={styles.ctas}>
             <Button
-              title="Get Started — It's Free"
+              title="Get Started - It's Free"
               onPress={() => router.push('/(auth)/signup')}
               variant="accent"
               size="lg"

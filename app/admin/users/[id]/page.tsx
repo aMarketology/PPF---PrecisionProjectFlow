@@ -78,7 +78,7 @@ export default function AdminUserDetailPage() {
   };
 
   const formatDate = (d: string | null) => {
-    if (!d) return '—';
+    if (!d) return '-';
     return new Date(d).toLocaleString('en-US', {
       month: 'short', day: 'numeric', year: 'numeric',
       hour: 'numeric', minute: '2-digit',
@@ -207,7 +207,7 @@ export default function AdminUserDetailPage() {
                 { label: 'Joined', value: formatDate(profile.created_at), icon: Calendar },
                 { label: 'Last Sign In', value: formatDate(authData?.last_sign_in_at ?? null), icon: Clock },
                 { label: 'Email Verified', value: authData?.email_confirmed_at ? formatDate(authData.email_confirmed_at) : 'Not verified', icon: authData?.email_confirmed_at ? CheckCircle2 : XCircle },
-                { label: 'Phone', value: authData?.phone || '—', icon: Phone },
+                { label: 'Phone', value: authData?.phone || '-', icon: Phone },
                 { label: 'Messages Sent', value: `${messagesSent}`, icon: MessageSquare },
               ].map((row, i) => (
                 <div key={i} className="flex justify-between items-center">

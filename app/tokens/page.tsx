@@ -98,7 +98,7 @@ function CheckoutForm({
         if (data.ok || data.alreadyCredited) {
           onSuccess(data.newBalance ?? data.balance ?? 0)
         } else {
-          toast.error('Payment succeeded but token credit failed — contact support')
+          toast.error('Payment succeeded but token credit failed - contact support')
         }
       }
     } catch (err: any) {
@@ -193,7 +193,7 @@ export default function TokensPage() {
         setSelectedPack(null)
       }
     } catch {
-      toast.error('Network error — try again')
+      toast.error('Network error - try again')
       setSelectedPack(null)
     } finally {
       setLoadingSecret(false)

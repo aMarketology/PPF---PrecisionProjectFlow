@@ -6,7 +6,7 @@ export const revalidate = 0;
 
 // GET /api/rfq/list?page=0&limit=50&category=Mechanical&search=...&status=open
 // Returns paginated RFQs with client profiles, offer counts, and lowest offer
-// Uses service_role to bypass RLS — accessible to everyone including anon
+// Uses service_role to bypass RLS - accessible to everyone including anon
 export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);

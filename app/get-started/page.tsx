@@ -24,13 +24,13 @@ const REAL_STATS = [
 const FEATURES = [
   {
     title: 'Free Internal Team Messaging',
-    desc: 'Every company gets a free "General" channel. Team members chat freely — no token costs, no limits. Create additional channels for projects, departments, or topics.',
+    desc: 'Every company gets a free "General" channel. Team members chat freely - no token costs, no limits. Create additional channels for projects, departments, or topics.',
     icon: Hash,
     href: '/features#messaging',
   },
   {
     title: 'Token-Gated Cross-Company DMs',
-    desc: 'Message any user on the platform. Direct messages to people at other companies cost 100 tokens (~$10) one-time — then free forever. Same-company DMs are always free.',
+    desc: 'Message any user on the platform. Direct messages to people at other companies cost 100 tokens (~$10) one-time - then free forever. Same-company DMs are always free.',
     icon: MessageSquare,
     href: '/features#tokens-payments',
   },
@@ -66,7 +66,7 @@ const FEATURES = [
   },
   {
     title: 'Blockchain Activity Ledger',
-    desc: 'Every action is cryptographically hashed (SHA256) and chained to the previous one — creating an immutable, verifiable history. Searchable, filterable, and real-time.',
+    desc: 'Every action is cryptographically hashed (SHA256) and chained to the previous one - creating an immutable, verifiable history. Searchable, filterable, and real-time.',
     icon: Shield,
     href: '/features#activity-feed',
   },

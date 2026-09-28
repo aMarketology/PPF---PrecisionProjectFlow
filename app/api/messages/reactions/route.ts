@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
 }
 
 // POST /api/messages/reactions
-// Body: { messageId, conversationId } — toggles the caller's thumbs-up.
+// Body: { messageId, conversationId } - toggles the caller's thumbs-up.
 export async function POST(request: NextRequest) {
   try {
     const { messageId, conversationId } = await request.json();

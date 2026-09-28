@@ -53,7 +53,7 @@ export async function signUp(formData: {
     return { error: profileError.message }
   }
 
-  // Fire-and-forget welcome email — never block signup on email failure
+  // Fire-and-forget welcome email - never block signup on email failure
   sendWelcomeEmail({
     to: formData.email,
     name: formData.fullName,
@@ -90,7 +90,7 @@ export async function signOut() {
   }
 
   revalidatePath('/', 'layout')
-  // No redirect — caller stays on the current page.
+  // No redirect - caller stays on the current page.
   return { success: true }
 }
 

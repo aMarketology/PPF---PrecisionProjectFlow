@@ -152,7 +152,7 @@ export default function StripeConnectBanner({ userId }: { userId: string | null 
 }
 
 /**
- * Compact "all-good" pill — drop next to badges/title to confirm connection.
+ * Compact "all-good" pill - drop next to badges/title to confirm connection.
  * Renders nothing while loading or if not yet connected.
  */
 export function StripeConnectedPill({ userId }: { userId: string | null | undefined }) {

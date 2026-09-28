@@ -171,7 +171,7 @@ async function handlePaymentSuccess(
     } else {
       console.log('Order created successfully');
 
-      // Fire-and-forget order emails — fetch product + buyer + vendor info
+      // Fire-and-forget order emails - fetch product + buyer + vendor info
       try {
         const { data: product } = await supabase
           .from('products')

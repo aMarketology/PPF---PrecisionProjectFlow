@@ -13,7 +13,7 @@ import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import { createClient } from '@/lib/supabase/client'
 
-// Categories — kept aligned with the seed data and signup specialty list
+// Categories - kept aligned with the seed data and signup specialty list
 const CATEGORIES = [
   'Structural Engineering',
   'Civil Engineering',
@@ -34,9 +34,9 @@ const CATEGORIES = [
 
 const SERVICE_AREAS = [
   'Nationwide (Remote)',
-  'Local — On-site only',
+  'Local - On-site only',
   'Regional (multi-state)',
-  'Hybrid — Remote + On-site',
+  'Hybrid - Remote + On-site',
   'Custom (specify in description)',
 ]
 
@@ -202,7 +202,7 @@ export default function CreateServicePage() {
           style={{ backgroundImage: 'repeating-linear-gradient(0deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px),repeating-linear-gradient(90deg,transparent,transparent 39px,rgba(255,255,255,.4) 39px,rgba(255,255,255,.4) 40px)' }}
         />
         <div className="relative max-w-4xl mx-auto px-4 sm:px-6">
-          <Link href="/dashboard/engineer" className="inline-flex items-center gap-2 text-blue-200 hover:text-white text-sm font-semibold mb-6 transition-colors">
+          <Link href="/admin" className="inline-flex items-center gap-2 text-blue-200 hover:text-white text-sm font-semibold mb-6 transition-colors">
             <ArrowLeft className="w-4 h-4" />Back to Dashboard
           </Link>
           <div className="flex items-center gap-3 mb-3">
@@ -394,7 +394,7 @@ export default function CreateServicePage() {
 
           {/* Actions */}
           <div className="flex flex-col sm:flex-row gap-3 pt-2">
-            <Link href="/dashboard/engineer"
+            <Link href="/admin"
               className="flex-1 sm:flex-none px-6 py-3 border border-gray-200 text-gray-700 hover:bg-gray-50 font-semibold rounded-xl text-sm text-center transition-all">
               Cancel
             </Link>
@@ -419,9 +419,9 @@ export default function CreateServicePage() {
           </h3>
           <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
             <li>Lead with the deliverable: "PE-Stamped Structural Drawings" beats "Engineering Help"</li>
-            <li>Mention specific codes (IBC 2021, ASCE 7-22, NFPA 96) — clients search for these</li>
+            <li>Mention specific codes (IBC 2021, ASCE 7-22, NFPA 96) - clients search for these</li>
             <li>Include 5+ tags so your listing surfaces in more filters</li>
-            <li>Add certifications — verified credentials boost click-through by 3×</li>
+            <li>Add certifications - verified credentials boost click-through by 3×</li>
           </ul>
         </div>
       </main>

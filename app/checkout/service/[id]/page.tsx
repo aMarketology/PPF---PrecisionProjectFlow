@@ -70,7 +70,7 @@ export default function ServiceCheckoutPage() {
 
       setService(serviceData as any)
 
-      // Create payment intent — reuse the same API endpoint
+      // Create payment intent - reuse the same API endpoint
       const response = await fetch('/api/stripe/create-payment-intent', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

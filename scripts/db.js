@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * db.js — Direct Postgres query runner
+ * db.js - Direct Postgres query runner
  *
  * Usage:
  *   node scripts/db.js "SELECT id, email, token_balance FROM profiles LIMIT 10;"

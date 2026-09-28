@@ -37,7 +37,7 @@ const BENEFITS = [
   {
     icon: MessageSquare,
     title: 'Direct Buyer Messaging',
-    desc: 'Use our token-gated messaging to have real conversations with serious buyers — no cold calls required.',
+    desc: 'Use our token-gated messaging to have real conversations with serious buyers - no cold calls required.',
   },
   {
     icon: Shield,

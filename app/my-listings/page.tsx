@@ -98,7 +98,7 @@ export default function MyListingsPage() {
             </div>
             <div>
               <h1 className="text-3xl font-extrabold text-white">My Listings</h1>
-              <p className="text-blue-200 text-sm">Services · Products · RFQs — all in one place</p>
+              <p className="text-blue-200 text-sm">Services · Products · RFQs - all in one place</p>
             </div>
           </div>
         </div>

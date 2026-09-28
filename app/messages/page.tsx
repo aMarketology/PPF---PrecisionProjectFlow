@@ -543,7 +543,7 @@ function MessagesPageInner() {
         }
       }
 
-      // NOW set currentUserId — this will trigger loadConversations with company_id already in state
+      // NOW set currentUserId - this will trigger loadConversations with company_id already in state
       setCurrentUserId(user.id);
 
       // Load pending invites (for users not in a company)
@@ -617,7 +617,7 @@ function MessagesPageInner() {
       setInviteMemberResults([]);
     } catch (err) {
       console.error('[invite] exception:', err);
-      toast.error('Network error — is the dev server running?');
+      toast.error('Network error - is the dev server running?');
     }
     finally { setInvitingUserId(null); }
   };
@@ -812,7 +812,7 @@ function MessagesPageInner() {
         body: JSON.stringify({ conversationId: selectedConversation.id, content: optimisticText, ...(attachmentUrl && { attachmentUrl, attachmentName, attachmentType }) }),
       });
       if (res.status === 402) {
-        // Optimistic message was wrong — remove it and show unlock
+        // Optimistic message was wrong - remove it and show unlock
         setMessages(prev => prev.filter(m => m.id !== tempId));
         setReplyMessage(optimisticText);
         setShowUnlockModal(true);
@@ -1005,7 +1005,7 @@ function MessagesPageInner() {
           <div className="bg-white rounded-none sm:rounded-2xl shadow-lg border-0 sm:border sm:border-gray-100 overflow-hidden h-[calc(100dvh-150px)] sm:h-[calc(100dvh-190px)] md:h-[72vh]">
             <div className="flex h-full">
 
-              {/* Sidebar — Slack-style with sections */}
+              {/* Sidebar - Slack-style with sections */}
               <div className={`${selectedConversation ? 'hidden' : 'flex'} md:flex w-full md:w-72 border-r border-gray-100 flex-col flex-shrink-0 bg-gray-50/50`}>
                 {/* Header */}
                 <div className="p-3 border-b border-gray-200 space-y-2">
@@ -1190,7 +1190,7 @@ function MessagesPageInner() {
                     {/* Messages */}
                     <div className="flex-1 overflow-y-auto p-5 space-y-3">
                       {isLoadingMessages ? <div className="flex justify-center items-center h-full"><Loader className="w-7 h-7 text-[#003D82] animate-spin" /></div>
-                        : messages.length === 0 ? <div className="flex flex-col justify-center items-center h-full text-gray-400 gap-2"><MessageSquare className="w-12 h-12 text-gray-200" /><p className="text-sm">No messages yet — say hello!</p></div>
+                        : messages.length === 0 ? <div className="flex flex-col justify-center items-center h-full text-gray-400 gap-2"><MessageSquare className="w-12 h-12 text-gray-200" /><p className="text-sm">No messages yet - say hello!</p></div>
                         : <>
                           {messages.map(msg => {
                             const isOwn = msg.sender_id === currentUserId;
@@ -1455,7 +1455,7 @@ function MessagesPageInner() {
                 )}
               </div>
 
-              {/* Right Sidebar — Company & Team */}
+              {/* Right Sidebar - Company & Team */}
               <div className="hidden lg:flex w-64 border-l border-gray-100 flex-col flex-shrink-0 bg-gray-50/30">
                 {userCompanyId && userCompanyName ? (
                   <>
@@ -1471,7 +1471,7 @@ function MessagesPageInner() {
                         </div>
                       </div>
                       <div className="flex gap-2">
-                        <Link href={`/dashboard/company/${userCompanyId}`}
+                        <Link href={`/admin/company`}
                           className="flex items-center justify-center gap-1.5 flex-1 px-3 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-xs font-semibold rounded-lg transition-colors">
                           <Settings2 className="w-3.5 h-3.5" /> Manage
                         </Link>
@@ -1579,7 +1579,7 @@ function MessagesPageInner() {
                     <p>✓ Unlimited free messages in this thread</p>
                     <p>✓ Share files, specs, CAD drawings, PDFs</p>
                     <p>✓ The other person can reply freely too</p>
-                    <p>✓ Filters spam — only serious contacts</p>
+                    <p>✓ Filters spam - only serious contacts</p>
                   </div>
                 </div>
                 {(tokenBalance ?? 0) >= UNLOCK_COST ? (

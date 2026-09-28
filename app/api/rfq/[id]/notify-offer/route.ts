@@ -5,7 +5,7 @@ import { sendRFQAlertEmail } from '@/lib/email';
 export const dynamic = 'force-dynamic';
 
 // POST /api/rfq/[id]/notify-offer
-// Fired after an offer is submitted — notifies the client
+// Fired after an offer is submitted - notifies the client
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -43,7 +43,7 @@ export async function POST(
         rfqTitle: offer.rfq.title,
         rfqCategory: 'Offer',
         budget: offer.rfq.budget,
-      }).catch(e => console.error('[offer notify email]', e));
+      }).catch((e: unknown) => console.error('[offer notify email]', e));
     }
 
     return NextResponse.json({ success: true });

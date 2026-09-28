@@ -274,7 +274,7 @@ export default function HomePage() {
                   <Hash className="w-3.5 h-3.5" /> Blockchain Ledger
                 </div>
                 <h2 className="text-2xl font-bold text-gray-900">Live Activity Feed</h2>
-                <p className="text-sm text-gray-500">Real-time platform activity — cryptographically chained</p>
+                <p className="text-sm text-gray-500">Real-time platform activity - cryptographically chained</p>
               </div>
               <Link
                 href="/activity"

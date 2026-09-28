@@ -1,6 +1,6 @@
-# 🚀 PRECISION PROJECT FLOW — ROADMAP
+# 🚀 PRECISION PROJECT FLOW - ROADMAP
 
-> **🟢 CURRENT STATE — August 10, 2026**
+> **🟢 CURRENT STATE - August 10, 2026**
 >
 > The platform is **live in production** at https://www.precisionprojectflow.com.
 > **Supabase project:** `ifrxzmemiihxfdimwvcw`
@@ -86,10 +86,10 @@
 | DB trigger on `product_orders` | Auto-fires when order status changes to `in_progress` |
 | `get_or_create_conversation` | Find-or-create DM between buyer and vendor |
 | Auto-unlock | Sets `is_unlocked = true` on the conversation |
-| System message | `🤝 Contract started — you can now message freely` |
+| System message | `🤝 Contract started - you can now message freely` |
 | `in_progress_at` column | Added to `product_orders` (schema gap fix) |
 | App-layer fallback | Update-status route mirrors the trigger with realtime support |
-| Decision: stay unlocked | Once unlocked, stays unlocked — no re-gating after contract ends |
+| Decision: stay unlocked | Once unlocked, stays unlocked - no re-gating after contract ends |
 
 ### Channels & Groups (July 24)
 | Feature | Details |
@@ -109,12 +109,12 @@
 
 ## Next Up (Priority Order)
 
-1. **@ Mentions in Channels** — Parse `@username`, insert into `message_mentions`, highlight, notify
-2. **Formal Offer System** — `rfq_offers` table, structured offer form, accept/reject → auto-create orders
-3. **RFQ Tagging Algorithm** — Vendor profile specialties → filtered "Recommended for You" RFQ feed
-4. **Realtime Messages** — Supabase subscription for live message delivery
-5. **Avatar Images** — Show real `avatar_url` instead of initials in conversation list
-6. **Email Notifications** — Resend emails for new messages
+1. **@ Mentions in Channels** - Parse `@username`, insert into `message_mentions`, highlight, notify
+2. **Formal Offer System** - `rfq_offers` table, structured offer form, accept/reject → auto-create orders
+3. **RFQ Tagging Algorithm** - Vendor profile specialties → filtered "Recommended for You" RFQ feed
+4. **Realtime Messages** - Supabase subscription for live message delivery
+5. **Avatar Images** - Show real `avatar_url` instead of initials in conversation list
+6. **Email Notifications** - Resend emails for new messages
    - [ ] Run `sql/000_reset_database.sql` (⚠️ deletes all data)
    - [ ] Run `sql/001_create_tables.sql` (creates 6 tables)
    - [ ] Run `sql/002_enable_rls.sql` (security policies)

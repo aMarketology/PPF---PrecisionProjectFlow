@@ -58,7 +58,7 @@ export async function POST(
       return NextResponse.json({ error: 'Invalid offer amount' }, { status: 400 });
     }
 
-    // Any authenticated user (not just engineers) can bid — no user_type check.
+    // Any authenticated user (not just engineers) can bid - no user_type check.
     const { data: profile } = await supabase
       .from('profiles')
       .select('user_type, token_balance, full_name, company_id')

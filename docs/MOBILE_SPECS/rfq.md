@@ -1,4 +1,4 @@
-# RFQ Marketplace — Feature Spec for React Native
+# RFQ Marketplace - Feature Spec for React Native
 
 > **Source:** `app/rfq/page.tsx`, `app/rfq/[id]/page.tsx`, `app/rfq/create/page.tsx`, `app/api/rfq/**`
 > **Status:** ✅ Production
@@ -8,7 +8,7 @@
 
 ## Overview
 
-The RFQ Marketplace is the core B2B workflow — clients post Requests for Quotes, engineers/vendors browse and bid. It follows an **Upwork job-board** pattern with engineering-specific fields (line items, materials, tolerances, shipping flags).
+The RFQ Marketplace is the core B2B workflow - clients post Requests for Quotes, engineers/vendors browse and bid. It follows an **Upwork job-board** pattern with engineering-specific fields (line items, materials, tolerances, shipping flags).
 
 ---
 
@@ -82,9 +82,9 @@ When an engineer has active services, the system scores each RFQ:
 | Open status | +10 |
 
 Results sorted by score DESC. Match badges shown on cards:
-- **Strong Match** (50+ pts) — orange badge
-- **Good Match** (25+ pts) — amber badge
-- **Partial Match** (10+ pts) — blue badge
+- **Strong Match** (50+ pts) - orange badge
+- **Good Match** (25+ pts) - amber badge
+- **Partial Match** (10+ pts) - blue badge
 
 No services? Shows nudge banner: "Add services to your profile to see personalized recommendations"
 
@@ -113,17 +113,17 @@ Each RFQ card shows:
 - "Contact" CTA button (links to DM)
 
 #### Main Body
-- **Description section** — Full text
-- **Line Items** — Table or card list with Part, Qty, Material, Tolerance, Finish, Notes
-- **Attachments** — Downloadable files
-- **Offer Form** (expandable) — Amount, delivery days, start date, note
-- **Offers List** — Each offer card shows: vendor avatar, name, company, amount, delivery days, note, status badge, accept/reject buttons (owner only), withdraw button (vendor only)
+- **Description section** - Full text
+- **Line Items** - Table or card list with Part, Qty, Material, Tolerance, Finish, Notes
+- **Attachments** - Downloadable files
+- **Offer Form** (expandable) - Amount, delivery days, start date, note
+- **Offers List** - Each offer card shows: vendor avatar, name, company, amount, delivery days, note, status badge, accept/reject buttons (owner only), withdraw button (vendor only)
 
 #### Sidebar
-- **RFQ Details card** — Budget, Timeline, Category, Quantity, Material, Location (icon-labeled rows)
-- **Client Card** — Avatar, name, company, email
-- **Inventory/Shipping card** — Stock status, lead time, ship date
-- **Share card** — Copy link
+- **RFQ Details card** - Budget, Timeline, Category, Quantity, Material, Location (icon-labeled rows)
+- **Client Card** - Avatar, name, company, email
+- **Inventory/Shipping card** - Stock status, lead time, ship date
+- **Share card** - Copy link
 
 #### Offer Status Flow
 ```
@@ -143,7 +143,7 @@ On accept:
 
 **Multi-step wizard (3 steps):**
 
-#### Step 1 — Project Details
+#### Step 1 - Project Details
 - Title (required)
 - Category dropdown (19 options, required)
 - RFQ Type (Product / Service)
@@ -154,12 +154,12 @@ On accept:
 - Shipping flags: ASAP, Next Day Air
 - Attachments (optional, up to 5 files)
 
-#### Step 2 — Line Items
+#### Step 2 - Line Items
 - Dynamic form: Add/remove rows
 - Each row: Part name, Quantity, Material, Tolerance (±0.005"), Finish, Notes
 - Validation: if any field filled, part name required
 
-#### Step 3 — Review & Submit
+#### Step 3 - Review & Submit
 - Summary of all fields
 - Submit → inserts into `rfqs` table
 - Auto-generates slug: `title-slugified-{uuid8}`
@@ -256,7 +256,7 @@ RFQDetailScreen
 
 CreateRFQScreen
 ├── StepIndicator (3 steps, progress bar)
-├── Step1 — ProjectDetails
+├── Step1 - ProjectDetails
 │   ├── TitleInput
 │   ├── CategoryPicker (BottomSheet or Picker)
 │   ├── TypeToggle (Product/Service)
@@ -266,7 +266,7 @@ CreateRFQScreen
 │   ├── QuantityInput
 │   ├── MaterialInput
 │   └── ShippingToggles (ASAP, Next Day Air)
-├── Step2 — LineItems
+├── Step2 - LineItems
 │   ├── LineItemRow (repeating)
 │   │   ├── PartNameInput
 │   │   ├── QtyInput (numeric)
@@ -276,7 +276,7 @@ CreateRFQScreen
 │   │   └── NotesInput
 │   ├── AddItemButton
 │   └── RemoveItemButton
-├── Step3 — Review
+├── Step3 - Review
 │   ├── SummaryCard
 │   └── SubmitButton
 └── SuccessScreen
@@ -293,7 +293,7 @@ CreateRFQScreen
 
 **"For You" Scoring:** Fetch vendor's services from Supabase on mount, compute scores client-side. Cache services in local state / AsyncStorage.
 
-**Offer Submission:** 50 tokens — deduct balance optimistically, roll back on API error
+**Offer Submission:** 50 tokens - deduct balance optimistically, roll back on API error
 
 **Real-time Offers:** Subscribe to `rfq_offers` table changes on detail screen
 

@@ -167,8 +167,8 @@ return (
               <tbody className="divide-y">{unclaimed.slice(0, 15).map(company => (
                 <tr key={company.id} className="hover:bg-gray-50">
                   <td className="px-4 py-3"><p className="font-semibold text-gray-900">{company.company_name}</p></td>
-                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{company.contact_name || '—'}{company.contact_email && <span className="text-xs text-gray-400 block">{company.contact_email}</span>}</td>
-                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[company.city, company.state].filter(Boolean).join(', ') || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{company.contact_name || '-'}{company.contact_email && <span className="text-xs text-gray-400 block">{company.contact_email}</span>}</td>
+                  <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[company.city, company.state].filter(Boolean).join(', ') || '-'}</td>
                   <td className="px-4 py-3 text-right">
                     <button onClick={() => handleInviteUnclaimed(company)} disabled={invitingId === company.id}
                       className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-[#003D82] hover:bg-blue-50 rounded-lg transition-colors disabled:opacity-50">

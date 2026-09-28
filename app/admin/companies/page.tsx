@@ -6,7 +6,7 @@ import { toast } from 'react-hot-toast'
 
 interface Company {
   id: string; company_name: string; city: string; state: string
-  industry: string | null; verified: boolean; is_claimed: boolean
+  industry: string | null; is_verified: boolean; is_claimed: boolean
   created_at: string
 }
 
@@ -95,11 +95,11 @@ export default function AdminCompaniesPage() {
             ) : filtered.map(c => (
               <tr key={c.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{c.company_name}</td>
-                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
-                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{c.industry || '—'}</td>
+                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[c.city, c.state].filter(Boolean).join(', ') || '-'}</td>
+                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{c.industry || '-'}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
-                    {c.verified && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Verified</span>}
+                    {c.is_verified && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Verified</span>}
                     <span className={`px-1.5 py-0.5 rounded-full text-xs font-semibold ${c.is_claimed ? 'bg-emerald-100 text-emerald-700' : 'bg-gray-100 text-gray-500'}`}>
                       {c.is_claimed ? 'Claimed' : 'Unclaimed'}
                     </span>

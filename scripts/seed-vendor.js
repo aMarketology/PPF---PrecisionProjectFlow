@@ -34,7 +34,7 @@ const supabaseAdmin = SERVICE_ROLE_KEY
   : null;
 
 if (!supabaseAdmin) {
-  console.warn('⚠️   SUPABASE_SERVICE_ROLE_KEY not set — using anon key for DB writes.');
+  console.warn('⚠️   SUPABASE_SERVICE_ROLE_KEY not set - using anon key for DB writes.');
   console.warn('    RLS policies must allow INSERT on profiles and company_profiles.');
   console.warn('    Get the service role key from: https://supabase.com/dashboard/project/ifrxzmemiihxfdimwvcw/settings/api\n');
 }
@@ -138,7 +138,7 @@ async function createVendor(vendor) {
     }, { onConflict: 'id' });
 
   if (profileError) {
-    // Non-fatal — trigger still created the row
+    // Non-fatal - trigger still created the row
     console.warn(`  ⚠️   Profile update warning: ${profileError.message}`);
   } else {
     console.log('  ✅  Profile updated');
@@ -204,7 +204,7 @@ async function main() {
   if (results.length > 0) {
     console.log('📝  Credentials summary:\n');
     results.forEach((r, i) => {
-      console.log(`  ${i + 1}. ${r.fullName} — ${r.company}`);
+      console.log(`  ${i + 1}. ${r.fullName} - ${r.company}`);
       console.log(`     Email:    ${r.email}`);
       console.log(`     Password: ${r.password}`);
       console.log(`     User ID:  ${r.userId}`);

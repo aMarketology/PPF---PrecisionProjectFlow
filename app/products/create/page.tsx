@@ -127,7 +127,7 @@ export default function CreateServicePage() {
     const { data: profile } = await supabase.from('profiles').select('user_type').eq('id', user.id).single()
     if (profile?.user_type !== 'engineer') {
       toast.error('Only vendors can create services')
-      router.push('/dashboard/client')
+      router.push('/admin')
       return
     }
     setUserId(user.id)
@@ -231,7 +231,7 @@ export default function CreateServicePage() {
         }).catch(() => {})
       }
 
-      router.push('/dashboard/engineer')
+      router.push('/admin')
     } catch (error: any) {
       toast.error(error.message || 'Failed to create service')
     } finally {
@@ -249,7 +249,7 @@ export default function CreateServicePage() {
 
           {/* Header */}
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="mb-8">
-            <Link href="/dashboard/engineer" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 transition-colors text-sm">
+            <Link href="/admin" className="inline-flex items-center gap-2 text-gray-500 hover:text-gray-900 mb-6 transition-colors text-sm">
               <ArrowLeft className="w-4 h-4" /> Back to dashboard
             </Link>
             <h1 className="text-3xl font-bold text-gray-900">List a New Service</h1>
@@ -315,7 +315,7 @@ export default function CreateServicePage() {
                     <span className="text-xl">{TEMPLATES[selectedTemplate].emoji}</span>
                     <div>
                       <p className="text-sm font-semibold text-blue-900">Template: {TEMPLATES[selectedTemplate].label}</p>
-                      <p className="text-xs text-blue-600">All fields pre-filled — add photos, set your price and hit publish</p>
+                      <p className="text-xs text-blue-600">All fields pre-filled - add photos, set your price and hit publish</p>
                     </div>
                   </div>
                 )}
@@ -327,7 +327,7 @@ export default function CreateServicePage() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2 flex items-center gap-2">
                       <ImagePlus className="w-4 h-4 text-blue-500" />
                       Service Photos
-                      <span className="font-normal text-gray-400 text-xs">(up to 5 — drag & drop or click)</span>
+                      <span className="font-normal text-gray-400 text-xs">(up to 5 - drag & drop or click)</span>
                     </label>
 
                     {/* Drop zone */}
@@ -346,7 +346,7 @@ export default function CreateServicePage() {
                             <Upload className="w-6 h-6 text-blue-500" />
                           </div>
                           <p className="text-sm font-medium text-gray-700">Drop photos here or click to browse</p>
-                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP — up to 5 images. Show your work, equipment, or deliverables.</p>
+                          <p className="text-xs text-gray-400 mt-1">JPG, PNG, WEBP - up to 5 images. Show your work, equipment, or deliverables.</p>
                         </div>
                       ) : (
                         <div className="p-3 grid grid-cols-3 sm:grid-cols-5 gap-2">
@@ -405,12 +405,12 @@ export default function CreateServicePage() {
                   {/* Description */}
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                      Description * <span className="font-normal text-gray-400 text-xs">— what's included, deliverables, your process</span>
+                      Description * <span className="font-normal text-gray-400 text-xs">- what's included, deliverables, your process</span>
                     </label>
                     <textarea
                       {...register('description')}
                       rows={5}
-                      placeholder="Describe exactly what clients receive, your process, deliverables, and turnaround time. Be specific — clients in this industry want details."
+                      placeholder="Describe exactly what clients receive, your process, deliverables, and turnaround time. Be specific - clients in this industry want details."
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none resize-none text-sm"
                     />
                     {errors.description && <p className="mt-1 text-xs text-red-500">{errors.description.message}</p>}
@@ -505,7 +505,7 @@ export default function CreateServicePage() {
                       placeholder="PE License, OSHA 30, PMP, LEED AP, AWS D1.1..."
                       className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all outline-none text-sm"
                     />
-                    <p className="mt-1 text-xs text-gray-400">Certs and licenses are shown as badges on your listing — builds trust with buyers</p>
+                    <p className="mt-1 text-xs text-gray-400">Certs and licenses are shown as badges on your listing - builds trust with buyers</p>
                   </div>
 
                   {/* Tags */}

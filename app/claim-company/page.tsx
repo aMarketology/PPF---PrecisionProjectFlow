@@ -264,7 +264,7 @@ function ClaimCompanyInner() {
               Your connection to this company <span className="text-red-500">*</span>
             </label>
             <textarea required rows={4} value={reason} onChange={e => setReason(e.target.value)}
-              placeholder="Briefly describe your relationship — e.g. I'm the inside sales manager and have worked here for 3 years. I'd like to update our company profile and respond to inquiries."
+              placeholder="Briefly describe your relationship - e.g. I'm the inside sales manager and have worked here for 3 years. I'd like to update our company profile and respond to inquiries."
               className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-[#003D82] resize-none" />
             <p className="text-xs text-gray-400 mt-1">{reason.length} chars · 20 minimum</p>
           </div>

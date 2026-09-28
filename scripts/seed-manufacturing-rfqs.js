@@ -1,5 +1,5 @@
 /**
- * Seed Manufacturing RFQs — CNC, Parts, Replacement, Industrial
+ * Seed Manufacturing RFQs - CNC, Parts, Replacement, Industrial
  * Run: node scripts/seed-manufacturing-rfqs.js
  */
 const { createClient } = require('@supabase/supabase-js');
@@ -14,7 +14,7 @@ const supabase = createClient(
 const MANUFACTURING_RFQS = [
   // ── CNC Machining ──
   {
-    title: 'CNC Milling: 316 Stainless Steel Flanges — 500 Units',
+    title: 'CNC Milling: 316 Stainless Steel Flanges - 500 Units',
     category: 'CNC Machining',
     description: 'Need 500 precision CNC milled flanges in 316 stainless steel. OD 4.500" ±0.002", thickness 0.375" ±0.001", with 6x countersunk bolt holes on a 3.250" BCD. Surface finish 32 Ra max. STEP files and inspection reports required. First article approval before full production.',
     quantity: '500 units',
@@ -24,7 +24,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: '5-Axis CNC: Titanium Aerospace Brackets — 50 Units',
+    title: '5-Axis CNC: Titanium Aerospace Brackets - 50 Units',
     category: 'CNC Machining',
     description: '50 titanium (Ti-6Al-4V) aerospace brackets requiring 5-axis simultaneous machining. Complex geometry with thin walls (0.060" min), tight tolerances ±0.001". NADCAP certified shop preferred. Must provide CMM inspection data, material certs, and FAI per AS9102.',
     quantity: '50 units',
@@ -34,9 +34,9 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'CNC Turning: Brass Valve Bodies — 1,000 Units',
+    title: 'CNC Turning: Brass Valve Bodies - 1,000 Units',
     category: 'CNC Machining',
-    description: 'Production run of 1,000 brass (C360) valve bodies. CNC turning with live tooling for cross-drilling and threading. 1/2" NPT threads, O-ring groove, and hex body. ±0.003" tolerances. Deburred and cleaned. Looking for ongoing production partner — 5,000+ units/year.',
+    description: 'Production run of 1,000 brass (C360) valve bodies. CNC turning with live tooling for cross-drilling and threading. 1/2" NPT threads, O-ring groove, and hex body. ±0.003" tolerances. Deburred and cleaned. Looking for ongoing production partner - 5,000+ units/year.',
     quantity: '1,000 units',
     budget: '$8,000 - $12,000',
     timeline: '4-6 weeks',
@@ -44,7 +44,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'CNC Router: Aluminum Control Panel Faceplates — 200 Units',
+    title: 'CNC Router: Aluminum Control Panel Faceplates - 200 Units',
     category: 'CNC Machining',
     description: '200 custom aluminum (5052-H32) control panel faceplates. CNC routed with engraved text/labels, rectangular cutouts for displays, and circular holes for buttons/switches. 0.125" thick, brushed finish with clear anodize. Vector files provided (DXF/AI).',
     quantity: '200 units',
@@ -58,17 +58,17 @@ const MANUFACTURING_RFQS = [
   {
     title: 'Emergency: Haas VF-2 Spindle Cartridge Replacement',
     category: 'Industrial Parts & Replacement',
-    description: 'Haas VF-2 (2018) spindle cartridge failed — grinding noise, runout >0.001". Need OEM or high-quality aftermarket replacement spindle cartridge. Machine is down and we\'re losing $2K/day. Must be in stock and ready to ship. Will pay premium for overnight delivery. Part #: 93-30-12000B.',
+    description: 'Haas VF-2 (2018) spindle cartridge failed - grinding noise, runout >0.001". Need OEM or high-quality aftermarket replacement spindle cartridge. Machine is down and we\'re losing $2K/day. Must be in stock and ready to ship. Will pay premium for overnight delivery. Part #: 93-30-12000B.',
     quantity: '1 spindle cartridge',
     budget: '$4,500 - $7,000',
-    timeline: 'Immediate — within 48 hours',
+    timeline: 'Immediate - within 48 hours',
     location: 'Grand Rapids, MI',
     status: 'open',
   },
   {
-    title: 'Mazak Quick Turn 250 Ballscrew Replacement — X-Axis',
+    title: 'Mazak Quick Turn 250 Ballscrew Replacement - X-Axis',
     category: 'Industrial Parts & Replacement',
-    description: 'X-axis ballscrew on our Mazak Quick Turn 250MY (2016) has excessive backlash (0.004"). Need replacement ballscrew assembly or precision regrind service. Must be C3 grade or better. Include new ball nut and support bearings. Installation not required — we have in-house maintenance.',
+    description: 'X-axis ballscrew on our Mazak Quick Turn 250MY (2016) has excessive backlash (0.004"). Need replacement ballscrew assembly or precision regrind service. Must be C3 grade or better. Include new ball nut and support bearings. Installation not required - we have in-house maintenance.',
     quantity: '1 ballscrew assembly',
     budget: '$3,000 - $5,500',
     timeline: '1-2 weeks',
@@ -86,7 +86,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'Hydraulic Cylinder Rebuild Kit — Parker 2.5" Bore x 18" Stroke',
+    title: 'Hydraulic Cylinder Rebuild Kit - Parker 2.5" Bore x 18" Stroke',
     category: 'Industrial Parts & Replacement',
     description: 'Need rebuild kit for Parker hydraulic cylinder: 2.5" bore, 1.375" rod, 18" stroke. Includes piston seals, rod seals, wiper, O-rings, and wear rings. Cylinder is on a press brake that\'s critical to production. Polyurethane or HNBR seals preferred for high cycle life.',
     quantity: '2 rebuild kits',
@@ -98,7 +98,7 @@ const MANUFACTURING_RFQS = [
 
   // ── Sheet Metal & Fabrication ──
   {
-    title: 'Laser Cut & Bent: 304 Stainless Enclosures — 100 Units',
+    title: 'Laser Cut & Bent: 304 Stainless Enclosures - 100 Units',
     category: 'Sheet Metal & Fabrication',
     description: '100 custom 304 stainless steel electrical enclosures. 16ga material, laser cut, CNC bent, and TIG welded corners. NEMA 4X rated with gasketed door, mounting panel, and cable glands. Dimensions: 24"x20"x10". Powder coat optional. DXF files provided.',
     quantity: '100 units',
@@ -108,7 +108,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'Welded Steel Machine Base Frames — 25 Units',
+    title: 'Welded Steel Machine Base Frames - 25 Units',
     category: 'Sheet Metal & Fabrication',
     description: '25 welded steel machine base frames. 4"x4"x0.25" square tube construction, stress-relieved after welding. Machined mounting pads on top surface (flat within 0.010" over 48"). Painted with industrial enamel. Approx 48"x36"x30" each. Lifting eyes included.',
     quantity: '25 frames',
@@ -120,7 +120,7 @@ const MANUFACTURING_RFQS = [
 
   // ── 3D Printing / Additive ──
   {
-    title: 'SLS Nylon 12: End-Use Drone Housings — 200 Units',
+    title: 'SLS Nylon 12: End-Use Drone Housings - 200 Units',
     category: '3D Printing / Additive Manufacturing',
     description: '200 SLS printed drone sensor housings in Nylon 12 (PA2200). Complex internal channels, snap-fit features, and living hinges. Wall thickness 1.2mm minimum. Dyed black. No support removal needed (SLS). STEP files provided. Looking for consistent quality across batches.',
     quantity: '200 units',
@@ -130,7 +130,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'DMLS: Inconel 718 Turbine Blades — 20 Units',
+    title: 'DMLS: Inconel 718 Turbine Blades - 20 Units',
     category: '3D Printing / Additive Manufacturing',
     description: '20 DMLS (Direct Metal Laser Sintering) Inconel 718 turbine blades for a small gas turbine prototype. As-built surface acceptable on airfoil; root and shroud need post-machining. HIP treatment required. Provide material certs and CT scan or X-ray inspection report.',
     quantity: '20 blades',
@@ -152,7 +152,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'Overmolding: TPE Grip on Nylon Handle — Mold + 10K Units',
+    title: 'Overmolding: TPE Grip on Nylon Handle - Mold + 10K Units',
     category: 'Injection Molding & Tooling',
     description: 'Two-shot overmolding project: glass-filled nylon (PA66-GF30) substrate with TPE overmold for soft grip. Need mold design, tooling, and production of 10,000 units. Part is a power tool handle, 5" long. Chemical bond required between materials. Texture on grip area.',
     quantity: '1 mold set + 10,000 units',
@@ -164,7 +164,7 @@ const MANUFACTURING_RFQS = [
 
   // ── Electrical / Controls ──
   {
-    title: 'VFD Replacement: Allen-Bradley PowerFlex 755 — 20HP',
+    title: 'VFD Replacement: Allen-Bradley PowerFlex 755 - 20HP',
     category: 'Electrical & Controls',
     description: 'Need replacement Allen-Bradley PowerFlex 755 VFD, 20HP, 480V 3-phase. Catalog # 20G11NC8P0JA0NNNNN. Our unit failed with F12 (HW Overcurrent) fault. Need new or factory refurbished with warranty. Must include Ethernet/IP communication module.',
     quantity: '1 VFD unit',
@@ -174,7 +174,7 @@ const MANUFACTURING_RFQS = [
     status: 'open',
   },
   {
-    title: 'Control Panel Build: Conveyor System — 3 Panels',
+    title: 'Control Panel Build: Conveyor System - 3 Panels',
     category: 'Electrical & Controls',
     description: 'Build 3 control panels for a new conveyor system. Each panel: 480V/120V transformer, PowerFlex 525 VFDs (x4), CompactLogix PLC, PanelView Plus 7 HMI, Ethernet switch, circuit protection. UL 508A certified shop required. Schematics and BOM provided.',
     quantity: '3 control panels',
@@ -198,7 +198,7 @@ const MANUFACTURING_RFQS = [
 
   // ── Quality / Inspection ──
   {
-    title: 'CMM Inspection Services: First Article — 25 Part Numbers',
+    title: 'CMM Inspection Services: First Article - 25 Part Numbers',
     category: 'Quality & Inspection',
     description: 'Need CMM inspection and FAI reports (AS9102 Form 3) for 25 different part numbers. Parts range from small brackets to large housings (up to 24"). Must have Zeiss or Hexagon CMM with Calypso or PC-DMIS. ISO 17025 accredited lab preferred. Provide digital reports.',
     quantity: '25 FAIs',
@@ -210,7 +210,7 @@ const MANUFACTURING_RFQS = [
 
   // ── More CNC ──
   {
-    title: 'Swiss CNC: Medical Device Bone Screws — 5,000 Units',
+    title: 'Swiss CNC: Medical Device Bone Screws - 5,000 Units',
     category: 'CNC Machining',
     description: '5,000 titanium (Ti-6Al-4V ELI) bone screws for medical device. Swiss-type CNC turning required. Thread: 3.5mm major diameter, self-tapping, cancellous thread form. Hexalobe drive. Passivation and cleaning per ASTM F86. ISO 13485 certified shop required. Full lot traceability.',
     quantity: '5,000 units',
