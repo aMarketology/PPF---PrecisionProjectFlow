@@ -6,15 +6,14 @@ import { Search, Loader2, Truck } from 'lucide-react'
 interface Order {
   id: string
   order_number: string
-  product_name: string
+  order_type: string
   total_amount: number
-  platform_fee: number
+  fee_amount: number
   status: string
+  payout_status: string
   created_at: string
-  shipped_at: string | null
-  shipping_carrier: string | null
-  shipping_tracking: string | null
   buyer?: { full_name: string; email: string }
+  seller?: { full_name: string; email: string }
   company?: { company_name: string }
 }
 
@@ -28,6 +27,14 @@ const STATUS_STYLES: Record<string, string> = {
   cancelled: 'bg-red-100 text-red-700 border-red-300',
   refunded: 'bg-gray-100 text-gray-600 border-gray-300',
   disputed: 'bg-red-200 text-red-800 border-red-400',
+}
+
+const PAYOUT_STYLES: Record<string, string> = {
+  not_held: 'bg-gray-100 text-gray-600',
+  held: 'bg-amber-100 text-amber-700',
+  scheduled: 'bg-blue-100 text-blue-700',
+  paid_out: 'bg-emerald-100 text-emerald-700',
+  clawback: 'bg-red-100 text-red-700',
 }
 
 const ALL_STATUSES = ['all', 'pending_payment', 'paid', 'in_progress', 'shipped', 'delivered', 'completed', 'cancelled', 'refunded', 'disputed']
@@ -56,15 +63,15 @@ export default function AdminOrdersPage() {
     const q = search.toLowerCase()
     return (
       o.order_number?.toLowerCase().includes(q) ||
-      o.product_name?.toLowerCase().includes(q) ||
       o.buyer?.full_name?.toLowerCase().includes(q) ||
+      o.seller?.full_name?.toLowerCase().includes(q) ||
       o.company?.company_name?.toLowerCase().includes(q)
     )
   })
 
   const completedTotal = orders
     .filter(o => o.status === 'completed')
-    .reduce((sum, o) => sum + (Number(o.total_amount) - Number(o.platform_fee || 0)), 0)
+    .reduce((sum, o) => sum + (Number(o.total_amount) - Number(o.fee_amount || 0)), 0)
 
   const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '-'
   const formatPrice = (n: number) => '$' + n.toLocaleString()
@@ -122,11 +129,11 @@ export default function AdminOrdersPage() {
             <thead className="bg-gray-50 border-b">
               <tr>
                 <th className="text-left px-4 py-3 font-semibold text-gray-700">Order #</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700">Product</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700">Type</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Buyer</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Company</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Seller</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-700">Amount</th>
-                <th className="text-left px-4 py-3 font-semibold text-gray-700 hidden lg:table-cell">Shipping</th>
+                <th className="text-left px-4 py-3 font-semibold text-gray-700">Payout</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Date</th>
               </tr>
@@ -137,22 +144,23 @@ export default function AdminOrdersPage() {
               ) : (
                 filtered.map(order => (
                   <tr key={order.id} className="hover:bg-gray-50">
-                    <td className="px-4 py-3 font-mono text-xs text-gray-500 max-w-[100px] truncate">{order.order_number}</td>
-                    <td className="px-4 py-3 font-medium text-gray-900 max-w-[180px] truncate">{order.product_name}</td>
+                    <td className="px-4 py-3 font-mono text-xs text-gray-500 max-w-[120px] truncate">{order.order_number}</td>
+                    <td className="px-4 py-3">
+                      <span className="inline-flex px-2 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-600 capitalize">{order.order_type?.replace(/_/g, ' ')}</span>
+                    </td>
                     <td className="px-4 py-3 text-gray-600 hidden md:table-cell max-w-[150px] truncate">
                       {order.buyer?.full_name || '-'}<br />
                       <span className="text-xs text-gray-400">{order.buyer?.email}</span>
                     </td>
-                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{order.company?.company_name || '-'}</td>
+                    <td className="px-4 py-3 text-gray-600 hidden md:table-cell max-w-[150px] truncate">
+                      {order.seller?.full_name || order.company?.company_name || '-'}<br />
+                      {order.seller?.email && <span className="text-xs text-gray-400">{order.seller.email}</span>}
+                    </td>
                     <td className="px-4 py-3 text-right font-semibold text-gray-900">{formatPrice(order.total_amount)}</td>
-                    <td className="px-4 py-3 hidden lg:table-cell">
-                      {order.shipping_carrier ? (
-                        <div className="flex items-center gap-1 text-xs">
-                          <Truck className="w-3 h-3 text-indigo-500" />
-                          <span className="text-gray-700">{order.shipping_carrier}</span>
-                          {order.shipping_tracking && <span className="text-gray-400 font-mono">{order.shipping_tracking}</span>}
-                        </div>
-                      ) : <span className="text-xs text-gray-400">-</span>}
+                    <td className="px-4 py-3">
+                      <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold ${PAYOUT_STYLES[order.payout_status] || 'bg-gray-100 text-gray-600'}`}>
+                        {order.payout_status?.replace(/_/g, ' ')}
+                      </span>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`inline-flex px-2 py-0.5 rounded-full text-xs font-semibold border ${STATUS_STYLES[order.status] || 'bg-gray-100 text-gray-600 border-gray-300'}`}>

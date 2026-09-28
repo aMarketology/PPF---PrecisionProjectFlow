@@ -1,5 +1,5 @@
 /**
- * db-verify-orphans.js - check whether the flagged company_ids actually exist.
+ * db-verify-orphans.js — check whether the flagged company_ids actually exist.
  * (Previous run hit the 1000-row API cap on company_profiles.)
  */
 import dotenv from 'dotenv';
@@ -44,7 +44,7 @@ for (const id of SUSPECTS) {
   const res = await fetch(`${url}/rest/v1/company_profiles?select=id,company_name&id=eq.${id}`, { headers: H });
   const rows = await res.json();
   const found = Array.isArray(rows) && rows.length > 0;
-  console.log(`  ${id}  ${found ? '✅ EXISTS - ' + rows[0].company_name : '❌ TRULY MISSING'}`);
+  console.log(`  ${id}  ${found ? '✅ EXISTS — ' + rows[0].company_name : '❌ TRULY MISSING'}`);
 }
 
 // Re-run the integrity check with the FULL id set
@@ -57,4 +57,4 @@ const badMembers = members.filter(m => m.company_id && !companyIds.has(m.company
 
 console.log(`  profiles.company_id orphans: ${badProfiles.length}`);
 console.log(`  company_members.company_id orphans: ${badMembers.length}`);
-console.log(`\n  ${badProfiles.length + badMembers.length === 0 ? '✅ ALL CLEAR - safe to add constraints' : '❌ real orphans remain'}`);
+console.log(`\n  ${badProfiles.length + badMembers.length === 0 ? '✅ ALL CLEAR — safe to add constraints' : '❌ real orphans remain'}`);

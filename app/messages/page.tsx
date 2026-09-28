@@ -9,7 +9,7 @@ import {
   Paperclip, FileText, Download, ExternalLink, Zap,
   Hash, Users, ChevronDown, ChevronRight, Settings2, Building2, Crown, AtSign,
   Shield, Trash2, Edit3, UserPlus, UserMinus, Briefcase,
-  ThumbsUp, ArrowLeft, Calendar, CreditCard,
+  ThumbsUp, ArrowLeft, Calendar, CreditCard, Headset,
 } from 'lucide-react';
 import { createClient } from '@/lib/supabase/client';
 import { useRouter, useSearchParams } from 'next/navigation';
@@ -27,7 +27,8 @@ const UNLOCK_COST = 50;
 interface UserProfile { id: string; full_name: string; email: string; user_type: string; avatar_url?: string | null; }
 interface Conversation {
   id: string; participant_one_id: string; participant_two_id: string;
-  last_message_at: string; created_at: string; is_unlocked: boolean;
+  last_message_at: string; created_at: string; is_unlocked: boolean; is_closed: boolean;
+  is_support_ticket: boolean;
   conversation_type: 'direct' | 'group' | 'channel';
   name?: string | null; description?: string | null; is_public?: boolean;
   other_user: UserProfile; last_message?: { content: string; sender_id: string; created_at: string } | null;
@@ -169,6 +170,7 @@ function MessagesPageInner() {
   const [currentUserId, setCurrentUserId] = useState<string | null>(null);
   const [currentUserFullName, setCurrentUserFullName] = useState<string>('');
   const [currentUserProfile, setCurrentUserProfile] = useState<UserProfile | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [tokenBalance, setTokenBalance] = useState<number | null>(null);
   const [tokenPacks, setTokenPacks] = useState<Array<{ id: string; name: string; tokens: number; price_cents: number; unlocks: number }>>([]);
   const [convFilter, setConvFilter] = useState('');
@@ -531,11 +533,12 @@ function MessagesPageInner() {
       if (!user) { router.push('/login'); return; }
 
       // Fetch profile FIRST so we can set both id and company_id together
-      const { data: profile } = await supabase.from('profiles').select('id, token_balance, company_id, full_name, email, user_type, avatar_url').eq('id', user.id).single();
+      const { data: profile } = await supabase.from('profiles').select('id, token_balance, company_id, full_name, email, user_type, avatar_url, is_admin').eq('id', user.id).single();
       if (profile) {
         setTokenBalance(profile.token_balance ?? 0);
         setCurrentUserFullName(profile.full_name || '');
         setCurrentUserProfile(profile);
+        setIsAdmin(!!profile.is_admin);
         if (profile.company_id) {
           setUserCompanyId(profile.company_id);
           const { data: comp } = await supabase.from('company_profiles').select('company_name').eq('id', profile.company_id).single();
@@ -777,6 +780,9 @@ function MessagesPageInner() {
     const isRfqApplicant = messages.some(message =>
       message.message_type === 'rfq_offer' && message.sender_id === currentUserId
     );
+    // Super-admin threads are free & open unless closed.
+    if (isAdmin && !conv.is_closed) return true;
+    if (conv.is_closed) return false;
     return conv.is_unlocked || isRfqApplicant;
   };
 
@@ -850,6 +856,22 @@ function MessagesPageInner() {
       if (offerToReview) setShowOfferReview(true);
     } catch (err: any) { console.error('handleUnlock:', err); toast.error(err.message || 'Failed to unlock'); }
     finally { setIsUnlocking(false); }
+  };
+
+  const handleCloseConversation = async (closed: boolean) => {
+    if (!selectedConversation) return;
+    try {
+      const res = await fetch('/api/messages/close', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ conversationId: selectedConversation.id, closed }),
+      });
+      const data = await res.json();
+      if (!res.ok) { toast.error(data.error || 'Failed to update conversation'); return; }
+      setSelectedConversation(prev => prev ? { ...prev, is_closed: closed, is_support_ticket: true } : prev);
+      setConversations(prev => prev.map(c => c.id === selectedConversation.id ? { ...c, is_closed: closed, is_support_ticket: true } : c));
+      toast.success(closed ? 'Support chat ended. The thread is now closed.' : 'Support chat reopened. Messaging is free & open.');
+      await loadMessages(selectedConversation.id);
+    } catch (err: any) { console.error('handleCloseConversation:', err); toast.error('Failed to update conversation'); }
   };
 
   const handleOfferUnlock = async (message: Message, offer: RFQOfferMessage) => {
@@ -1168,6 +1190,24 @@ function MessagesPageInner() {
                       <div className="flex items-center gap-2">
                         {selectedConversation.conversation_type === 'direct' && selectedConversation.is_unlocked && (
                           <span className="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-semibold rounded-full flex items-center gap-1"><Unlock className="w-3 h-3" /> Unlocked</span>
+                        )}
+                        {selectedConversation.conversation_type === 'direct' && selectedConversation.is_support_ticket && !selectedConversation.is_closed && (
+                          <span className="px-2 py-1 bg-violet-100 text-violet-700 text-xs font-semibold rounded-full flex items-center gap-1"><Headset className="w-3 h-3" /> Support</span>
+                        )}
+                        {selectedConversation.conversation_type === 'direct' && isAdmin && (
+                          <button
+                            onClick={() => handleCloseConversation(!selectedConversation.is_closed)}
+                            title={selectedConversation.is_closed ? 'Reopen this support chat (free & open)' : 'End this support chat'}
+                            className={`px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1 border ${
+                              selectedConversation.is_closed
+                                ? 'bg-red-100 text-red-700 border-red-200 hover:bg-red-200'
+                                : 'bg-gray-100 text-gray-600 border-gray-200 hover:bg-gray-200'
+                            }`}
+                          >
+                            {selectedConversation.is_closed
+                              ? <><Lock className="w-3 h-3" /> Ended - Reopen</>
+                              : <><X className="w-3 h-3" /> End Chat</>}
+                          </button>
                         )}
                         {selectedConversation.conversation_type !== 'direct' && (
                           <>

@@ -203,7 +203,7 @@ export default function MyCompanyPage() {
                     </div>
                     <p className="text-sm text-gray-500 flex items-center gap-1.5">
                       <MapPin className="w-4 h-4" />
-                      {[company.city, company.state].filter(Boolean).join(', ') || company.industry || '-'}
+                      {[company.city, company.state].filter(Boolean).join(', ') || company.industry || '—'}
                     </p>
                   </div>
                 </div>
@@ -275,7 +275,7 @@ export default function MyCompanyPage() {
                         {m.role === 'admin' && <Shield className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
                       </div>
                       <p className="text-xs text-gray-500 truncate">{m.profile.email}</p>
-                      {/* Job title - drives the per-title group chat */}
+                      {/* Job title — drives the per-title group chat */}
                       {canManage ? (
                         <input
                           type="text"

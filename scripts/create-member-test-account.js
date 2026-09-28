@@ -53,7 +53,7 @@ await supabase.from('profiles').upsert({
   email: EMAIL,
   full_name: 'Morgan Lee',
   user_type: 'engineer',
-  bio: 'Shop floor lead - member account for permission testing.',
+  bio: 'Shop floor lead — member account for permission testing.',
   location: 'Cleveland, OH',
   token_balance: 50,
 });

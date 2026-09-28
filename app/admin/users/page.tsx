@@ -32,7 +32,7 @@ export default function AdminUsersPage() {
         .order('created_at', { ascending: false })
 
       if (data) {
-        // profiles has no company_name column - resolve names from company_profiles
+        // profiles has no company_name column — resolve names from company_profiles
         const companyIds = Array.from(
           new Set(data.map(p => p.company_id).filter(Boolean))
         ) as string[]

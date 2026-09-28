@@ -94,8 +94,8 @@ export default function MyRfqsPage() {
                 {rfqs.map(r => (
                   <tr key={r.id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-3.5 font-semibold text-gray-900 max-w-[260px] truncate">{r.title}</td>
-                    <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{r.category || '-'}</td>
-                    <td className="px-5 py-3.5 text-gray-600 font-medium">{r.budget || '-'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{r.category || '—'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 font-medium">{r.budget || '—'}</td>
                     <td className="px-5 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusColor(r.status)}`}>{r.status || 'open'}</span>
                     </td>
@@ -127,7 +127,7 @@ export default function MyRfqsPage() {
                 {offers.map(o => (
                   <tr key={o.id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-3.5 font-semibold text-gray-900 max-w-[260px] truncate">{o.rfq?.title || 'RFQ'}</td>
-                    <td className="px-5 py-3.5 text-gray-600 font-medium">{o.amount != null ? `$${Number(o.amount).toLocaleString()}` : '-'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 font-medium">{o.amount != null ? `$${Number(o.amount).toLocaleString()}` : '—'}</td>
                     <td className="px-5 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${statusColor(o.status)}`}>{o.status || 'pending'}</span>
                     </td>

@@ -1,5 +1,5 @@
 /**
- * audit-schema.js - read-only introspection of the live Supabase schema.
+ * audit-schema.js — read-only introspection of the live Supabase schema.
  * Uses the service-role client + PostgREST where possible; falls back to
  * information_schema via RPC if available.
  *

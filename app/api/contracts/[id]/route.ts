@@ -1,8 +1,16 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
+import Stripe from 'stripe';
 
 export const dynamic = 'force-dynamic';
+
+function getStripe() {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2025-12-15.clover' });
+}
 
 /**
  * GET /api/contracts/[id]
@@ -90,6 +98,69 @@ export async function POST(
 
     if (result && result.startsWith('error:')) {
       return NextResponse.json({ error: result.replace('error:', '').replace(/_/g, ' ') }, { status: 400 });
+    }
+
+    // ── On release: trigger a manual payout to the vendor's connected ─
+    // account for this milestone's amount (Direct Charge + Manual Payout
+    // escrow model). Funds are held on the connected account; releasing
+    // the milestone creates a payout to the vendor's bank.
+    if (action === 'release' && result === 'released') {
+      try {
+        const { data: milestone } = await supabase
+          .from('contract_milestones')
+          .select('amount, contract_id')
+          .eq('id', milestoneId)
+          .single();
+
+        if (milestone) {
+          const { data: contract } = await supabase
+            .from('contracts')
+            .select('vendor_id')
+            .eq('id', milestone.contract_id)
+            .single();
+
+          if (contract?.vendor_id) {
+            // Resolve the vendor's connected account.
+            const { data: vendorProfile } = await supabase
+              .from('profiles')
+              .select('company_id')
+              .eq('id', contract.vendor_id)
+              .single();
+
+            const { data: connectAccount } = vendorProfile?.company_id
+              ? await supabase
+                  .from('stripe_connect_accounts')
+                  .select('stripe_account_id')
+                  .eq('company_id', vendorProfile.company_id)
+                  .maybeSingle()
+              : { data: null };
+
+            if (connectAccount?.stripe_account_id) {
+              const amountCents = Math.round(Number(milestone.amount) * 100);
+              const stripe = getStripe();
+              const payout = await stripe.payouts.create(
+                { amount: amountCents, currency: 'usd' },
+                { stripeAccount: connectAccount.stripe_account_id }
+              );
+
+              // Record the payout id on the milestone + any linked ledger order.
+              await supabase
+                .from('contract_milestones')
+                .update({ stripe_transfer_id: payout.id })
+                .eq('id', milestoneId);
+              await supabase
+                .from('marketplace_orders')
+                .update({ payout_status: 'paid_out', payout_id: payout.id })
+                .eq('seller_id', contract.vendor_id)
+                .eq('order_type', 'rfq_contract');
+            }
+          }
+        }
+      } catch (payoutErr: any) {
+        // Payout failure must not fail the release itself (DB is source
+        // of truth; finance can re-trigger payouts manually).
+        console.error('[contracts/payout] manual payout failed:', payoutErr?.message);
+      }
     }
 
     return NextResponse.json({ success: true, result });

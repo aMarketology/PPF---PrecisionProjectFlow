@@ -52,11 +52,11 @@ export default function AdminLayout({
 
   if (!ctx) return null
 
-  // Personal sections - available to every authenticated user.
+  // Personal sections — available to every authenticated user.
   const personalItems = [
     { name: 'My Account', href: '/admin', icon: LayoutDashboard },
     { name: 'My Company', href: '/admin/company', icon: Building2 },
-    // Company group chat - free for team members. Deep-links into the
+    // Company group chat — free for team members. Deep-links into the
     // company's General channel in the messaging UI.
     ...(ctx.primaryCompany
       ? [{ name: 'Company Chat', href: '/admin/company-chat', icon: MessageSquare }]
@@ -69,7 +69,7 @@ export default function AdminLayout({
       : []),
   ]
 
-  // Platform sections - super admins only.
+  // Platform sections — super admins only.
   const platformItems = [
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Companies', href: '/admin/companies', icon: Building2 },
@@ -112,7 +112,7 @@ export default function AdminLayout({
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
-      {/* Hero header - brand gradient + grid overlay */}
+      {/* Hero header — brand gradient + grid overlay */}
       <header className="relative bg-gradient-to-br from-[#001f4d] via-[#003D82] to-[#005BB5] sticky top-0 z-50 overflow-hidden">
         <div
           className="absolute inset-0 opacity-10"
@@ -139,7 +139,7 @@ export default function AdminLayout({
       </header>
 
       <div className="flex h-[calc(100vh-64px)]">
-        {/* Sidebar - light, brand-accented */}
+        {/* Sidebar — light, brand-accented */}
         <aside className="w-60 bg-white border-r border-gray-100 flex flex-col flex-shrink-0 overflow-y-auto">
           <p className="px-5 pt-5 pb-2 text-[10px] font-bold uppercase tracking-wider text-gray-400">My Account</p>
           <div className="space-y-0.5">
@@ -165,7 +165,7 @@ export default function AdminLayout({
             </div>
           )}
 
-          {/* Logout - pinned to the bottom of the sidebar */}
+          {/* Logout — pinned to the bottom of the sidebar */}
           <div className={`${can(ctx, 'view_platform') ? 'mt-auto' : ''} p-3 border-t border-gray-100`}>
             <button
               onClick={handleLogout}

@@ -118,6 +118,7 @@ export async function POST(request: NextRequest) {
     }
 
     let connectAccountId: string | null = null;
+    let vendorCompanyId: string | null = null;
     if (action === 'send_contract') {
       const { data: vendorProfile } = await supabase
         .from('profiles')
@@ -127,6 +128,7 @@ export async function POST(request: NextRequest) {
       if (!vendorProfile?.company_id) {
         return NextResponse.json({ error: 'The vendor must create or join a company before receiving a contract payment' }, { status: 409 });
       }
+      vendorCompanyId = vendorProfile.company_id;
 
       const { data: connectAccount } = await supabase
         .from('stripe_connect_accounts')
@@ -207,6 +209,24 @@ export async function POST(request: NextRequest) {
       });
       if (!checkoutSession.url) throw new Error('Stripe did not return a checkout URL');
       checkoutSessionId = checkoutSession.id;
+
+      // ── Record in the unified financial ledger ────────────────────
+      // order_type = 'rfq_contract'; payout is manual (escrow held).
+      const { error: ledgerError } = await supabase.from('marketplace_orders').insert({
+        order_number:           `PPF-CTR-${checkoutSession.id.slice(-8).toUpperCase()}`,
+        order_type:             'rfq_contract',
+        buyer_id:               rfq.client_id,
+        seller_id:              offer.vendor_id,
+        seller_company_id:      vendorCompanyId,
+        subtotal_amount:        Number(offer.amount) - (platformFeeCents / 100),
+        fee_amount:             platformFeeCents / 100,
+        total_amount:           Number(offer.amount),
+        currency:               'usd',
+        stripe_account_id:      connectAccountId,
+        status:                 'pending_payment',
+        payout_status:          'held',
+      });
+      if (ledgerError) console.error('[rfq/contract] ledger insert failed:', ledgerError);
 
       const { error: messageError } = await supabase.from('user_messages').insert({
         conversation_id: offer.conversation_id,

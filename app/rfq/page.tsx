@@ -397,7 +397,7 @@ export default function RFQMarketplacePage() {
                 <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-4">Marketplace Stats</h3>
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-blue-500" /><span className="text-sm text-gray-600">Total RFQs</span></div>
+                    <div className="flex items-center gap-2"><FileText className="w-4 h-4 text-[#003D82]" /><span className="text-sm text-gray-600">Total RFQs</span></div>
                     <span className="font-bold text-gray-900 text-sm">{totalRFQs}</span>
                   </div>
                   <div className="flex items-center justify-between">
@@ -409,7 +409,7 @@ export default function RFQMarketplacePage() {
                     <span className="font-bold text-amber-600 text-sm">{rfqs.filter(r => r.status === 'in_review').length}</span>
                   </div>
                   <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-purple-500" /><span className="text-sm text-gray-600">Highest Budget</span></div>
+                    <div className="flex items-center gap-2"><DollarSign className="w-4 h-4 text-[#FF6B35]" /><span className="text-sm text-gray-600">Highest Budget</span></div>
                     <span className="font-bold text-gray-900 text-sm">${maxBudget.toLocaleString()}+</span>
                   </div>
                 </div>

@@ -1,11 +1,11 @@
 # 🚀 PRECISION PROJECT FLOW - ROADMAP
 
-> **🟢 CURRENT STATE - August 10, 2026**
+> **🟢 CURRENT STATE - September 27, 2026**
 >
 > The platform is **live in production** at https://www.precisionprojectflow.com.
 > **Supabase project:** `ifrxzmemiihxfdimwvcw`
 >
-> Fully functional engineering marketplace: messaging with channels/DMs, RFQ marketplace, token economy, company teams, permissions system, and activity ledger. Focus is on pre-launch polish and end-to-end testing.
+> Fully functional engineering marketplace: messaging with channels/DMs, RFQ marketplace, token economy, company teams, permissions system, and activity ledger. **Current focus: Super Admin Panel (click-through moderation + messaging) and the Contracts & Escrow system.** See `docs/ADMIN_PANEL.md` and `docs/CONTRACTS_ESCROW.md`.
 
 ## Current Architecture
 
@@ -23,6 +23,8 @@
 | Token Economy | P2P transfers, purchase packs, unlock DMs, bid on RFQs | ✅ Live |
 | Payments | Stripe (token packs + product purchases) | ✅ Live |
 | Blog | 3 SEO posts on `/blog` | ✅ Live |
+| Super Admin Panel | `/admin/*` moderation, click-through + messaging, delete/toggle | ✅ Live (active dev) |
+| Contracts & Escrow | `contracts` + `contract_milestones` milestone releases | 🔨 In progress |
 
 ---
 

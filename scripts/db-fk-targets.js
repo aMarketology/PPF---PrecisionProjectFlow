@@ -1,5 +1,5 @@
 /**
- * db-fk-targets.js - determine what each FK actually references.
+ * db-fk-targets.js — determine what each FK actually references.
  * PostgREST reports the searched relationship in the error detail.
  */
 import dotenv from 'dotenv';

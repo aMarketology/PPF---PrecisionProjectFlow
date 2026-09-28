@@ -154,7 +154,7 @@ export default function CompanyChatPage() {
             <Briefcase className="w-10 h-10 text-gray-200 mx-auto mb-3" />
             <p className="font-semibold text-gray-600 text-sm mb-1">No job-title groups yet</p>
             <p className="text-xs text-gray-400">
-              Owners and admins can set a member's job title in the Team tab - a group chat is created automatically.
+              Owners and admins can set a member's job title in the Team tab — a group chat is created automatically.
             </p>
           </div>
         ) : (

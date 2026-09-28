@@ -108,11 +108,14 @@ export default function CreateRFQPage() {
 
     try {
       const supabase = createClient()
-      const { data: { user }, error: authError } = await supabase.auth.getUser()
+      // Prefer getUser() (validates the token server-side), but fall back to the
+      // local session so a transient network/auth failure doesn't log the user out.
+      const { data: { user } } = await supabase.auth.getUser()
+      const activeUser = user ?? (await supabase.auth.getSession()).data.session?.user
 
-      if (authError || !user) {
-        toast.error('You must be signed in to submit an RFQ')
-        router.push('/login?next=/rfq/create')
+      if (!activeUser) {
+        toast.error('Your session has expired. Please sign in again.')
+        router.push('/login?redirect=/rfq/create')
         return
       }
 
@@ -128,7 +131,7 @@ export default function CreateRFQPage() {
         }))
 
       const payload = {
-        client_id: user.id,
+        client_id: activeUser.id,
         title: formData.title.trim(),
         category: formData.category,
         description: formData.description.trim(),

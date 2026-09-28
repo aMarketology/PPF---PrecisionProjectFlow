@@ -6,7 +6,6 @@ import { useParams, useRouter } from 'next/navigation'
 import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import BadgeList from '@/app/components/BadgeList'
-import ReportModal from '@/app/components/ReportModal'
 import { computeBadges } from '@/lib/badges'
 import { createClient } from '@/lib/supabase/client'
 import {
@@ -14,7 +13,7 @@ import {
   Award, Package, Clock, ShoppingCart, Share2,
   ExternalLink, Shield, Loader, MessageSquare,
   ChevronRight, Star, Wrench, Tag, Wifi, HardHat,
-  ArrowLeft, Users, Calendar, Flag,
+  ArrowLeft, Users, Calendar,
 } from 'lucide-react'
 import Link from 'next/link'
 import { toast } from 'react-hot-toast'
@@ -50,15 +49,6 @@ interface Service {
   created_at: string
 }
 
-interface VendorReview {
-  id: string
-  rating: number
-  title: string | null
-  body: string | null
-  reviewer_name: string | null
-  created_at: string
-}
-
 const categoryFallbacks: Record<string, string> = {
   'Structural Engineering':  'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&h=600&fit=crop',
   'Mechanical Engineering':  'https://images.unsplash.com/photo-1565193566173-7a0ee3dbe261?w=800&h=600&fit=crop',
@@ -85,12 +75,10 @@ export default function CompanyProfilePage() {
 
   const [company, setCompany]           = useState<CompanyProfile | null>(null)
   const [services, setServices]         = useState<Service[]>([])
-  const [reviews, setReviews]           = useState<VendorReview[]>([])
   const [companySlug, setCompanySlug]   = useState<string | null>(null)
   const [currentUserId, setCurrentUserId] = useState<string | null>(null)
   const [loading, setLoading]           = useState(true)
-  const [activeTab, setActiveTab]       = useState<'services' | 'reviews' | 'about'>('services')
-  const [showReport, setShowReport]     = useState(false)
+  const [activeTab, setActiveTab]       = useState<'services' | 'about'>('services')
 
   useEffect(() => { loadData() }, [profileId])
 
@@ -101,30 +89,28 @@ export default function CompanyProfilePage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (user) setCurrentUserId(user.id)
 
-    // Load the engineer/vendor profile.
-    // NOTE: live `profiles` has no company_name column - a company name is
-    // only available via company_profiles, resolved below.
+    // Load the engineer/vendor profile
     const { data: profileData, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, avatar_url, bio, location, user_type, created_at, is_admin')
+      .select('id, full_name, email, avatar_url, company_name, bio, location, user_type, created_at, is_admin')
       .eq('id', profileId)
       .eq('user_type', 'engineer')
       .single()
 
     if (error || !profileData) {
-      toast.error('Profile not found')
+      toast.error('Company not found')
       router.push('/profiles')
       return
     }
+    setCompany(profileData)
 
     // Resolve the engineer's company page (if they own one)
     const { data: companyRow } = await supabase
       .from('company_profiles')
-      .select('slug, company_name')
+      .select('slug')
       .eq('owner_id', profileId)
       .maybeSingle()
     setCompanySlug(companyRow?.slug ?? null)
-    setCompany({ ...profileData, company_name: companyRow?.company_name ?? null })
 
     // Load their active services
     const { data: servicesData } = await supabase
@@ -135,16 +121,6 @@ export default function CompanyProfilePage() {
       .order('created_at', { ascending: false })
 
     setServices(servicesData ?? [])
-
-    // Load real vendor reviews (public)
-    const { data: reviewsData } = await supabase
-      .from('vendor_reviews')
-      .select('id, rating, title, body, reviewer_name, created_at')
-      .eq('vendor_id', profileId)
-      .order('created_at', { ascending: false })
-      .limit(50)
-    setReviews(reviewsData ?? [])
-
     setLoading(false)
   }
 
@@ -182,13 +158,8 @@ export default function CompanyProfilePage() {
 
   const TABS = [
     { key: 'services', label: `Services (${services.length})` },
-    { key: 'reviews',  label: `Reviews (${reviews.length})`   },
     { key: 'about',    label: 'About'                          },
   ] as const
-
-  const reviewAvg = reviews.length
-    ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
-    : 0
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] font-jakarta">
@@ -281,24 +252,10 @@ export default function CompanyProfilePage() {
                 className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 hover:border-[#003D82] text-gray-600 hover:text-[#003D82] font-semibold rounded-xl text-sm transition-all">
                 <Share2 className="w-4 h-4" />Share
               </button>
-              {currentUserId && currentUserId !== profileId && (
-                <button onClick={() => setShowReport(true)}
-                  className="flex items-center gap-2 px-4 py-2.5 border border-gray-200 hover:border-red-300 text-gray-500 hover:text-red-500 font-semibold rounded-xl text-sm transition-all">
-                  <Flag className="w-4 h-4" />Report
-                </button>
-              )}
             </div>
           </div>
         </motion.div>
       </div>
-
-      <ReportModal
-        open={showReport}
-        onClose={() => setShowReport(false)}
-        targetType="user"
-        targetId={profileId}
-        targetLabel={displayName}
-      />
 
       {/* ── Main content ── */}
       <div className="max-w-6xl mx-auto px-4 py-8">
@@ -379,71 +336,6 @@ export default function CompanyProfilePage() {
                                 View & Book <ChevronRight className="w-3.5 h-3.5" />
                               </Link>
                             </div>
-                          </div>
-                        </div>
-                      </motion.div>
-                    ))
-                  )}
-                </motion.div>
-              )}
-
-              {/* ── Reviews tab ── */}
-              {activeTab === 'reviews' && (
-                <motion.div key="reviews"
-                  initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-                  className="space-y-5"
-                >
-                  {/* Rating summary */}
-                  <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 flex items-center gap-6">
-                    <div className="text-center flex-shrink-0">
-                      <div className="text-4xl font-extrabold text-gray-900">{reviewAvg.toFixed(1)}</div>
-                      <div className="flex items-center gap-0.5 justify-center mt-1">
-                        {[1,2,3,4,5].map(s => (
-                          <Star key={s} className={`w-4 h-4 ${s <= Math.round(reviewAvg) ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
-                        ))}
-                      </div>
-                      <p className="text-xs text-gray-400 mt-1">{reviews.length} review{reviews.length !== 1 ? 's' : ''}</p>
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <h2 className="text-lg font-bold text-gray-900">Client Reviews</h2>
-                      <p className="text-sm text-gray-500 mt-1">
-                        {reviews.length > 0
-                          ? `Verified feedback from ${reviews.length} client${reviews.length !== 1 ? 's' : ''} who worked with ${displayName}.`
-                          : `No reviews yet. Be the first to work with ${displayName}.`}
-                      </p>
-                    </div>
-                  </div>
-
-                  {reviews.length === 0 ? (
-                    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-12 text-center">
-                      <Star className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-                      <p className="font-semibold text-gray-700">No reviews yet</p>
-                      <p className="text-sm text-gray-400 mt-1">Reviews appear here after a completed order.</p>
-                    </div>
-                  ) : (
-                    reviews.map((review, i) => (
-                      <motion.div key={review.id}
-                        initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: i * 0.04 }}
-                        className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6"
-                      >
-                        <div className="flex items-start gap-4">
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center text-white font-bold flex-shrink-0">
-                            {(review.reviewer_name || 'C').charAt(0).toUpperCase()}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center justify-between gap-3 flex-wrap">
-                              <p className="font-bold text-gray-900 text-sm">{review.reviewer_name || 'Verified Client'}</p>
-                              <span className="text-[11px] text-gray-400">
-                                {formatDistanceToNow(new Date(review.created_at), { addSuffix: true })}
-                              </span>
-                            </div>
-                            <div className="flex items-center gap-0.5 mt-1">
-                              {[1,2,3,4,5].map(s => (
-                                <Star key={s} className={`w-3.5 h-3.5 ${s <= review.rating ? 'text-amber-400 fill-current' : 'text-gray-200'}`} />
-                              ))}
-                            </div>
-                            {review.title && <p className="font-semibold text-gray-800 text-sm mt-2">{review.title}</p>}
-                            {review.body && <p className="text-sm text-gray-600 leading-relaxed mt-1">{review.body}</p>}
                           </div>
                         </div>
                       </motion.div>

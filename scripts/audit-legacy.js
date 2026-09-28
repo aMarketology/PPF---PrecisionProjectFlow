@@ -1,5 +1,5 @@
 /**
- * audit-legacy.js - compare legacy vs current tables and test helper functions
+ * audit-legacy.js — compare legacy vs current tables and test helper functions
  * with correct argument signatures.
  */
 import { createClient } from '@supabase/supabase-js';

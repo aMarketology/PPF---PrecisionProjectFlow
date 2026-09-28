@@ -46,12 +46,13 @@ export default function MyOrdersPage() {
       if (!context) { setLoading(false); return }
 
       const isEngineer = context.profile?.user_type === 'engineer'
-      const column = isEngineer ? 'engineer_id' : 'client_id'
-      const joinKey = isEngineer ? 'client' : 'engineer'
+      const column = isEngineer ? 'seller_id' : 'buyer_id'
+      // Whichever party is NOT the current user is the counterparty.
+      const joinKey = isEngineer ? 'buyer' : 'seller'
 
       const { data } = await supabase
-        .from('orders')
-        .select(`id, status, total_amount, created_at, service:services!orders_service_id_fkey(title), ${joinKey}:profiles!orders_${joinKey}_id_fkey(full_name, email)`)
+        .from('marketplace_orders')
+        .select(`id, order_type, status, total_amount, created_at, buyer:profiles!marketplace_orders_buyer_id_fkey(full_name, email), seller:profiles!marketplace_orders_seller_id_fkey(full_name, email)`)
         .eq(column, context.userId)
         .order('created_at', { ascending: false })
         .limit(100)
@@ -62,7 +63,7 @@ export default function MyOrdersPage() {
         total_amount: o.total_amount,
         created_at: o.created_at,
         counterparty: o[joinKey]?.full_name || o[joinKey]?.email || null,
-        service_title: o.service?.title || null,
+        service_title: o.order_type?.replace(/_/g, ' '),
       })))
       setLoading(false)
     })()
@@ -125,7 +126,7 @@ export default function MyOrdersPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 border-b border-gray-100">
                 <tr>
-                  {['Service', isEngineer ? 'Client' : 'Engineer', 'Date', 'Amount', 'Status', ''].map((h, i) => (
+                  {['Type', isEngineer ? 'Client' : 'Vendor', 'Date', 'Amount', 'Status', ''].map((h, i) => (
                     <th key={i} className="px-5 py-3.5 text-left text-xs font-bold text-gray-700 uppercase tracking-wider">{h}</th>
                   ))}
                 </tr>
@@ -133,8 +134,8 @@ export default function MyOrdersPage() {
               <tbody className="divide-y divide-gray-50">
                 {filtered.map(o => (
                   <tr key={o.id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-3.5 font-semibold text-gray-900">{o.service_title || '-'}</td>
-                    <td className="px-5 py-3.5 text-gray-600">{o.counterparty || '-'}</td>
+                    <td className="px-5 py-3.5 font-semibold text-gray-900">{o.service_title || '—'}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{o.counterparty || '—'}</td>
                     <td className="px-5 py-3.5 text-gray-400">{format(new Date(o.created_at), 'MMM d, yyyy')}</td>
                     <td className="px-5 py-3.5 font-bold text-gray-900">${(o.total_amount || 0).toLocaleString()}</td>
                     <td className="px-5 py-3.5"><StatusBadge status={o.status} /></td>

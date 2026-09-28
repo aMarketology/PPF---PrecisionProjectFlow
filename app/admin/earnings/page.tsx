@@ -29,9 +29,9 @@ export default function EarningsPage() {
       if (!context) { setLoading(false); return }
 
       const { data } = await supabase
-        .from('orders')
-        .select('id, status, total_amount, created_at, service:services!orders_service_id_fkey(title), client:profiles!orders_client_id_fkey(full_name, email)')
-        .eq('engineer_id', context.userId)
+        .from('marketplace_orders')
+        .select('id, order_type, status, total_amount, fee_amount, payout_status, created_at, buyer:profiles!marketplace_orders_buyer_id_fkey(full_name, email)')
+        .eq('seller_id', context.userId)
         .order('created_at', { ascending: false })
         .limit(200)
 
@@ -40,10 +40,10 @@ export default function EarningsPage() {
         id: r.id,
         total_amount: r.total_amount,
         created_at: r.created_at,
-        counterparty: r.client?.full_name || r.client?.email || null,
-        service_title: r.service?.title || null,
+        counterparty: r.buyer?.full_name || r.buyer?.email || null,
+        service_title: r.order_type?.replace(/_/g, ' '),
       })))
-      const active = rows.filter(r => r.status === 'pending' || r.status === 'in_progress')
+      const active = rows.filter(r => ['pending_payment', 'paid', 'in_progress', 'shipped', 'delivered'].includes(r.status))
       setActiveCount(active.length)
       setPendingAmount(active.reduce((s, r) => s + (r.total_amount || 0), 0))
       setLoading(false)
@@ -111,8 +111,8 @@ export default function EarningsPage() {
               <tbody className="divide-y divide-gray-50">
                 {completed.map(o => (
                   <tr key={o.id} className="hover:bg-[#F8FAFC] transition-colors">
-                    <td className="px-5 py-3.5 font-semibold text-gray-900">{o.service_title || '-'}</td>
-                    <td className="px-5 py-3.5 text-gray-600">{o.counterparty || '-'}</td>
+                    <td className="px-5 py-3.5 font-semibold text-gray-900">{o.service_title || '—'}</td>
+                    <td className="px-5 py-3.5 text-gray-600">{o.counterparty || '—'}</td>
                     <td className="px-5 py-3.5 text-gray-400">{format(new Date(o.created_at), 'MMM d, yyyy')}</td>
                     <td className="px-5 py-3.5 font-bold text-emerald-600">+${(o.total_amount || 0).toLocaleString()}</td>
                   </tr>

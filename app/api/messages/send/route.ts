@@ -30,7 +30,7 @@ export async function POST(request: NextRequest) {
     // Fetch conversation with type info
     const { data: conv, error: convError } = await supabase
       .from('user_conversations')
-      .select('id, participant_one_id, participant_two_id, is_unlocked, conversation_type')
+      .select('id, participant_one_id, participant_two_id, is_unlocked, is_closed, conversation_type')
       .eq('id', conversationId)
       .single();
 
@@ -95,11 +95,41 @@ export async function POST(request: NextRequest) {
       isFree = isUnlocked || areFriends || isSameCompany || isRfqApplicant;
     }
 
+    // ── Super-admin moderation ──────────────────────────────────────
+    // If a super admin participates in this DM, messaging is FREE and
+    // OPEN by default (the platform admin monitors the marketplace).
+    // The ONLY way it becomes paid again is an explicit close, which is
+    // enforced server-side below regardless of the caller's client.
+    let involvesAdmin = false;
+    if (!isFree) {
+      try {
+        const serviceSupabase = createServiceClient();
+        const { data: adFlag } = await serviceSupabase.rpc('conversation_involves_admin', { p_conversation_id: conversationId });
+        involvesAdmin = adFlag === true;
+        isFree = involvesAdmin && !(conv.is_closed ?? false);
+      } catch {}
+    }
+
+    // Closed threads are never free, even for the admin — reopening is
+    // required first (see /api/messages/close for the reopen flow).
+    if (isFree && (conv.is_closed ?? false)) {
+      isFree = false;
+    }
+
     if (!isFree) {
       return NextResponse.json(
         { error: 'conversation_locked', unlockCost: 100 },
         { status: 402 }
       );
+    }
+
+    // If a super admin is a participant, tag the thread as a support
+    // ticket so it can be tracked and formally ended later.
+    if (involvesAdmin && conv.conversation_type === 'direct') {
+      try {
+        const serviceSupabase = createServiceClient();
+        await serviceSupabase.rpc('mark_support_ticket', { p_conversation_id: conversationId });
+      } catch {}
     }
 
     // Insert the message

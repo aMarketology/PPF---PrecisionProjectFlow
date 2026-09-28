@@ -6,7 +6,7 @@ import type { SupabaseClient } from '@supabase/supabase-js';
  * Every authenticated user gets a personal /admin panel. Super admins
  * (profiles.is_admin) additionally get platform-wide management pages.
  *
- * NOTE: the live `profiles` table has no `company_name` column - the company
+ * NOTE: the live `profiles` table has no `company_name` column — the company
  * name lives on `company_profiles`. Do not select profiles.company_name.
  */
 
@@ -115,7 +115,7 @@ function deriveBadges(
     });
   }
 
-  // Company roles - one badge per company the user belongs to.
+  // Company roles — one badge per company the user belongs to.
   // The primary company's name is already the header title, so its badge
   // shows just the role; other companies include the name for clarity.
   for (const c of ctx.companies) {
@@ -207,7 +207,7 @@ function deriveIdentity(ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' |
   return {
     primaryCompany: null,
     roleLabel: ctx.profile?.user_type === 'engineer' ? 'Engineer' : 'Client',
-    roleDescription: 'Personal account - not part of a company yet.',
+    roleDescription: 'Personal account — not part of a company yet.',
     badges,
   };
 }

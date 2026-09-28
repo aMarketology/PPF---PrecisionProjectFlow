@@ -1,4 +1,4 @@
-# PPF - Live Database Schema Audit
+# PPF — Live Database Schema Audit
 
 > Generated from the live Supabase project (`ifrxzmemiihxfdimwvcw`) via PostgREST
 > introspection. Read-only. Re-run with `node scripts/db-introspect.js`.
@@ -41,7 +41,7 @@
 | `user_conversations` | 18 | DMs, channels, groups. |
 | `conversation_participants` | 11 | Membership in conversations. |
 | `user_messages` | 46 | Messages. |
-| `message_mentions` | - | @mentions. |
+| `message_mentions` | — | @mentions. |
 
 ### Feed & activity
 
@@ -50,7 +50,7 @@
 | `feed_posts` | 11 | Social posts. |
 | `feed_likes` | 1 | Post likes. |
 | `feed_comments` | 1 | Post comments. |
-| `feed_bids` | - | Bids on `parts_request` posts. |
+| `feed_bids` | — | Bids on `parts_request` posts. |
 | `site_activities` | 4,001 | Hash-chained activity ledger. |
 
 ### Tokens & payments
@@ -58,20 +58,20 @@
 | Table | Rows | Purpose |
 |-------|------|---------|
 | `token_transactions` | 18 | **Authoritative** token ledger. |
-| `token_account_summary` | - | View: balance + lifetime totals. |
+| `token_account_summary` | — | View: balance + lifetime totals. |
 | `token_purchases` | 0 | **Legacy** receipt log. |
 | `stripe_connect_accounts` | 0 | Vendor payout accounts. |
-| `stripe_transfers` | - | Payout transfers. |
-| `refunds` | - | Refund records. |
+| `stripe_transfers` | — | Payout transfers. |
+| `refunds` | — | Refund records. |
 
 ### Other
 
 | Table | Rows | Purpose |
 |-------|------|---------|
-| `receipts` | - | Mobile receipt capture + OCR. |
-| `friends` | - | Friend graph. |
-| `conversations` | 1 | **Legacy** - superseded by `user_conversations`. |
-| `messages` | 0 | **Legacy** - superseded by `user_messages`. |
+| `receipts` | — | Mobile receipt capture + OCR. |
+| `friends` | — | Friend graph. |
+| `conversations` | 1 | **Legacy** — superseded by `user_conversations`. |
+| `messages` | 0 | **Legacy** — superseded by `user_messages`. |
 
 ---
 
@@ -101,7 +101,7 @@
 | `company_claims.user_id` | ❌ `auth.users` |
 | `user_conversations.company_id` | ❌ `company_profiles` (named `_fkey` but not resolvable) |
 
-**Consequence:** PostgREST cannot embed profiles on the `auth.users`-linked tables, so the app does manual second queries. Example - `app/api/activities/route.ts`:
+**Consequence:** PostgREST cannot embed profiles on the `auth.users`-linked tables, so the app does manual second queries. Example — `app/api/activities/route.ts`:
 
 ```ts
 // Fetch actor profiles separately (FK is to auth.users, not profiles)
@@ -124,7 +124,7 @@
 
 ## 4. Column drift
 
-### `company_profiles` (31 columns - several redundant)
+### `company_profiles` (31 columns — several redundant)
 
 | Redundant pair | Notes |
 |----------------|-------|
@@ -132,14 +132,14 @@
 | `address` + `street_address` | Both present; `street_address` is used by the app |
 | `is_verified` | Live column. **`verified` does not exist** |
 
-**Bug:** `app/admin/companies/page.tsx` reads `c.verified`, which is always `undefined` - the Verified badge never renders.
+**Bug:** `app/admin/companies/page.tsx` reads `c.verified`, which is always `undefined` — the Verified badge never renders.
 
 ### `orders` vs `product_orders`
 
 Two distinct concepts, no unified view:
 
-- `orders` - service orders. Written by Stripe checkout (`app/api/stripe/create-payment-intent/route.ts`), read by `/admin/my-orders` and `/admin/earnings`.
-- `product_orders` - product orders. Read by `/admin/orders`.
+- `orders` — service orders. Written by Stripe checkout (`app/api/stripe/create-payment-intent/route.ts`), read by `/admin/my-orders` and `/admin/earnings`.
+- `product_orders` — product orders. Read by `/admin/orders`.
 
 ---
 
@@ -149,9 +149,9 @@ Two distinct concepts, no unified view:
 |----------|--------|
 | `is_admin` | ✅ exists |
 | `same_company` | ✅ exists |
-| `is_company_member` | ❌ **missing** - referenced by migrations 002/009 RLS policies |
-| `is_company_manager` | ❌ **missing** - from `FIX_COMPANY_MEMBERS_UPDATE_RLS.sql`, not applied |
-| `is_company_owner` | ❌ **missing** - same |
+| `is_company_member` | ❌ **missing** — referenced by migrations 002/009 RLS policies |
+| `is_company_manager` | ❌ **missing** — from `FIX_COMPANY_MEMBERS_UPDATE_RLS.sql`, not applied |
+| `is_company_owner` | ❌ **missing** — same |
 
 Team management currently works only because `app/api/companies/[id]/members/route.ts` authorizes server-side and uses the service client.
 
@@ -192,7 +192,7 @@ generate_activity_hash     is_channel_owner
 
 ## 8. SQL file sprawl
 
-**69 SQL files** - 51 in `supabase/`, 12 in `supabase/migrations/`, 6 in `supabase/seed/`.
+**69 SQL files** — 51 in `supabase/`, 12 in `supabase/migrations/`, 6 in `supabase/seed/`.
 
 **Six different files** define the `profiles` table:
 `COMPLETE_SETUP.sql`, `PATCH_EXISTING_DB.sql`, `schema.sql`, `SEED_COMPANIES_MIGRATION.sql`, `migrations/001_create_profiles.sql`, `migrations/002_company_profiles_and_projects.sql`.
@@ -201,19 +201,19 @@ generate_activity_hash     is_channel_owner
 
 ## 9. Recommended streamline
 
-### Phase 1 - fix broken code (no schema change)
+### Phase 1 — fix broken code (no schema change)
 1. `settings/company` → use `company_members`
 2. `ContactCompanyForm` → use `user_conversations` + `user_messages`
 3. `admin/companies` → read `is_verified`
 4. `admin/users` → drop the `company_name` search
 5. Delete `page_company_old.tsx`
 
-### Phase 2 - schema consolidation
+### Phase 2 — schema consolidation
 6. Standardize all user FKs on `profiles(id)`
 7. Drop the 4 legacy tables
 8. Drop redundant `name` / `address` columns
 9. Decide `orders` vs `product_orders` (unify or document)
 
-### Phase 3 - SQL hygiene
+### Phase 3 — SQL hygiene
 10. Collapse 69 files into one ordered migration history
 11. Apply `is_company_member` / `is_company_manager` / `is_company_owner`

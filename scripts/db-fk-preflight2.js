@@ -1,5 +1,5 @@
 /**
- * db-fk-preflight2.js - verify integrity for the parent-table FKs
+ * db-fk-preflight2.js — verify integrity for the parent-table FKs
  * (conversation_id, rfq_id, service_id, product_id) before retargeting.
  */
 import dotenv from 'dotenv';

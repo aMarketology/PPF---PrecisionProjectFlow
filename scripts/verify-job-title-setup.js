@@ -10,7 +10,7 @@ const s = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABAS
 
 // 1. job_title column exists?
 const { data: prof, error: profErr } = await s.from('profiles').select('id, email, job_title, company_id').limit(1);
-console.log('job_title column:', profErr ? 'MISSING - ' + profErr.message : 'OK');
+console.log('job_title column:', profErr ? 'MISSING — ' + profErr.message : 'OK');
 
 // 2. RPC exists?
 const { error: rpcErr } = await s.rpc('ensure_job_title_channel', {
@@ -18,7 +18,7 @@ const { error: rpcErr } = await s.rpc('ensure_job_title_channel', {
   p_job_title: 'Test',
   p_user_id: '00000000-0000-0000-0000-000000000000',
 });
-console.log('ensure_job_title_channel RPC:', rpcErr ? 'ERR - ' + rpcErr.message : 'OK');
+console.log('ensure_job_title_channel RPC:', rpcErr ? 'ERR — ' + rpcErr.message : 'OK');
 
 // 3. Stale participations cleaned?
 const { data: stale } = await s

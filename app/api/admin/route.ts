@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     }
 
     if (action === 'stats') {
-      const tables = ['profiles', 'company_profiles', 'products', 'services', 'rfqs'] as const;
+      const tables = ['profiles', 'company_profiles', 'products', 'services', 'rfqs', 'marketplace_orders'] as const;
       const results = await Promise.all(
         tables.map(t => supabase.from(t).select('*', { count: 'exact', head: true }))
       );
@@ -57,6 +57,7 @@ export async function GET(request: NextRequest) {
         products: results[2].count ?? 0,
         services: results[3].count ?? 0,
         rfqs: results[4].count ?? 0,
+        orders: results[5].count ?? 0,
       });
     }
 
@@ -70,6 +71,56 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ admins: admins ?? [] });
     }
 
+    // ── Full user detail for /admin/users/[id] ─────────────────────
+    if (action === 'user-detail') {
+      const userId = searchParams.get('id');
+      if (!userId) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+      const [{ data: prof, error: profErr }, { data: memberships }, { data: owned }, { data: authUser }, { data: rfqs }, { data: services }, { data: messagesCount }] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('company_members').select('id, company_id, role, status, created_at, company:company_profiles(id, company_name)').eq('user_id', userId).order('created_at', { ascending: false }),
+        supabase.from('company_profiles').select('id, company_name').eq('owner_id', userId),
+        supabase.auth.admin.getUserById(userId),
+        supabase.from('rfqs').select('id, title, status, created_at').eq('client_id', userId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('services').select('id, title, category, active, created_at').eq('provider_id', userId).order('created_at', { ascending: false }).limit(5),
+        supabase.from('user_messages').select('id', { count: 'exact', head: true }).eq('sender_id', userId),
+      ]);
+
+      if (profErr || !prof) {
+        return NextResponse.json({ error: 'User not found' }, { status: 404 });
+      }
+
+      // Resolve company name (profiles has no company_name column)
+      let companyName: string | null = null;
+      if (prof.company_id) {
+        const { data: company } = await supabase
+          .from('company_profiles')
+          .select('company_name')
+          .eq('id', prof.company_id)
+          .single();
+        companyName = company?.company_name ?? null;
+      }
+
+      const authData = (authUser?.user ?? null) as any;
+
+      return NextResponse.json({
+        profile: { ...prof, company_name: companyName },
+        memberships: memberships ?? [],
+        ownedCompanies: owned ?? [],
+        authData: authData ? {
+          last_sign_in_at: authData.last_sign_in_at ?? null,
+          email_confirmed_at: authData.email_confirmed_at ?? null,
+          confirmed_at: authData.confirmed_at ?? null,
+          phone: authData.phone ?? null,
+          created_at: authData.created_at ?? null,
+          updated_at: authData.updated_at ?? null,
+        } : null,
+        recentRfqs: rfqs ?? [],
+        recentServices: services ?? [],
+        messagesSent: messagesCount?.count ?? 0,
+      });
+    }
+
     // ── Real analytics for /admin/reports ──────────────────────────
     if (action === 'reports') {
       const range = searchParams.get('range') ?? '30d';
@@ -77,10 +128,9 @@ export async function GET(request: NextRequest) {
       const since = new Date(Date.now() - days * 86400000).toISOString();
       const prevSince = new Date(Date.now() - days * 2 * 86400000).toISOString();
 
-      const [ordersRes, productOrdersRes, profilesRes, servicesRes, productsRes, rfqsRes, offersRes, reportsRes] =
+      const [ordersRes, profilesRes, servicesRes, productsRes, rfqsRes, offersRes, reportsRes] =
         await Promise.all([
-          supabase.from('orders').select('id, status, total_amount, created_at, engineer_id, service_id'),
-          supabase.from('product_orders').select('id, status, total_amount, platform_fee, created_at, company_id, product_id, product_name'),
+          supabase.from('marketplace_orders').select('id, status, total_amount, fee_amount, created_at, order_type, seller_id, buyer_id, seller_company_id'),
           supabase.from('profiles').select('id, full_name, email, user_type, created_at'),
           supabase.from('services').select('id, title, category, price, provider_id, active'),
           supabase.from('products').select('id, name, category, price, company_id, is_active'),
@@ -90,7 +140,6 @@ export async function GET(request: NextRequest) {
         ]);
 
       const orders = ordersRes.data ?? [];
-      const productOrders = productOrdersRes.data ?? [];
       const profiles = profilesRes.data ?? [];
       const services = servicesRes.data ?? [];
       const products = productsRes.data ?? [];
@@ -101,37 +150,31 @@ export async function GET(request: NextRequest) {
       const inRange = (d: string) => d >= since;
       const inPrev = (d: string) => d >= prevSince && d < since;
 
-      // Revenue = service orders + product orders (product orders carry a platform fee)
-      const revenueOf = (list: any[]) => list.reduce((s, o) => s + Number(o.total_amount || 0), 0);
-      const feeOf = (list: any[]) => list.reduce((s, o) => s + Number(o.platform_fee || 0), 0);
-
       const curOrders = orders.filter(o => inRange(o.created_at));
       const prevOrders = orders.filter(o => inPrev(o.created_at));
-      const curProductOrders = productOrders.filter(o => inRange(o.created_at));
-      const prevProductOrders = productOrders.filter(o => inPrev(o.created_at));
 
-      const curRevenue = revenueOf(curOrders) + revenueOf(curProductOrders);
-      const prevRevenue = revenueOf(prevOrders) + revenueOf(prevProductOrders);
+      const curRevenue = curOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
+      const prevRevenue = prevOrders.reduce((s, o) => s + Number(o.total_amount || 0), 0);
       const growth = prevRevenue > 0 ? Math.round(((curRevenue - prevRevenue) / prevRevenue) * 100) : (curRevenue > 0 ? 100 : 0);
+
+      const curFees = curOrders.reduce((s, o) => s + Number(o.fee_amount || 0), 0);
 
       const curNewUsers = profiles.filter(p => inRange(p.created_at)).length;
       const prevNewUsers = profiles.filter(p => inPrev(p.created_at)).length;
       const userGrowth = prevNewUsers > 0 ? Math.round(((curNewUsers - prevNewUsers) / prevNewUsers) * 100) : (curNewUsers > 0 ? 100 : 0);
 
-      const allOrders = [...orders, ...productOrders];
-      const completed = allOrders.filter(o => ['completed', 'delivered'].includes(o.status)).length;
-      const completionRate = allOrders.length > 0 ? Math.round((completed / allOrders.length) * 1000) / 10 : 0;
+      const completed = orders.filter(o => ['completed', 'delivered'].includes(o.status)).length;
+      const completionRate = orders.length > 0 ? Math.round((completed / orders.length) * 1000) / 10 : 0;
 
-      // Top categories by revenue (service orders → service category; product orders → product category)
+      // Top categories by revenue (products/services resolved to their category)
       const serviceById = new Map(services.map(s => [s.id, s]));
       const productById = new Map(products.map(p => [p.id, p]));
       const catRevenue = new Map<string, number>();
       for (const o of orders) {
-        const cat = serviceById.get(o.service_id)?.category || 'Uncategorized';
-        catRevenue.set(cat, (catRevenue.get(cat) || 0) + Number(o.total_amount || 0));
-      }
-      for (const o of productOrders) {
-        const cat = productById.get(o.product_id)?.category || 'Uncategorized';
+        let cat = 'Uncategorized';
+        if (o.order_type === 'service') cat = serviceById.get(o.service_id)?.category || 'Services';
+        else if (o.order_type === 'product') cat = productById.get(o.product_id)?.category || 'Products';
+        else cat = 'RFQ Contract';
         catRevenue.set(cat, (catRevenue.get(cat) || 0) + Number(o.total_amount || 0));
       }
       const totalCatRevenue = Array.from(catRevenue.values()).reduce((a, b) => a + b, 0);
@@ -140,13 +183,8 @@ export async function GET(request: NextRequest) {
         .sort((a, b) => b.revenue - a.revenue)
         .slice(0, 5);
 
-      // Top vendors by revenue (service orders → engineer; product orders → company owner)
+      // Top vendors by revenue (seller_id is unified now)
       const profileById = new Map(profiles.map(p => [p.id, p]));
-      const companyOwnerIds = Array.from(new Set(productOrders.map(o => o.company_id).filter(Boolean)))
-      const { data: orderCompanies } = companyOwnerIds.length
-        ? await supabase.from('company_profiles').select('id, company_name, owner_id').in('id', companyOwnerIds)
-        : { data: [] as any[] }
-      const companyById = new Map((orderCompanies || []).map(c => [c.id, c]))
       const vendorRevenue = new Map<string, { revenue: number; orders: number }>()
       const bump = (id: string | null, amount: number) => {
         if (!id) return
@@ -154,8 +192,7 @@ export async function GET(request: NextRequest) {
         e.revenue += amount; e.orders += 1
         vendorRevenue.set(id, e)
       }
-      for (const o of orders) bump(o.engineer_id, Number(o.total_amount || 0))
-      for (const o of productOrders) bump(companyById.get(o.company_id)?.owner_id ?? null, Number(o.total_amount || 0))
+      for (const o of orders) bump(o.seller_id, Number(o.total_amount || 0))
       const topVendors = Array.from(vendorRevenue.entries())
         .map(([id, v]) => ({ id, name: profileById.get(id)?.full_name || 'Unknown', ...v }))
         .sort((a, b) => b.revenue - a.revenue)
@@ -176,12 +213,12 @@ export async function GET(request: NextRequest) {
         range,
         metrics: {
           revenue: curRevenue,
-          platformFees: feeOf(curProductOrders),
+          platformFees: curFees,
           revenueGrowth: growth,
           newUsers: curNewUsers,
           userGrowth,
           completionRate,
-          totalOrders: allOrders.length,
+          totalOrders: orders.length,
         },
         topCategories,
         topVendors,
@@ -230,7 +267,7 @@ export async function GET(request: NextRequest) {
           result = await supabase.from('rfqs').select('*, client:profiles!rfqs_client_id_fkey(id, full_name, email)', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
           break;
         case 'orders':
-          result = await supabase.from('product_orders').select('*, buyer:profiles!product_orders_buyer_id_fkey(id, full_name, email), company:company_profiles!product_orders_company_id_fkey(id, company_name)', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
+          result = await supabase.from('marketplace_orders').select('*, buyer:profiles!marketplace_orders_buyer_id_fkey(id, full_name, email), seller:profiles!marketplace_orders_seller_id_fkey(id, full_name, email), company:company_profiles!marketplace_orders_seller_company_id_fkey(id, company_name)', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
           break;
       }
 
@@ -247,6 +284,19 @@ export async function GET(request: NextRequest) {
             .in('id', providerIds);
           const pmap = new Map((providers || []).map(p => [p.id, p]));
           rows = rows.map((r: any) => ({ ...r, provider: pmap.get(r.provider_id) ?? null }));
+        }
+      }
+
+      // Enrich products with company owner (for admin messaging).
+      if (tab === 'products' && rows.length > 0) {
+        const companyIds = Array.from(new Set(rows.map((r: any) => r.company_id).filter(Boolean)));
+        if (companyIds.length > 0) {
+          const { data: companies } = await supabase
+            .from('company_profiles')
+            .select('id, company_name, owner_id')
+            .in('id', companyIds);
+          const cmap = new Map((companies || []).map(c => [c.id, c]));
+          rows = rows.map((r: any) => ({ ...r, company: cmap.get(r.company_id) ?? null }));
         }
       }
 
@@ -341,6 +391,39 @@ export async function POST(request: NextRequest) {
         .eq('id', id);
       if (error) throw error;
       return NextResponse.json({ success: true });
+    }
+
+    // ── Account status (suspend/reactivate/deactivate) ─────────────
+    if (action === 'set-account-status') {
+      const body = await request.json().catch(() => ({}));
+      const status = body.status;
+      const reason = body.reason ?? null;
+      if (!['active', 'suspended', 'deactivated'].includes(status)) {
+        return NextResponse.json({ error: 'Invalid status' }, { status: 400 });
+      }
+
+      // Guard: a super admin cannot deactivate a fellow super admin
+      // (unless they are targeting themselves is disallowed too).
+      const { data: target } = await supabase
+        .from('profiles')
+        .select('is_admin')
+        .eq('id', id)
+        .single();
+      if (target?.is_admin) {
+        return NextResponse.json({ error: 'Super admin accounts cannot be deactivated from here.' }, { status: 403 });
+      }
+
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          account_status: status,
+          deactivated_reason: status === 'active' ? null : reason,
+          deactivated_at: status === 'active' ? null : new Date().toISOString(),
+          deactivated_by: status === 'active' ? null : user.id,
+        })
+        .eq('id', id);
+      if (error) throw error;
+      return NextResponse.json({ success: true, status });
     }
 
     if (action === 'invite-claim') {

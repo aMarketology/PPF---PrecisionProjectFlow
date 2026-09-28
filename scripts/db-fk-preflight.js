@@ -1,5 +1,5 @@
 /**
- * db-fk-preflight.js - verify data integrity BEFORE adding FK constraints.
+ * db-fk-preflight.js — verify data integrity BEFORE adding FK constraints.
  * An ADD CONSTRAINT fails if any existing value has no matching parent row.
  */
 import dotenv from 'dotenv';
@@ -64,4 +64,4 @@ for (const [table, col, parentSet, parentName] of [
   failures += check(`${table}.${col} → ${parentName}.id`, rows, col, parentSet, parentName);
 }
 
-console.log(`\n  ${failures === 0 ? '✅ ALL CLEAR - safe to add constraints' : `❌ ${failures} integrity problem(s) - fix data before adding constraints`}`);
+console.log(`\n  ${failures === 0 ? '✅ ALL CLEAR — safe to add constraints' : `❌ ${failures} integrity problem(s) — fix data before adding constraints`}`);

@@ -1,5 +1,5 @@
 /**
- * db-legacy-inspect.js - inspect the actual contents of legacy tables
+ * db-legacy-inspect.js — inspect the actual contents of legacy tables
  * before dropping them, and capture full FK error details.
  */
 import dotenv from 'dotenv';
@@ -53,5 +53,5 @@ for (const [table, col] of COLS) {
   );
   const body = await res.json().catch(() => ({}));
   console.log(`  ${table}.${col}`);
-  console.log(`     ${body?.code || 'OK'} - ${(body?.details || body?.message || 'resolved').slice(0, 160)}`);
+  console.log(`     ${body?.code || 'OK'} — ${(body?.details || body?.message || 'resolved').slice(0, 160)}`);
 }

@@ -18,7 +18,7 @@ function getStripe() {
 export async function POST(request: NextRequest) {
   try {
     const stripe = getStripe();
-    const { productId } = await request.json();
+    const { productId, type } = await request.json();
 
     if (!productId) {
       return NextResponse.json(
@@ -38,105 +38,165 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Fetch service details with provider info
-    const { data: service, error: serviceError } = await supabase
-      .from('services')
-      .select(`
-        id, title, description, price, category, provider_id,
-        provider:profiles(id, full_name, email)
-      `)
-      .eq('id', productId)
-      .eq('active', true)
-      .single();
+    // ── Resolve the listing (product or service) + seller info ──────
+    // Default to 'service' for backwards compatibility, but the product
+    // checkout passes type='product'.
+    const isProduct = type === 'product';
 
-    if (serviceError || !service) {
+    let title: string;
+    let description: string | null = null;
+    let price: number;
+    let sellerId: string | null = null;
+    let sellerCompanyId: string | null = null;
+    let category: string | null = null;
+
+    if (isProduct) {
+      const { data: product, error } = await supabase
+        .from('products')
+        .select(`id, name, description, price, category, is_active, company_id, company:company_profiles(id, owner_id)`)
+        .eq('id', productId)
+        .eq('is_active', true)
+        .single();
+      if (error || !product) {
+        return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+      }
+      title = product.name;
+      description = product.description;
+      price = Number(product.price);
+      category = product.category;
+      sellerCompanyId = product.company_id;
+      sellerId = product.company?.owner_id ?? null;
+    } else {
+      const { data: service, error } = await supabase
+        .from('services')
+        .select(`id, title, description, price, category, provider_id, provider:profiles(id, full_name, email, company_id)`)
+        .eq('id', productId)
+        .eq('active', true)
+        .single();
+      if (error || !service) {
+        return NextResponse.json({ error: 'Service not found' }, { status: 404 });
+      }
+      title = service.title;
+      description = service.description;
+      price = Number(service.price);
+      category = service.category;
+      sellerId = service.provider_id;
+      sellerCompanyId = (service.provider as any)?.company_id ?? null;
+    }
+
+    if (!sellerId) {
       return NextResponse.json(
-        { error: 'Service not found' },
-        { status: 404 }
+        { error: 'The seller has no linked profile' },
+        { status: 409 }
       );
     }
 
-    // price is stored as DECIMAL in dollars - convert to cents for Stripe
-    const totalAmount = Math.round(Number(service.price) * 100);
+    const totalAmount = Math.round(price * 100);
     const platformFee = Math.round(totalAmount * 0.10);
 
-    // Create Payment Intent (direct charge to platform; no Stripe Connect required for now)
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: totalAmount,
-      currency: 'usd',
-      metadata: {
-        service_id: service.id,
-        service_title: service.title,
-        provider_id: service.provider_id,
-        customer_id: user.id,
-        platform_fee_cents: String(platformFee),
-      },
-      description: `PPF - ${service.title}`,
-    });
+    // ── Resolve seller's Stripe Connect account (optional) ──────────
+    // Direct Charge when the seller has completed Connect onboarding;
+    // otherwise fall back to a platform-direct charge (no fee captured).
+    let connectAccountId: string | null = null;
+    if (sellerCompanyId) {
+      const { data: connectAccount } = await supabase
+        .from('stripe_connect_accounts')
+        .select('stripe_account_id, charges_enabled, payouts_enabled')
+        .eq('company_id', sellerCompanyId)
+        .maybeSingle();
+      if (connectAccount?.stripe_account_id && connectAccount.charges_enabled) {
+        connectAccountId = connectAccount.stripe_account_id;
+      }
+    }
 
-    // Create an order record in the database
+    const metadata = {
+      type: 'marketplace_order',
+      order_type: isProduct ? 'product' : 'service',
+      [isProduct ? 'product_id' : 'service_id']: productId,
+      [isProduct ? 'product_name' : 'service_title']: title,
+      provider_id: sellerId,
+      customer_id: user.id,
+      seller_id: sellerId,
+      buyer_id: user.id,
+      platform_fee_cents: String(platformFee),
+    };
+
+    // ── Create the Payment Intent ───────────────────────────────────
+    let paymentIntent: Stripe.PaymentIntent;
+    if (connectAccountId) {
+      // Direct Charge: charge on the connected account, keep 10% fee.
+      paymentIntent = await stripe.paymentIntents.create(
+        {
+          amount: totalAmount,
+          currency: 'usd',
+          application_fee_amount: platformFee,
+          transfer_data: { destination: connectAccountId },
+          metadata,
+          description: `PPF - ${title}`,
+        },
+        { stripeAccount: connectAccountId }
+      );
+    } else {
+      // Platform direct charge (no Connect yet).
+      paymentIntent = await stripe.paymentIntents.create({
+        amount: totalAmount,
+        currency: 'usd',
+        metadata,
+        description: `PPF - ${title}`,
+      });
+    }
+
+    // Record an order in the unified ledger (pending until webhook confirms).
     const { error: orderError } = await supabase
-      .from('orders')
-      .insert([{
-        client_id: user.id,
-        engineer_id: service.provider_id,
-        service_id: service.id,
-        status: 'pending',
-        total_amount: Number(service.price),
-      }]);
+      .from('marketplace_orders')
+      .insert({
+        order_number:            `PPF-${isProduct ? 'PRD' : 'SVC'}-${paymentIntent.id.slice(-8).toUpperCase()}`,
+        order_type:              isProduct ? 'product' : 'service',
+        buyer_id:                user.id,
+        seller_id:               sellerId,
+        seller_company_id:       sellerCompanyId,
+        subtotal_amount:         price - (platformFee / 100),
+        fee_amount:              platformFee / 100,
+        total_amount:            price,
+        currency:                'usd',
+        stripe_payment_intent_id: paymentIntent.id,
+        stripe_account_id:       connectAccountId,
+        status:                  'pending_payment',
+        payout_status:           'not_held',
+      });
 
     if (orderError) {
-      console.error('Error creating order record:', orderError);
-      // Don't fail the checkout - order can be reconciled via webhook
+      console.error('Error creating marketplace order:', orderError);
+      // Don't fail checkout - webhook will reconcile.
     }
 
-    // Fetch buyer profile for emails
-    const { data: buyerProfile } = await supabase
-      .from('profiles')
-      .select('full_name, email')
-      .eq('id', user.id)
-      .single();
+    // ── Emails (fire and forget) ────────────────────────────────────
+    const { data: buyerProfile } = await supabase.from('profiles').select('full_name, email').eq('id', user.id).single();
+    const { data: sellerProfile } = await supabase.from('profiles').select('full_name, email').eq('id', sellerId).single();
 
-    const provider = service.provider as any;
     const buyerName = buyerProfile?.full_name || 'A client';
     const buyerEmail = buyerProfile?.email || user.email!;
-    const vendorName = provider?.full_name || 'Vendor';
-    const vendorEmail = provider?.email;
+    const vendorName = sellerProfile?.full_name || 'Vendor';
+    const vendorEmail = sellerProfile?.email;
 
-    // Email vendor: new order notification
     if (vendorEmail) {
-      sendNewOrderEmailVendor({
-        to: vendorEmail,
-        vendorName,
-        clientName: buyerName,
-        serviceTitle: service.title,
-        orderAmount: Math.round(Number(service.price) * 100),
-        orderId: paymentIntent.id,
-      }).catch(e => console.error('[Email] vendor notification failed:', e));
+      sendNewOrderEmailVendor({ to: vendorEmail, vendorName, clientName: buyerName, serviceTitle: title, orderAmount: totalAmount, orderId: paymentIntent.id }).catch(() => {});
     }
+    sendOrderConfirmationEmail({ to: buyerEmail, clientName: buyerName, vendorName, serviceTitle: title, orderAmount: totalAmount, orderId: paymentIntent.id }).catch(() => {});
 
-    // Email buyer: order confirmation
-    sendOrderConfirmationEmail({
-      to: buyerEmail,
-      clientName: buyerName,
-      vendorName,
-      serviceTitle: service.title,
-      orderAmount: Math.round(Number(service.price) * 100),
-      orderId: paymentIntent.id,
-    }).catch(e => console.error('[Email] buyer confirmation failed:', e));
-
-    // Auto-post transaction milestone to feed (fire and forget)
+    // Auto-post feed milestone (fire and forget)
     fetch(`${request.nextUrl.origin}/api/feed/auto-post`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ type: 'service_purchased', serviceId: service.id, vendorId: service.provider_id, buyerId: user.id }),
-    }).catch(e => console.error('[Feed] auto-post failed:', e));
+      body: JSON.stringify({ type: isProduct ? 'product_purchased' : 'service_purchased', [isProduct ? 'productId' : 'serviceId']: productId, vendorId: sellerId, buyerId: user.id }),
+    }).catch(() => {});
 
     return NextResponse.json({
       clientSecret: paymentIntent.client_secret,
       paymentIntentId: paymentIntent.id,
       amount: totalAmount,
       currency: 'usd',
+      directCharge: !!connectAccountId,
     });
 
   } catch (error: any) {

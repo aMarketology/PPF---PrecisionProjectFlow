@@ -1,5 +1,5 @@
 /**
- * db-fk-enumerate.js - brute-force enumerate FK constraint names + targets
+ * db-fk-enumerate.js — brute-force enumerate FK constraint names + targets
  * by probing PostgREST embeds, and check for legacy table existence.
  */
 import dotenv from 'dotenv';

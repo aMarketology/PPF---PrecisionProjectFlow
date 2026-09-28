@@ -155,7 +155,7 @@ export default function AdminOverviewPage() {
                     </div>
                     <div className="min-w-0">
                       <p className="font-bold text-gray-900 truncate">{c.company_name}</p>
-                      <p className="text-xs text-gray-500">{[c.city, c.state].filter(Boolean).join(', ') || c.industry || '-'}</p>
+                      <p className="text-xs text-gray-500">{[c.city, c.state].filter(Boolean).join(', ') || c.industry || '—'}</p>
                     </div>
                   </div>
                   <div className="flex flex-wrap gap-1.5">
@@ -171,7 +171,7 @@ export default function AdminOverviewPage() {
         </>
       )}
 
-      {/* Platform overview - super admins only */}
+      {/* Platform overview — super admins only */}
       {can(ctx, 'view_platform') && (
         <>
           <h2 className="text-lg font-bold text-gray-900 mb-4 flex items-center gap-2">

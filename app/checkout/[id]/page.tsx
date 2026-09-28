@@ -85,6 +85,7 @@ export default function CheckoutPage() {
         },
         body: JSON.stringify({
           productId: productId,
+          type: 'product',
         }),
       });
 

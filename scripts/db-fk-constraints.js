@@ -1,5 +1,5 @@
 /**
- * db-fk-constraints.js - enumerate REAL FK constraint names by triggering
+ * db-fk-constraints.js — enumerate REAL FK constraint names by triggering
  * PostgREST ambiguity errors (PGRST201), whose details list every candidate.
  */
 import dotenv from 'dotenv';

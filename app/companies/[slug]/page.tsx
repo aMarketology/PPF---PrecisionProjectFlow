@@ -168,7 +168,7 @@ export default function CompanyDetailPage() {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-8">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
 
-          {/* LEFT - main info */}
+          {/* LEFT — main info */}
           <div className="lg:col-span-2 space-y-6">
 
             {/* Header card */}
@@ -273,7 +273,7 @@ export default function CompanyDetailPage() {
             )}
           </div>
 
-          {/* RIGHT - sidebar CTAs */}
+          {/* RIGHT — sidebar CTAs */}
           <div className="space-y-4">
 
             {/* Main CTA card */}
@@ -333,7 +333,7 @@ export default function CompanyDetailPage() {
               </div>
             )}
 
-            {/* Edit button - owner, super admin, or company manager */}
+            {/* Edit button — owner, super admin, or company manager */}
             {canEdit && (
               <Link
                 href={`/companies/${slug}/edit`}

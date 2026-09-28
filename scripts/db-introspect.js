@@ -1,5 +1,5 @@
 /**
- * db-introspect.js - deep read-only introspection of the live Supabase schema.
+ * db-introspect.js — deep read-only introspection of the live Supabase schema.
  *
  * Uses the PostgREST OpenAPI spec for column types/formats, then probes
  * foreign-key relationships by attempting embedded resource selects.
@@ -26,7 +26,7 @@ const defs = spec.definitions ?? {};
 const tableNames = Object.keys(defs).sort();
 
 console.log('══════════════════════════════════════════════════════════');
-console.log('  LIVE SCHEMA - ' + tableNames.length + ' TABLES');
+console.log('  LIVE SCHEMA — ' + tableNames.length + ' TABLES');
 console.log('══════════════════════════════════════════════════════════\n');
 
 for (const t of tableNames) {

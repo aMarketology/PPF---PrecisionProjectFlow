@@ -1,4 +1,4 @@
-// PPF Email via Resend - server-side only, never import in 'use client' files.
+// PPF Email via Resend — server-side only, never import in 'use client' files.
 import { Resend } from 'resend'
 
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL || 'https://precisionprojectflow.com'
@@ -66,7 +66,7 @@ export async function sendWelcomeEmail({ to, name, userType }: {
     : `<li>Browse the marketplace and discover engineering services</li><li>Message a vendor about your project</li><li>Post an RFQ to get multiple quotes at once</li>`
   const body =
     h1(`Welcome to PPF, ${name}!`) +
-    sub("Your account is live - here's how to get started.") +
+    sub("Your account is live — here's how to get started.") +
     pp(isEng
       ? "You've joined as an <strong>engineer / vendor</strong>. List your services, respond to RFQs, and get paid directly."
       : "You've joined as a <strong>client</strong>. Browse services, post RFQs, and message vendors directly.") +
@@ -102,7 +102,7 @@ export async function sendNewMessageEmail({ to, recipientName, senderName, previ
   })
 }
 
-// ── 3a. New order - vendor ────────────────────────────────────────────────────
+// ── 3a. New order — vendor ────────────────────────────────────────────────────
 
 export async function sendNewOrderEmailVendor({ to, vendorName, clientName, serviceTitle, orderAmount, orderId }: {
   to: string; vendorName: string; clientName: string; serviceTitle: string; orderAmount: number; orderId: string
@@ -125,7 +125,7 @@ export async function sendNewOrderEmailVendor({ to, vendorName, clientName, serv
   })
 }
 
-// ── 3b. Order confirmation - client ──────────────────────────────────────────
+// ── 3b. Order confirmation — client ──────────────────────────────────────────
 
 export async function sendOrderConfirmationEmail({ to, clientName, vendorName, serviceTitle, orderAmount, orderId }: {
   to: string; clientName: string; vendorName: string; serviceTitle: string; orderAmount: number; orderId: string
@@ -158,7 +158,7 @@ export async function sendClaimInviteEmail({ to, contactName, companyName, compa
   const claimUrl = `${APP_URL}/claim-company?id=${companyId}&name=${encodeURIComponent(companyName)}`
   const body =
     h1(`Claim your company page, ${contactName}`) +
-    sub(`${companyName} already has a profile on Precision Project Flow. Claim it now - it's free and takes under 2 minutes.`) +
+    sub(`${companyName} already has a profile on Precision Project Flow. Claim it now — it's free and takes under 2 minutes.`) +
     infoBox([
       { label: 'Company', value: companyName },
       { label: 'Location', value: location || 'Nationwide' },
@@ -166,7 +166,7 @@ export async function sendClaimInviteEmail({ to, contactName, companyName, compa
     pp('Once claimed, you can update company details, add team members, receive RFQ notifications, message buyers directly, and build your engineering marketplace presence.') +
     btn('Claim Your Company Now', claimUrl, true) +
     divider() +
-    pp(`Didn't request this? No action needed - ${companyName}'s listing will remain as-is.`) +
+    pp(`Didn't request this? No action needed — ${companyName}'s listing will remain as-is.`) +
     pp(`Questions? Reply to this email or reach us at <a href="${APP_URL}/contact" style="color:#003D82;">${APP_URL}/contact</a>.`)
   return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,

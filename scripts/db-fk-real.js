@@ -1,5 +1,5 @@
 /**
- * db-fk-real.js - find the REAL FK targets by hint-free embeds.
+ * db-fk-real.js — find the REAL FK targets by hint-free embeds.
  * `select=profiles(id)` resolves only if an FK from <table> to profiles exists.
  */
 import dotenv from 'dotenv';

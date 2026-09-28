@@ -1,5 +1,5 @@
 /**
- * db-dump-fks.js - dump authoritative foreign-key definitions from the
+ * db-dump-fks.js — dump authoritative foreign-key definitions from the
  * PostgREST OpenAPI spec (spec.definitions.<table>.foreignKeys).
  */
 import dotenv from 'dotenv';

@@ -1,5 +1,5 @@
 /**
- * audit-rpcs.js - list live RPCs from the PostgREST OpenAPI spec.
+ * audit-rpcs.js — list live RPCs from the PostgREST OpenAPI spec.
  * (Probing with rpc(name, {}) gives false negatives because PostgREST
  *  matches functions by argument signature.)
  */

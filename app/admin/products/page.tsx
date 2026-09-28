@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Loader2, Trash2, Eye, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Loader2, Trash2, Eye, ChevronLeft, ChevronRight, ArrowUpDown, ArrowUp, ArrowDown, ExternalLink, MessageSquare } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 interface Product {
@@ -16,6 +17,7 @@ interface Product {
   image_url: string | null
   company_id: string
   created_at: string
+  company?: { id: string; company_name: string | null; owner_id: string | null } | null
 }
 
 type SortKey = 'name' | 'price' | 'category' | 'is_active'
@@ -161,6 +163,16 @@ export default function AdminProductsPage() {
                   </td>
                   <td className="px-4 py-3 text-right">
                     <div className="flex items-center justify-end gap-1">
+                      <Link href={`/marketplace/product/${p.id}`} title="View product page"
+                        className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-[#003D82]">
+                        <ExternalLink className="w-4 h-4" />
+                      </Link>
+                      {p.company?.owner_id && (
+                        <Link href={`/messages?with=${p.company.owner_id}`} title={`Message ${p.company.company_name || 'vendor'}`}
+                          className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-[#003D82]">
+                          <MessageSquare className="w-4 h-4" />
+                        </Link>
+                      )}
                       <button onClick={() => handleToggle(p)} title={p.is_active ? 'Deactivate' : 'Activate'}
                         className={`p-1.5 rounded-lg ${p.is_active ? 'hover:bg-amber-50 text-amber-500' : 'hover:bg-emerald-50 text-gray-400 hover:text-emerald-600'}`}>
                         <Eye className="w-4 h-4" />

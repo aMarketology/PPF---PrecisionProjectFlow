@@ -94,8 +94,8 @@ export default function MyListingsPage() {
                 ? products.map(p => (
                   <tr key={p.id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-3.5 font-semibold text-gray-900 max-w-[240px] truncate">{p.name}</td>
-                    <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{p.category || '-'}</td>
-                    <td className="px-5 py-3.5 text-gray-600 font-medium">{p.price != null ? `$${Number(p.price).toLocaleString()}` : '-'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{p.category || '—'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 font-medium">{p.price != null ? `$${Number(p.price).toLocaleString()}` : '—'}</td>
                     <td className="px-5 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${p.is_active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500'}`}>
                         {p.is_active ? 'Active' : 'Inactive'}
@@ -109,8 +109,8 @@ export default function MyListingsPage() {
                 : services.map(s => (
                   <tr key={s.id} className="hover:bg-[#F8FAFC] transition-colors">
                     <td className="px-5 py-3.5 font-semibold text-gray-900 max-w-[240px] truncate">{s.title}</td>
-                    <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{s.category || '-'}</td>
-                    <td className="px-5 py-3.5 text-gray-600 font-medium">{s.price != null ? `$${Number(s.price).toLocaleString()}` : '-'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 hidden md:table-cell">{s.category || '—'}</td>
+                    <td className="px-5 py-3.5 text-gray-600 font-medium">{s.price != null ? `$${Number(s.price).toLocaleString()}` : '—'}</td>
                     <td className="px-5 py-3.5">
                       <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.active ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' : 'bg-gray-100 text-gray-500'}`}>
                         {s.active ? 'Active' : 'Inactive'}

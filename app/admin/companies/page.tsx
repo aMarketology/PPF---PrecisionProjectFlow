@@ -95,8 +95,8 @@ export default function AdminCompaniesPage() {
             ) : filtered.map(c => (
               <tr key={c.id} className="hover:bg-gray-50">
                 <td className="px-4 py-3 font-medium text-gray-900 max-w-[200px] truncate">{c.company_name}</td>
-                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[c.city, c.state].filter(Boolean).join(', ') || '-'}</td>
-                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{c.industry || '-'}</td>
+                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{[c.city, c.state].filter(Boolean).join(', ') || '—'}</td>
+                <td className="px-4 py-3 text-gray-600 hidden md:table-cell">{c.industry || '—'}</td>
                 <td className="px-4 py-3">
                   <div className="flex gap-1">
                     {c.is_verified && <span className="px-1.5 py-0.5 bg-blue-100 text-blue-700 rounded-full text-xs font-semibold">Verified</span>}

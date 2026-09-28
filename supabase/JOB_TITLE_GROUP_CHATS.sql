@@ -3,7 +3,7 @@
 -- Run in: Supabase Dashboard → SQL Editor
 --
 -- Adds:
---   1. profiles.job_title - the member's job title (set in /admin/company)
+--   1. profiles.job_title — the member's job title (set in /admin/company)
 --   2. Auto-created group chat per job title within a company
 --      (any set job title gets a chat, even for a single person)
 --   3. Cleanup of channel/group access when a member leaves or is removed

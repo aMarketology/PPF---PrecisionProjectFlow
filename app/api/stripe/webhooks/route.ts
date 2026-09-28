@@ -56,6 +56,16 @@ export async function POST(request: NextRequest) {
         await handleAccountUpdated(account, supabase);
         break;
 
+      case 'payout.paid':
+        const payout = event.data.object as Stripe.Payout;
+        await handlePayoutPaid(payout, supabase);
+        break;
+
+      case 'charge.dispute.created':
+        const dispute = event.data.object as Stripe.Dispute;
+        await handleDisputeCreated(dispute, supabase);
+        break;
+
       default:
         console.log(`Unhandled event type: ${event.type}`);
     }
@@ -96,6 +106,16 @@ async function handlePaymentSuccess(
       updated_at: new Date().toISOString(),
     }).eq('id', contractId);
     if (error) console.error('[webhook] contract activation failed:', error);
+
+    // Mark the matching unified-ledger row as paid (funds held in escrow
+    // on the connected account; released via manual payout on approval).
+    const { error: ledgerErr } = await supabase
+      .from('marketplace_orders')
+      .update({ status: 'paid', payout_status: 'held', paid_at: new Date().toISOString(), stripe_payment_intent_id: paymentIntent.id })
+      .eq('order_type', 'rfq_contract')
+      .eq('status', 'pending_payment');
+    if (ledgerErr) console.error('[webhook] rfq_contract ledger update failed:', ledgerErr);
+
     return;
   }
 
@@ -125,116 +145,89 @@ async function handlePaymentSuccess(
     return; // token purchases don't create product orders
   }
 
-  try {
-    // Update payment intent status
-    const { error: updateError } = await supabase
-      .from('payment_intents')
-      .update({
-        status: 'succeeded',
-        succeeded_at: new Date().toISOString(),
-        payment_method_id: paymentIntent.payment_method,
-      })
-      .eq('stripe_payment_intent_id', paymentIntent.id);
+  // ── Marketplace order (product / service) ────────────────────────
+  // Reconstruct the unified ledger row directly from Stripe metadata
+  // (no dependency on the legacy `payment_intents` table, which does
+  // not exist live).
+  if (paymentIntent.metadata?.type === 'marketplace_order') {
+    const m = paymentIntent.metadata;
+    const buyerId = m.buyer_id || m.customer_id;
+    const sellerId = m.seller_id || m.provider_id;
+    const orderType = m.order_type || 'service';
+    const amountCents = paymentIntent.amount;
+    const amountDollars = amountCents / 100;
+    const feeCents = parseInt(m.platform_fee_cents || '0', 10);
+    const feeDollars = feeCents / 100;
 
-    if (updateError) {
-      console.error('Error updating payment intent:', updateError);
-    }
-
-    // Get payment intent details
-    const { data: paymentIntentData, error: fetchError } = await supabase
-      .from('payment_intents')
-      .select('*')
-      .eq('stripe_payment_intent_id', paymentIntent.id)
-      .single();
-
-    if (fetchError || !paymentIntentData) {
-      console.error('Payment intent not found:', fetchError);
+    if (!buyerId || !sellerId) {
+      console.error('[webhook] marketplace_order missing buyer/seller metadata', m);
       return;
     }
 
-    // Create order in product_orders
-    const { error: orderError } = await supabase
-      .from('product_orders')
-      .insert({
-        buyer_id: paymentIntentData.customer_id,
-        product_id: paymentIntentData.product_id,
-        company_id: paymentIntentData.company_id,
-        total_amount: paymentIntentData.amount,
-        platform_fee: paymentIntentData.platform_fee,
-        currency: paymentIntentData.currency,
-        status: 'paid',
-        payment_intent_id: paymentIntentData.id,
-      });
+    // Upsert by stripe payment intent id (idempotent).
+    const { data: existing, error: existingErr } = await supabase
+      .from('marketplace_orders')
+      .select('id')
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .maybeSingle();
 
-    if (orderError) {
-      console.error('Error creating order:', orderError);
-    } else {
-      console.log('Order created successfully');
+    if (existingErr) console.error('[webhook] existing order lookup failed:', existingErr);
 
-      // Fire-and-forget order emails - fetch product + buyer + vendor info
-      try {
-        const { data: product } = await supabase
-          .from('products')
-          .select('name, company_id')
-          .eq('id', paymentIntentData.product_id)
-          .single();
+    if (!existing) {
+      const { error: orderError } = await supabase
+        .from('marketplace_orders')
+        .insert({
+          order_number:            `PPF-${orderType === 'product' ? 'PRD' : 'SVC'}-${paymentIntent.id.slice(-8).toUpperCase()}`,
+          order_type:              orderType,
+          buyer_id:                buyerId,
+          seller_id:               sellerId,
+          subtotal_amount:         amountDollars - feeDollars,
+          fee_amount:              feeDollars,
+          total_amount:            amountDollars,
+          currency:                paymentIntent.currency || 'usd',
+          stripe_payment_intent_id: paymentIntent.id,
+          stripe_charge_id:        typeof paymentIntent.latest_charge === 'string' ? paymentIntent.latest_charge : null,
+          status:                  'paid',
+          payout_status:           orderType === 'rfq_contract' ? 'held' : 'not_held',
+          paid_at:                 new Date().toISOString(),
+        });
 
-        const { data: buyer } = await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', paymentIntentData.customer_id)
-          .single();
-
-        const { data: company } = await supabase
-          .from('company_profiles')
-          .select('owner_id, name')
-          .eq('id', paymentIntentData.company_id)
-          .single();
-
-        const { data: vendor } = company?.owner_id ? await supabase
-          .from('profiles')
-          .select('full_name, email')
-          .eq('id', company.owner_id)
-          .single() : { data: null };
-
-        const orderId      = paymentIntentData.id;
-        const serviceTitle = product?.name || 'Engineering Service';
-        const orderAmount  = paymentIntentData.amount;
-
-        if (vendor?.email) {
-          sendNewOrderEmailVendor({
-            to:           vendor.email,
-            vendorName:   vendor.full_name,
-            clientName:   buyer?.full_name || 'A client',
-            serviceTitle,
-            orderAmount,
-            orderId,
-          }).catch(e => console.error('[email] vendor-order failed:', e));
-        }
-
-        if (buyer?.email) {
-          sendOrderConfirmationEmail({
-            to:           buyer.email,
-            clientName:   buyer.full_name,
-            vendorName:   company?.name || vendor?.full_name || 'Vendor',
-            serviceTitle,
-            orderAmount,
-            orderId,
-          }).catch(e => console.error('[email] client-order failed:', e));
-        }
-      } catch (emailErr) {
-        console.error('[email] order email lookup failed:', emailErr);
+      if (orderError) {
+        console.error('[webhook] marketplace_orders insert failed:', orderError);
+        return;
       }
+      console.log('[webhook] marketplace order created', paymentIntent.id);
     }
 
-  } catch (error) {
-    console.error('Error in handlePaymentSuccess:', error);
+    // Unlock the buyer<->seller DM (contract-to-unlock parity).
+    try {
+      const { data: convId } = await supabase.rpc('get_or_create_conversation', {
+        user_one_id: buyerId,
+        user_two_id: sellerId,
+      });
+      if (convId) {
+        await supabase.from('user_conversations')
+          .update({ is_unlocked: true })
+          .eq('id', convId);
+      }
+    } catch (e) { console.error('[webhook] conversation unlock failed:', e); }
+
+    // Fire-and-forget emails.
+    try {
+      const { data: buyer } = await supabase.from('profiles').select('full_name, email').eq('id', buyerId).single();
+      const { data: seller } = await supabase.from('profiles').select('full_name, email').eq('id', sellerId).single();
+      const serviceTitle = m.service_title || m.product_name || 'Engineering Service';
+      const orderId = paymentIntent.id;
+      if (seller?.email) sendNewOrderEmailVendor({ to: seller.email, vendorName: seller.full_name, clientName: buyer?.full_name || 'A client', serviceTitle, orderAmount: amountCents, orderId }).catch(() => {});
+      if (buyer?.email) sendOrderConfirmationEmail({ to: buyer.email, clientName: buyer.full_name, vendorName: seller?.full_name || 'Vendor', serviceTitle, orderAmount: amountCents, orderId }).catch(() => {});
+    } catch (emailErr) { console.error('[webhook] email lookup failed:', emailErr); }
+
+    return;
   }
-}
 
 /**
  * Handle failed payment
- * - Update payment_intent status to 'failed'
+ * - Mark the marketplace order as failed/refunded (or leave pending)
  */
 async function handlePaymentFailed(
   paymentIntent: Stripe.PaymentIntent,
@@ -243,19 +236,17 @@ async function handlePaymentFailed(
   console.log('Payment failed:', paymentIntent.id);
 
   try {
+    // If a marketplace order was already created, mark it paid->failed.
+    // Orders are only created on success, so this is mostly a no-op guard.
     const { error } = await supabase
-      .from('payment_intents')
-      .update({
-        status: 'failed',
-        failed_at: new Date().toISOString(),
-        failure_reason: paymentIntent.last_payment_error?.message || 'Payment failed',
-      })
-      .eq('stripe_payment_intent_id', paymentIntent.id);
+      .from('marketplace_orders')
+      .update({ status: 'refunded' })
+      .eq('stripe_payment_intent_id', paymentIntent.id)
+      .eq('status', 'pending_payment');
 
     if (error) {
-      console.error('Error updating payment intent:', error);
+      console.error('Error updating failed order:', error);
     }
-
   } catch (error) {
     console.error('Error in handlePaymentFailed:', error);
   }
@@ -288,5 +279,62 @@ async function handleAccountUpdated(
 
   } catch (error) {
     console.error('Error in handleAccountUpdated:', error);
+  }
+}
+
+/**
+ * Handle payout.paid - mark marketplace orders as paid out.
+ * A single payout may cover multiple orders; match by payout id.
+ */
+async function handlePayoutPaid(
+  payout: Stripe.Payout,
+  supabase: any
+) {
+  console.log('Payout paid:', payout.id);
+
+  try {
+    const { error } = await supabase
+      .from('marketplace_orders')
+      .update({
+        payout_status: 'paid_out',
+        payout_id: payout.id,
+        updated_at: new Date().toISOString(),
+      })
+      .eq('payout_id', payout.id);
+
+    if (error) {
+      console.error('Error updating payout status:', error);
+    }
+  } catch (error) {
+    console.error('Error in handlePayoutPaid:', error);
+  }
+}
+
+/**
+ * Handle charge.dispute.created - flag the marketplace order as disputed.
+ */
+async function handleDisputeCreated(
+  dispute: Stripe.Dispute,
+  supabase: any
+) {
+  console.log('Dispute created:', dispute.id);
+
+  try {
+    const chargeId = typeof dispute.charge === 'string' ? dispute.charge : dispute.charge?.id;
+    if (!chargeId) return;
+
+    const { error } = await supabase
+      .from('marketplace_orders')
+      .update({
+        status: 'disputed',
+        updated_at: new Date().toISOString(),
+      })
+      .eq('stripe_charge_id', chargeId);
+
+    if (error) {
+      console.error('Error flagging disputed order:', error);
+    }
+  } catch (error) {
+    console.error('Error in handleDisputeCreated:', error);
   }
 }

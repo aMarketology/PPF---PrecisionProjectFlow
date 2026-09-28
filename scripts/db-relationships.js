@@ -1,5 +1,5 @@
 /**
- * db-relationships.js - discover foreign-key relationships by probing
+ * db-relationships.js — discover foreign-key relationships by probing
  * PostgREST embedded selects, and report remaining table columns.
  */
 import dotenv from 'dotenv';
