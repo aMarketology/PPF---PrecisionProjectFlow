@@ -1,7 +1,8 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Loader2, Truck } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Loader2, Truck, MessageSquare } from 'lucide-react'
 
 interface Order {
   id: string
@@ -12,8 +13,8 @@ interface Order {
   status: string
   payout_status: string
   created_at: string
-  buyer?: { full_name: string; email: string }
-  seller?: { full_name: string; email: string }
+  buyer?: { id: string; full_name: string; email: string }
+  seller?: { id: string; full_name: string; email: string }
   company?: { company_name: string }
 }
 
@@ -136,11 +137,12 @@ export default function AdminOrdersPage() {
                 <th className="text-left px-4 py-3 font-semibold text-gray-700">Payout</th>
                 <th className="text-left px-4 py-3 font-semibold text-gray-700">Status</th>
                 <th className="text-right px-4 py-3 font-semibold text-gray-700 hidden md:table-cell">Date</th>
+                <th className="text-right px-4 py-3 font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody className="divide-y">
               {filtered.length === 0 ? (
-                <tr><td colSpan={8} className="text-center py-12 text-gray-400">No orders found</td></tr>
+                <tr><td colSpan={9} className="text-center py-12 text-gray-400">No orders found</td></tr>
               ) : (
                 filtered.map(order => (
                   <tr key={order.id} className="hover:bg-gray-50">
@@ -168,6 +170,30 @@ export default function AdminOrdersPage() {
                       </span>
                     </td>
                     <td className="px-4 py-3 text-right text-xs text-gray-500 hidden md:table-cell">{formatDate(order.created_at)}</td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        {order.buyer?.id && (
+                          <Link href={`/messages?with=${order.buyer.id}`} title={`Message buyer ${order.buyer.full_name || ''}`}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-[#003D82]">
+                            <MessageSquare className="w-4 h-4" />
+                          </Link>
+                        )}
+                        {order.seller?.id && (
+                          <Link href={`/messages?with=${order.seller.id}`} title={`Message seller ${order.seller.full_name || ''}`}
+                            className="p-1.5 rounded-lg hover:bg-blue-50 text-gray-400 hover:text-[#003D82]">
+                            <MessageSquare className="w-4 h-4" />
+                          </Link>
+                        )}
+                        <Link href={`/admin/messages?order=${order.id}`} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold rounded-lg bg-[#003D82] text-white hover:bg-[#002147] transition">
+                          <MessageSquare className="w-4 h-4 mr-1" />
+                          Message
+                        </Link>
+                        <Link href={`/admin/orders/${order.id}`} className="inline-flex items-center justify-center px-3 py-1.5 text-sm font-semibold rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 transition">
+                          <Truck className="w-4 h-4 mr-1" />
+                          View
+                        </Link>
+                      </div>
+                    </td>
                   </tr>
                 ))
               )}

@@ -76,7 +76,7 @@ export async function GET(request: NextRequest) {
       const userId = searchParams.get('id');
       if (!userId) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-      const [{ data: prof, error: profErr }, { data: memberships }, { data: owned }, { data: authUser }, { data: rfqs }, { data: services }, { data: messagesCount }] = await Promise.all([
+      const [{ data: prof, error: profErr }, { data: memberships }, { data: owned }, { data: authUser }, { data: rfqs }, { data: services }, messagesRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
         supabase.from('company_members').select('id, company_id, role, status, created_at, company:company_profiles(id, company_name)').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('company_profiles').select('id, company_name').eq('owner_id', userId),
@@ -117,7 +117,7 @@ export async function GET(request: NextRequest) {
         } : null,
         recentRfqs: rfqs ?? [],
         recentServices: services ?? [],
-        messagesSent: messagesCount?.count ?? 0,
+        messagesSent: messagesRes?.count ?? 0,
       });
     }
 
@@ -128,15 +128,17 @@ export async function GET(request: NextRequest) {
       const since = new Date(Date.now() - days * 86400000).toISOString();
       const prevSince = new Date(Date.now() - days * 2 * 86400000).toISOString();
 
-      const [ordersRes, profilesRes, servicesRes, productsRes, rfqsRes, offersRes, reportsRes] =
+      const [ordersRes, profilesRes, servicesRes, productsRes, rfqsRes, offersRes, reportsRes, legacyOrdersRes, legacyProductOrdersRes] =
         await Promise.all([
-          supabase.from('marketplace_orders').select('id, status, total_amount, fee_amount, created_at, order_type, seller_id, buyer_id, seller_company_id'),
+          supabase.from('marketplace_orders').select('id, status, total_amount, fee_amount, created_at, order_type, seller_id, buyer_id, seller_company_id, source_table, source_order_id'),
           supabase.from('profiles').select('id, full_name, email, user_type, created_at'),
           supabase.from('services').select('id, title, category, price, provider_id, active'),
           supabase.from('products').select('id, name, category, price, company_id, is_active'),
           supabase.from('rfqs').select('id, title, category, status, created_at'),
           supabase.from('rfq_offers').select('id, rfq_id, vendor_id, amount, status, created_at'),
           supabase.from('content_reports').select('id, target_type, reason, description, status, created_at, reporter_id'),
+          supabase.from('orders').select('id, service_id'),
+          supabase.from('product_orders').select('id, product_id'),
         ]);
 
       const orders = ordersRes.data ?? [];
@@ -146,6 +148,12 @@ export async function GET(request: NextRequest) {
       const rfqs = rfqsRes.data ?? [];
       const offers = offersRes.data ?? [];
       const reports = reportsRes.data ?? [];
+      const legacyOrders = legacyOrdersRes.data ?? [];
+      const legacyProductOrders = legacyProductOrdersRes.data ?? [];
+
+      // Resolve category via source lineage: marketplace_orders → legacy table → product/service
+      const serviceIdByLegacyOrder = new Map(legacyOrders.map((o: any) => [o.id, o.service_id]));
+      const productIdByLegacyOrder = new Map(legacyProductOrders.map((o: any) => [o.id, o.product_id]));
 
       const inRange = (d: string) => d >= since;
       const inPrev = (d: string) => d >= prevSince && d < since;
@@ -172,9 +180,13 @@ export async function GET(request: NextRequest) {
       const catRevenue = new Map<string, number>();
       for (const o of orders) {
         let cat = 'Uncategorized';
-        if (o.order_type === 'service') cat = serviceById.get(o.service_id)?.category || 'Services';
-        else if (o.order_type === 'product') cat = productById.get(o.product_id)?.category || 'Products';
-        else cat = 'RFQ Contract';
+        if (o.order_type === 'service') {
+          const svcId = serviceIdByLegacyOrder.get(o.source_order_id);
+          cat = svcId ? (serviceById.get(svcId)?.category || 'Services') : 'Services';
+        } else if (o.order_type === 'product') {
+          const prodId = productIdByLegacyOrder.get(o.source_order_id);
+          cat = prodId ? (productById.get(prodId)?.category || 'Products') : 'Products';
+        } else cat = 'RFQ Contract';
         catRevenue.set(cat, (catRevenue.get(cat) || 0) + Number(o.total_amount || 0));
       }
       const totalCatRevenue = Array.from(catRevenue.values()).reduce((a, b) => a + b, 0);
@@ -328,8 +340,8 @@ export async function POST(request: NextRequest) {
     const tab = searchParams.get('tab');
     const id = searchParams.get('id');
 
-    if (!action || !id) {
-      return NextResponse.json({ error: 'action and id required' }, { status: 400 });
+    if (!action) {
+      return NextResponse.json({ error: 'action required' }, { status: 400 });
     }
 
     // Get user from server client (reads auth cookie)
@@ -572,6 +584,79 @@ export async function POST(request: NextRequest) {
         method: 'email',
         message: `No account found for ${email}. Share this claim link: ${claimUrl}`,
       });
+    }
+
+    // ── Category-targeted admin broadcast ────────────────────────────
+    // Sends a system DM to active vendors with listings/offers in a category.
+    if (action === 'broadcast') {
+      const body = await request.json().catch(() => ({}));
+      const category = (body.category ?? '').trim();
+      const message = (body.message ?? '').trim();
+      const targetRole = (body.targetRole ?? 'all').trim();
+
+      if (!category || !message) {
+        return NextResponse.json({ error: 'category and message required' }, { status: 400 });
+      }
+
+      // Collect recipient IDs: service providers + product company owners
+      const recipientIds = new Set<string>();
+
+      const [svcRes, prodRes] = await Promise.all([
+        supabase.from('services').select('provider_id').eq('category', category).eq('active', true),
+        supabase.from('products').select('company_id').eq('category', category).eq('is_active', true),
+      ]);
+
+      for (const s of svcRes.data ?? []) {
+        if (s.provider_id) recipientIds.add(s.provider_id);
+      }
+
+      const companyIds = Array.from(new Set((prodRes.data ?? []).map((p: any) => p.company_id).filter(Boolean)));
+      if (companyIds.length > 0) {
+        const { data: companies } = await supabase
+          .from('company_profiles')
+          .select('owner_id')
+          .in('id', companyIds);
+        for (const c of companies ?? []) {
+          if (c.owner_id) recipientIds.add(c.owner_id);
+        }
+      }
+
+      // Optionally filter by role (skip the admin themself)
+      const ids = Array.from(recipientIds).filter((uid) => uid !== user.id);
+      if (ids.length === 0) {
+        return NextResponse.json({ success: true, sent: 0, total: 0 });
+      }
+
+      const { data: recipients } = await supabase
+        .from('profiles')
+        .select('id, user_type')
+        .in('id', ids);
+      const typeMap = new Map((recipients ?? []).map((p: any) => [p.id, p.user_type]));
+
+      let sent = 0;
+      let skipped = 0;
+      const failed: string[] = [];
+
+      for (const uid of ids) {
+        if (targetRole !== 'all' && typeMap.get(uid) !== targetRole) { skipped++; continue; }
+
+        const { data: convId, error: convErr } = await supabase.rpc('get_or_create_conversation', {
+          user_one_id: user.id,
+          user_two_id: uid,
+        });
+        if (convErr || !convId) { failed.push(uid); continue; }
+
+        const { error: msgErr } = await supabase.from('user_messages').insert({
+          conversation_id: convId,
+          sender_id: user.id,
+          content: message,
+          is_system_message: true,
+        });
+        if (msgErr) failed.push(uid);
+        else sent++;
+      }
+
+      return NextResponse.json({ success: true, sent, skipped, total: ids.length, failed: failed.length });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

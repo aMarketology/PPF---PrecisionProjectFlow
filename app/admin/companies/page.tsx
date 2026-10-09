@@ -1,12 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Search, Loader2, RotateCcw, Trash2 } from 'lucide-react'
+import Link from 'next/link'
+import { Search, Loader2, RotateCcw, Trash2, MessageSquare } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 
 interface Company {
   id: string; company_name: string; city: string; state: string
   industry: string | null; is_verified: boolean; is_claimed: boolean
+  owner_id: string | null
   created_at: string
 }
 
@@ -106,6 +108,12 @@ export default function AdminCompaniesPage() {
                   </div>
                 </td>
                 <td className="px-4 py-3 text-right">
+                  {c.owner_id && (
+                    <Link href={`/messages?with=${c.owner_id}`} title={`Message ${c.company_name}`}
+                      className="p-1.5 hover:bg-blue-50 rounded-lg text-gray-400 hover:text-[#003D82]">
+                      <MessageSquare className="w-4 h-4" />
+                    </Link>
+                  )}
                   <button onClick={() => handleResetClaim(c)} title="Reset company claim"
                     className="p-1.5 hover:bg-amber-50 rounded-lg text-gray-400 hover:text-amber-600">
                     <RotateCcw className="w-4 h-4" />

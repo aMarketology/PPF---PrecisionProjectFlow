@@ -22,13 +22,16 @@ Do not begin Stripe production testing until both rotation tasks are complete.
 - [x] Route authorization verifies the canonical RFQ owner before proposal unlock or contract creation.
 - [x] Proposal UI fails closed: unlock controls render only for the canonical RFQ owner.
 - [x] Added `supabase/SECURE_SERVER_RPCS.sql` to restrict sensitive token, offer, and contract RPCs to `service_role` and remove direct client offer/contract writes.
-- [ ] Refresh `DATABASE_URL` locally with the current Supabase connection password; the configured direct connection was rejected during verification.
+- [x] Regenerated `supabase/SECURE_SERVER_RPCS.sql` from live `pg_proc` signatures (Oct 4, 2026) — fixed stale `submit_rfq_offer` param names, added `transfer_tokens` + milestone RPCs, corrected policy names, removed markdown fence. Validated via transactional dry-run (rollback) against live DB.
+- [x] Refresh `DATABASE_URL` locally with the current Supabase connection password; the configured direct connection was rejected during verification.
 - [ ] Run `supabase/PROJECTFLOW_TOKENS.sql` and `supabase/SECURE_SERVER_RPCS.sql` in the target Supabase project only after desktop/mobile feature and design validation is complete.
-- [ ] Query PostgreSQL catalogs to confirm `add_tokens`, `spend_tokens`, `refund_tokens`, `submit_rfq_offer`, and `create_contract_from_offer` exist and have the intended grants.
-- [ ] Query `pg_policies` to confirm direct INSERT/UPDATE policies on `contracts` and `rfq_offers` are removed.
+- [x] Query PostgreSQL catalogs to confirm `add_tokens`, `spend_tokens`, `refund_tokens`, `submit_rfq_offer`, and `create_contract_from_offer` exist and have the intended grants.
+- [x] Query `pg_policies` to confirm direct INSERT/UPDATE policies on `contracts` and `rfq_offers` are removed.
 - [ ] Run an authenticated two-account test: bidder receives `403` from unlock/contract endpoints and sees no unlock/contract controls; RFQ owner can unlock.
 
 **Decision:** Database permission hardening is staged, not deployed. Complete application and mobile validation first, then apply migrations in staging, rerun this verification, and promote only after the test suite passes.
+
+**Verification (Oct 3, 2026):** DB password reset via Management API (`PATCH /v1/projects/{ref}/database/password`); `scripts/db.js` restored. All 5 sensitive RPCs exist with correct overloads. `pg_policies` still shows direct INSERT/UPDATE policies on `contracts` and `rfq_offers`, and all sensitive RPCs still grant EXECUTE to `anon`/`authenticated` — confirming `SECURE_SERVER_RPCS.sql` has NOT yet been applied (as intended, pending staging).
 
 ## Platform Backend
 

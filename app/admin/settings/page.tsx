@@ -2,10 +2,32 @@
 
 import { useEffect, useState } from 'react'
 import { toast } from 'react-hot-toast'
-import { Shield, UserPlus, UserMinus, Loader2, Mail, Building2, X } from 'lucide-react'
+import { Shield, UserPlus, UserMinus, Loader2, Mail, Building2, X, Megaphone, Send } from 'lucide-react'
 
 interface AdminProfile { id: string; full_name: string | null; email: string | null }
 interface UnclaimedCompany { id: string; company_name: string; contact_name: string | null; contact_email: string | null; city: string | null; state: string | null }
+
+const BROADCAST_CATEGORIES = [
+  'CNC Machining',
+  'Industrial Parts & Replacement',
+  'Sheet Metal & Fabrication',
+  '3D Printing / Additive Manufacturing',
+  'Injection Molding & Tooling',
+  'Electrical & Controls',
+  'Welding & Assembly',
+  'Quality & Inspection',
+  'Mechanical Engineering',
+  'Electrical Engineering',
+  'Structural Engineering',
+  'Civil Engineering',
+  'HVAC Systems',
+  'Plumbing & Piping',
+  'Fire Protection',
+  'Controls & Automation',
+  'Industrial Manufacturing',
+  'Material Handling',
+  'Other',
+]
 
 export default function AdminSettingsPage() {
   const [admins, setAdmins] = useState<AdminProfile[]>([])
@@ -18,6 +40,12 @@ export default function AdminSettingsPage() {
   const [invitingId, setInvitingId] = useState<string | null>(null)
   const [inviteModal, setInviteModal] = useState<UnclaimedCompany | null>(null)
   const [inviteEmail, setInviteEmail] = useState('')
+
+  // ── Category broadcast state ──
+  const [bcCategory, setBcCategory] = useState('')
+  const [bcTargetRole, setBcTargetRole] = useState<'all' | 'engineer' | 'client'>('engineer')
+  const [bcMessage, setBcMessage] = useState('')
+  const [broadcasting, setBroadcasting] = useState(false)
 
   useEffect(() => { loadAdmins(); loadUnclaimed(); }, [])
 
@@ -97,6 +125,23 @@ export default function AdminSettingsPage() {
     finally { setInvitingId(null) }
   }
 
+  async function handleBroadcast(e: React.FormEvent) {
+    e.preventDefault()
+    if (!bcCategory || !bcMessage.trim()) { toast.error('Category and message are required'); return }
+    setBroadcasting(true)
+    try {
+      const res = await fetch('/api/admin?action=broadcast', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ category: bcCategory, targetRole: bcTargetRole, message: bcMessage.trim() }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Broadcast failed')
+      toast.success(`Broadcast sent to ${json.sent} vendor${json.sent === 1 ? '' : 's'}${json.skipped ? ` (${json.skipped} skipped by role)` : ''}`)
+      setBcMessage('')
+    } catch (e: any) { toast.error(e.message) }
+    finally { setBroadcasting(false) }
+  }
+
 return (
     <div>
       <div className="mb-6">
@@ -146,6 +191,56 @@ return (
             </table>
           )}
         </div>
+      </section>
+
+      {/* Category-Targeted Broadcast */}
+      <section className="mb-8">
+        <div className="flex items-center gap-2 mb-4">
+          <Megaphone className="w-5 h-5 text-[#FF6B35]" />
+          <h2 className="text-lg font-extrabold text-gray-900">Category Broadcast</h2>
+          <span className="text-xs text-gray-400 font-mono ml-2">DM vendors in a category</span>
+        </div>
+
+        <form onSubmit={handleBroadcast} className="bg-white rounded-xl border border-gray-200 p-5 space-y-4">
+          <p className="text-sm text-gray-500">
+            Send a system DM to all active vendors with listings in a category. Use this to announce high-priority RFQs or category updates.
+          </p>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Category</label>
+              <select value={bcCategory} onChange={e => setBcCategory(e.target.value)}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003D82]/30 outline-none bg-white">
+                <option value="">Select a category...</option>
+                {BROADCAST_CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-semibold text-gray-700 mb-1.5">Target Role</label>
+              <select value={bcTargetRole} onChange={e => setBcTargetRole(e.target.value as any)}
+                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003D82]/30 outline-none bg-white">
+                <option value="engineer">Engineers / Vendors</option>
+                <option value="client">Clients</option>
+                <option value="all">Everyone</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Message</label>
+            <textarea value={bcMessage} onChange={e => setBcMessage(e.target.value)} rows={3}
+              placeholder="e.g. A high-priority RFQ has just been posted in CNC Machining. Review it now: /rfq"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-[#003D82]/30 outline-none resize-none" />
+          </div>
+
+          <div className="flex justify-end">
+            <button type="submit" disabled={broadcasting || !bcCategory || !bcMessage.trim()}
+              className="inline-flex items-center gap-2 px-5 py-2.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:opacity-50 text-white font-semibold rounded-lg text-sm transition-colors">
+              {broadcasting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              Broadcast
+            </button>
+          </div>
+        </form>
       </section>
 
       {/* Unclaimed Companies Outreach */}
