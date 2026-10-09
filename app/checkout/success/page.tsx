@@ -49,46 +49,42 @@ function CheckoutSuccessContent() {
       setLoading(true);
       const supabase = createClient();
 
-      // Fetch order details from payment_intents and product_orders
-      const { data: paymentIntent, error: piError } = await supabase
-        .from('payment_intents')
+      // Fetch the unified ledger order by Stripe payment intent id.
+      const { data: order, error: orderError } = await supabase
+        .from('marketplace_orders')
         .select('*')
         .eq('stripe_payment_intent_id', paymentIntentId)
         .single();
 
-      if (piError || !paymentIntent) {
+      if (orderError || !order) {
         throw new Error('Order not found');
       }
 
-      // Fetch product details
-      const { data: product, error: productError } = await supabase
-        .from('products')
-        .select(`
-          name,
-          description,
-          image_url,
-          company_profiles (
-            company_name,
-            email
-          )
-        `)
-        .eq('id', paymentIntent.product_id)
-        .single();
-
-      if (productError || !product) {
-        throw new Error('Product not found');
+      // Fetch product details (product orders carry a product lineage).
+      let product: any = null;
+      if (order.order_type === 'product') {
+        const { data: p } = await supabase
+          .from('products')
+          .select(`name, description, image_url, company_profiles (company_name, email)`)
+          .eq('id', productId)
+          .single();
+        product = p;
       }
 
       setOrder({
-        id: paymentIntent.id,
-        product: {
-          ...product,
-          company_profiles: product.company_profiles[0],
-        },
-        amount: paymentIntent.amount,
-        currency: paymentIntent.currency,
-        status: paymentIntent.status,
-        created_at: paymentIntent.created_at,
+        id: order.id,
+        product: product
+          ? {
+              name: product.name,
+              description: product.description,
+              image_url: product.image_url,
+              company_profiles: product.company_profiles?.[0] ?? { company_name: 'Vendor', email: '' },
+            }
+          : { name: 'Order', description: '', image_url: null, company_profiles: { company_name: 'Vendor', email: '' } },
+        amount: Number(order.total_amount),
+        currency: order.currency,
+        status: order.status,
+        created_at: order.created_at,
       });
 
     } catch (error: any) {
