@@ -7,11 +7,23 @@ import { sendNewOrderEmailVendor, sendOrderConfirmationEmail } from '@/lib/email
 // Mark this route as dynamic
 export const dynamic = 'force-dynamic';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: '2025-12-15.clover',
-});
+// Lazy Stripe client — STRIPE_SECRET_KEY is a secret and is NOT available
+// at build time in the Docker image. Constructed on first webhook call.
+function getStripe(): Stripe {
+  if (!process.env.STRIPE_SECRET_KEY) {
+    throw new Error('STRIPE_SECRET_KEY is not configured');
+  }
+  return new Stripe(process.env.STRIPE_SECRET_KEY, {
+    apiVersion: '2025-12-15.clover',
+  });
+}
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
+function getWebhookSecret(): string {
+  if (!process.env.STRIPE_WEBHOOK_SECRET) {
+    throw new Error('STRIPE_WEBHOOK_SECRET is not configured');
+  }
+  return process.env.STRIPE_WEBHOOK_SECRET;
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -28,7 +40,7 @@ export async function POST(request: NextRequest) {
     // Verify webhook signature
     let event: Stripe.Event;
     try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+      event = getStripe().webhooks.constructEvent(body, signature, getWebhookSecret());
     } catch (err: any) {
       console.error('Webhook signature verification failed:', err.message);
       return NextResponse.json(

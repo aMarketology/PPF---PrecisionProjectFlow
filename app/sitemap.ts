@@ -4,10 +4,16 @@ import { blogPosts } from '@/lib/blog'
 
 const BASE_URL = 'https://www.precisionprojectflow.com'
 
-const supabase = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.SUPABASE_SERVICE_ROLE_KEY!
-)
+// Lazy client — the service-role key is a secret and is NOT available at
+// build time in the Docker image. When absent, the sitemap falls back to
+// static pages only (the try/catch below handles the DB calls).
+function getSupabase() {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return null
+  return createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
+  )
+}
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // ── Static pages ──────────────────────────────────────────────
@@ -34,44 +40,49 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
 
   // ── Dynamic: Service pages ─────────────────────────────────────
   let servicePages: MetadataRoute.Sitemap = []
-  try {
-    const { data: services } = await supabase
-      .from('services')
-      .select('id, created_at')
-      .eq('active', true)
-      .order('created_at', { ascending: false })
+  const supabase = getSupabase()
+  if (supabase) {
+    try {
+      const { data: services } = await supabase
+        .from('services')
+        .select('id, created_at')
+        .eq('active', true)
+        .order('created_at', { ascending: false })
 
-    if (services) {
-      servicePages = services.map((s) => ({
-        url: `${BASE_URL}/marketplace/service/${s.id}`,
-        lastModified: new Date(s.created_at),
-        changeFrequency: 'weekly' as const,
-        priority: 0.7,
-      }))
+      if (services) {
+        servicePages = services.map((s) => ({
+          url: `${BASE_URL}/marketplace/service/${s.id}`,
+          lastModified: new Date(s.created_at),
+          changeFrequency: 'weekly' as const,
+          priority: 0.7,
+        }))
+      }
+    } catch (e) {
+      console.error('Sitemap: failed to fetch services', e)
     }
-  } catch (e) {
-    console.error('Sitemap: failed to fetch services', e)
   }
 
   // ── Dynamic: Engineer profile pages ───────────────────────────
   let profilePages: MetadataRoute.Sitemap = []
-  try {
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, created_at')
-      .eq('user_type', 'engineer')
-      .order('created_at', { ascending: false })
+  if (supabase) {
+    try {
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, created_at')
+        .eq('user_type', 'engineer')
+        .order('created_at', { ascending: false })
 
-    if (profiles) {
-      profilePages = profiles.map((p) => ({
-        url: `${BASE_URL}/profiles/${p.id}`,
-        lastModified: new Date(p.created_at),
-        changeFrequency: 'weekly' as const,
-        priority: 0.6,
-      }))
+      if (profiles) {
+        profilePages = profiles.map((p) => ({
+          url: `${BASE_URL}/profiles/${p.id}`,
+          lastModified: new Date(p.created_at),
+          changeFrequency: 'weekly' as const,
+          priority: 0.6,
+        }))
+      }
+    } catch (e) {
+      console.error('Sitemap: failed to fetch profiles', e)
     }
-  } catch (e) {
-    console.error('Sitemap: failed to fetch profiles', e)
   }
 
   // ── Blog posts ─────────────────────────────────────────────────

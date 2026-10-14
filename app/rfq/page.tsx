@@ -814,7 +814,7 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                   )}
                   {rfq.is_next_day_air && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-[9px] font-semibold">
-                      Next Day Air
+                      Next Day Shipping
                     </span>
                   )}
                 </div>

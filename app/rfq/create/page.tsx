@@ -164,7 +164,7 @@ export default function CreateRFQPage() {
 
       if (error) {
         if (nextDayColumnMissing && formData.is_next_day_air) {
-          throw new Error('Next Day Air is not enabled in the database yet. Run supabase/RFQ_NEXT_DAY_AIR.sql, then submit again.')
+          throw new Error('Next Day Shipping is not enabled in the database yet. Run supabase/RFQ_NEXT_DAY_AIR.sql, then submit again.')
         }
         throw new Error(error.message || error.details || error.hint || 'The database rejected this RFQ')
       }
@@ -537,7 +537,7 @@ export default function CreateRFQPage() {
                       <div>
                         <div className="flex items-center gap-1.5">
                           <Plane className="w-4 h-4 text-[#003D82]" />
-                          <span className="font-semibold text-gray-900 text-sm">Next Day Air</span>
+                          <span className="font-semibold text-gray-900 text-sm">Next Day Shipping</span>
                         </div>
                         <p className="text-[11px] text-gray-500 mt-0.5">Quote expedited next-day shipping separately</p>
                       </div>
@@ -700,7 +700,7 @@ export default function CreateRFQPage() {
                       {formData.is_next_day_air && (
                         <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 text-blue-700 border border-blue-200 rounded-full text-xs font-semibold">
                           <Plane className="w-3.5 h-3.5" />
-                          Next Day Air
+                          Next Day Shipping
                         </span>
                       )}
                     </div>

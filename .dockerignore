@@ -1,0 +1,43 @@
+# ── Dependencies & build output (rebuilt in-image) ──
+node_modules
+.next
+out
+build
+
+# ── Secrets — NEVER ship these into the image ──
+.env
+.env.local
+.env.*.local
+seed-credentials.local.json
+passwords.md
+*.pem
+*.key
+
+# ── Git / editor / OS ──
+.git
+.gitignore
+.github
+.vscode
+.idea
+*.swp
+.DS_Store
+
+# ── Logs / temp ──
+*.log
+npm-debug.log*
+coverage
+__tests__
+jest.config.ts
+jest.setup.js
+
+# ── Docs & data files not needed at runtime ──
+docs
+sql
+supabase
+scripts
+mobile
+*.tsv
+db-schema-report.txt
+next-steps.md
+session.md
+README.md

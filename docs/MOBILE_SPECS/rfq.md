@@ -35,7 +35,7 @@ The RFQ Marketplace is the core B2B workflow - clients post Requests for Quotes,
 | `estimated_ship_date` | DATE | Expected ship date |
 | `nda_required` | BOOLEAN | NDA needed before details |
 | `is_asap` | BOOLEAN | Expedited production |
-| `is_next_day_air` | BOOLEAN | Next Day Air shipping |
+| `is_next_day_air` | BOOLEAN | Next Day Shipping |
 | `line_items` | JSONB | Array of `{ part, qty, material, tolerance, finish, notes }` |
 | `status` | `open` \| `in_review` \| `awarded` \| `closed` | Lifecycle state |
 | `offers_count` | INT | Cached count of offers |
@@ -91,7 +91,7 @@ No services? Shows nudge banner: "Add services to your profile to see personaliz
 #### LinearRFQCard Component
 Each RFQ card shows:
 - **Left column:** Client avatar initial, status pill, match badge (if "For You"), offer count badge
-- **Center:** Client name, relative time, title (linked to detail), description (2-line clamp), meta tags (category, location, timeline, quantity, material), inventory/shipping row (stock status, lead time, ship date, NDA/ASAP/Next Day Air badges), offer pricing row (lowest offer, your offer)
+- **Center:** Client name, relative time, title (linked to detail), description (2-line clamp), meta tags (category, location, timeline, quantity, material), inventory/shipping row (stock status, lead time, ship date, NDA/ASAP/Next Day Shipping badges), offer pricing row (lowest offer, your offer)
 - **Right column:** Budget amount, "Details" button, "Bid" button (if open and not own), "View/Hide offers" toggle
 - **Expandable offers panel:** Lists all offers with vendor avatar, name, amount, note snippet, status
 
@@ -108,7 +108,7 @@ Each RFQ card shows:
 - Status pill (color-coded: emerald=open, amber=review, blue=awarded, gray=closed)
 - Relative time
 - RFQ title, category icon, type badge (Product/Service), location
-- Badge row: NDA Required, ASAP, Next Day Air
+- Badge row: NDA Required, ASAP, Next Day Shipping
 - "Submit Offer" CTA button (visible if: not owner, not same company, status=open, no pending offer)
 - "Contact" CTA button (links to DM)
 
@@ -151,7 +151,7 @@ On accept:
 - Location (required)
 - Timeline (select: ASAP, 1-2 weeks, 2-4 weeks, 1-3 months, 3+ months)
 - Quantity & Material (optional)
-- Shipping flags: ASAP, Next Day Air
+- Shipping flags: ASAP, Next Day Shipping
 - Attachments (optional, up to 5 files)
 
 #### Step 2 - Line Items
@@ -216,7 +216,7 @@ RFQMarketplaceScreen
 │       ├── RFQTitle (tappable → detail)
 │       ├── DescriptionPreview (2-line)
 │       ├── MetaTagRow (category, location, timeline, qty, material)
-│       ├── ShippingBadges (inventory, lead, NDA, ASAP, Next Day Air)
+│       ├── ShippingBadges (inventory, lead, NDA, ASAP, Next Day Shipping)
 │       ├── OfferPricingRow
 │       ├── BudgetAmount
 │       ├── ActionButtons (Details, Bid)
@@ -231,7 +231,7 @@ RFQDetailScreen
 │   │   ├── StatusPill + TimeAgo
 │   │   ├── Title
 │   │   ├── CategoryIcon + TypeBadge + Location
-│   │   ├── BadgeRow (NDA, ASAP, Next Day Air)
+│   │   ├── BadgeRow (NDA, ASAP, Next Day Shipping)
 │   │   └── SubmitOfferCTA / ContactCTA
 │   ├── DescriptionSection
 │   ├── LineItemsTable (or CardList)
@@ -265,7 +265,7 @@ CreateRFQScreen
 │   ├── TimelinePicker
 │   ├── QuantityInput
 │   ├── MaterialInput
-│   └── ShippingToggles (ASAP, Next Day Air)
+│   └── ShippingToggles (ASAP, Next Day Shipping)
 ├── Step2 - LineItems
 │   ├── LineItemRow (repeating)
 │   │   ├── PartNameInput

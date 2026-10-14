@@ -114,7 +114,7 @@ For each step:
 
 - [ ] Create an RFQ with multiple line items
 - [ ] Test required-field validation
-- [ ] Test ASAP and Next Day Air independently
+- [ ] Test ASAP and Next Day Shipping independently
 - [ ] Confirm the RFQ immediately appears in the feed
 - [ ] Search and filter the RFQ feed
 - [ ] View RFQ details and structured line items
