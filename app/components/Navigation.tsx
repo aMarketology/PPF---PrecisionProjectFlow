@@ -4,7 +4,7 @@ import Link from 'next/link'
 import Image from 'next/image'
 import { useState, useEffect, useRef } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
-import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins, Layers, Shield, CheckCheck, Loader2 } from 'lucide-react'
+import { ChevronDown, User, LogOut, Settings, Briefcase, Package, MessageSquare, Bell, Search, X, Coins, Layers, Shield, CheckCheck, Loader2, Building2 } from 'lucide-react'
 import { formatDistanceToNow } from 'date-fns'
 import { getUser, signOut } from '@/app/actions/auth'
 import { createClient } from '@/lib/supabase/client'
@@ -273,7 +273,6 @@ export default function Navigation() {
                 { label: 'RFQ Feed', href: '/rfq' },
                 { label: 'Companies', href: '/companies' },
                 { label: 'Blog', href: '/blog' },
-                { label: 'Messages', href: '/messages' },
               ].map((item, index) => (
                 <motion.div
                   key={item.label}
@@ -313,7 +312,7 @@ export default function Navigation() {
                       type="text"
                       value={searchQuery}
                       onChange={e => setSearchQuery(e.target.value)}
-                      placeholder="Search services, engineers..."
+                      placeholder="Search services, suppliers..."
                       className="flex-1 px-2 py-2 text-sm text-gray-900 placeholder-gray-400 bg-transparent outline-none"
                     />
                     {searchQuery ? (
@@ -360,14 +359,14 @@ export default function Navigation() {
                               )}
                               {searchResults.engineers.length > 0 && (
                                 <div>
-                                  <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50">Engineers</div>
+                                  <div className="px-4 pt-3 pb-1 text-[10px] font-bold text-gray-400 uppercase tracking-widest border-t border-gray-50">Suppliers</div>
                                   {searchResults.engineers.map(e => (
                                     <Link key={e.id} href={`/profiles/${e.id}`} onClick={closeSearch}
                                       className="flex items-center gap-3 px-4 py-2.5 hover:bg-blue-50 transition-colors group">
                                       {e.avatar_url ? <img src={e.avatar_url} alt="" className="w-8 h-8 rounded-full object-cover flex-shrink-0 ring-1 ring-gray-200" /> : <div className="w-8 h-8 rounded-full bg-gradient-to-br from-[#003D82] to-[#0066C0] flex items-center justify-center flex-shrink-0 text-white text-xs font-bold">{(e.full_name || 'E').charAt(0).toUpperCase()}</div>}
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium text-gray-900 truncate group-hover:text-[#003D82]">{e.full_name}</p>
-                                        <p className="text-xs text-gray-400 truncate">{e.company_name || e.location || 'Engineer'}</p>
+                                        <p className="text-xs text-gray-400 truncate">{e.company_name || e.location || 'Supplier'}</p>
                                       </div>
                                     </Link>
                                   ))}
@@ -399,6 +398,22 @@ export default function Navigation() {
                 )}
               </AnimatePresence>
             </div>
+
+            {/* ── Messages ── */}
+            {user && (
+              <Link
+                href="/messages"
+                className="relative p-2 rounded-lg transition-colors hover:bg-gray-100 text-gray-500"
+                title="Messages"
+              >
+                <MessageSquare className="w-5 h-5" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1 shadow-md">
+                    {unreadCount > 99 ? '99+' : unreadCount}
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* ── Notification Bell ── */}
             {user && (
@@ -573,7 +588,7 @@ export default function Navigation() {
                             </div>
                           </div>
                           <span className="inline-block mt-2 px-2 py-0.5 bg-blue-100 text-blue-700 text-[10px] font-semibold rounded">
-                            {user.profile?.user_type === 'engineer' ? 'Vendor' : 'Supplier'}
+                            {user.profile?.user_type === 'engineer' ? 'Supplier' : 'Buyer'}
                           </span>
                         </div>
                         <div className="py-2">
@@ -607,17 +622,12 @@ export default function Navigation() {
                             )}
                           </Link>
                           <Link
-                            href="/messages"
+                            href="/company"
                             className="flex items-center gap-3 px-4 py-2.5 text-gray-700 hover:bg-blue-50 hover:text-blue-600 transition-colors"
                             onClick={() => setUserMenuOpen(false)}
                           >
-                            <MessageSquare className="h-4 w-4" />
-                            <span>Messages</span>
-                            {unreadCount > 0 && (
-                              <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                                {unreadCount > 99 ? '99+' : unreadCount}
-                              </span>
-                            )}
+                            <Building2 className="h-4 w-4" />
+                            <span>My Company</span>
                           </Link>
                           <Link
                             href="/my-listings"
@@ -740,7 +750,6 @@ export default function Navigation() {
                   { label: 'RFQ Feed', href: '/rfq' },
                   { label: 'Companies', href: '/companies' },
                   { label: 'Blog', href: '/blog' },
-                  { label: 'Messages', href: '/messages' },
                 ].map((item, index) => (
                   <motion.div
                     key={item.label}
@@ -791,17 +800,20 @@ export default function Navigation() {
                       )}
                     </Link>
                     <Link
-                      href="/messages"
+                      href="/company"
                       className="flex items-center gap-3 px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
                       onClick={() => setMobileMenuOpen(false)}
                     >
-                      <MessageSquare className="h-4 w-4" />
-                      <span>Messages</span>
-                      {unreadCount > 0 && (
-                        <span className="ml-auto min-w-[20px] h-5 bg-[#FF6B35] text-white text-[10px] font-bold rounded-full flex items-center justify-center px-1">
-                          {unreadCount > 99 ? '99+' : unreadCount}
-                        </span>
-                      )}
+                      <Building2 className="h-4 w-4" />
+                      <span>My Company</span>
+                    </Link>
+                    <Link
+                      href="/my-listings"
+                      className="flex items-center gap-3 px-4 py-3 text-gray-900 hover:bg-blue-50 hover:text-blue-600 transition font-medium rounded"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <Layers className="h-4 w-4" />
+                      <span>My Listings</span>
                     </Link>
                     <div className="border-t border-gray-200 my-2"></div>
                     <button

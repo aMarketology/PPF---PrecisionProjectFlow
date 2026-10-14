@@ -12,7 +12,7 @@ import {
   ArrowLeft, MapPin, Clock, DollarSign, FileText, Tag, Package,
   Building2, Calendar, Loader2, MessageSquare, Send,
   AlertCircle, CheckCircle2, Wrench, Zap,
-  Shield, Coins, Gavel, Info, TrendingUp, Phone, User, Mail,
+  Shield, Coins, Gavel, Info, TrendingUp, Phone, User, Mail, Lock,
 } from 'lucide-react';
 
 interface RFQ {
@@ -49,6 +49,7 @@ export default function SubmitOfferPage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
   const [submittedOfferId, setSubmittedOfferId] = useState<string | null>(null);
+  const [submittedConversationId, setSubmittedConversationId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!rfqId) return;
@@ -169,6 +170,7 @@ export default function SubmitOfferPage() {
 
       setSubmitted(true);
       setSubmittedOfferId(json.offerId);
+      setSubmittedConversationId(json.conversationId);
       toast.success('Offer submitted! 50 tokens spent.');
     } catch (err: any) {
       console.error('   ❌ Submit error:', err.message);
@@ -210,23 +212,33 @@ export default function SubmitOfferPage() {
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold text-gray-900 mb-3">Offer Submitted!</h1>
             <p className="text-gray-500 mb-2">
-              Your offer of <span className="font-bold text-gray-900">${Number(offerAmount).toLocaleString()}</span> has been sent to the client.
+              Your offer of <span className="font-bold text-gray-900">${Number(offerAmount).toLocaleString()}</span> has been sent to the buyer.
             </p>
-            <p className="text-sm text-gray-400 mb-8">
-              50 tokens were deducted from your wallet. The client will review your offer and respond.
+            <p className="text-sm text-gray-400 mb-2">
+              50 tokens were deducted from your wallet.
             </p>
+            <div className="bg-amber-50 border border-amber-200 rounded-xl px-4 py-3 mb-8 text-left max-w-md mx-auto">
+              <p className="text-sm font-semibold text-amber-800 flex items-center gap-2">
+                <Lock className="w-4 h-4 flex-shrink-0" /> Conversation still locked
+              </p>
+              <p className="text-xs text-amber-600 mt-1">
+                Your message thread won't unlock until the buyer responds. The buyer can view and reply to your offer for free.
+              </p>
+            </div>
             <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              {submittedConversationId && (
+                <Link
+                  href={`/messages?conversation=${submittedConversationId}`}
+                  className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all"
+                >
+                  <MessageSquare className="w-4 h-4" /> View Sent Message
+                </Link>
+              )}
               <Link
                 href={`/rfq/${rfqId}`}
-                className="inline-flex items-center justify-center gap-2 px-6 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all"
-              >
-                <ArrowLeft className="w-4 h-4" /> Back to RFQ
-              </Link>
-              <Link
-                href="/admin"
                 className="inline-flex items-center justify-center gap-2 px-6 py-3 border-2 border-gray-200 hover:border-[#003D82] text-gray-700 font-semibold rounded-xl transition-all"
               >
-                Go to Dashboard
+                <ArrowLeft className="w-4 h-4" /> Back to RFQ
               </Link>
             </div>
           </motion.div>
@@ -434,7 +446,7 @@ export default function SubmitOfferPage() {
                 </div>
                 {rfq.budget && (
                   <p className="text-xs text-gray-500 mt-1.5 flex items-center gap-1">
-                    <Info className="w-3 h-3" /> Client budget: <span className="font-semibold text-gray-700">{rfq.budget}</span>
+                    <Info className="w-3 h-3" /> Buyer budget: <span className="font-semibold text-gray-700">{rfq.budget}</span>
                   </p>
                 )}
               </div>

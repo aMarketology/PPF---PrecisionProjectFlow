@@ -66,6 +66,30 @@ const serviceAreaLabel: Record<string, string> = {
   remote: 'Remote', 'on-site': 'On-Site', both: 'Remote & On-Site',
 }
 
+// US state abbreviations → full names (for the state filter dropdown).
+const STATE_NAMES: Record<string, string> = {
+  AL: 'Alabama', AK: 'Alaska', AZ: 'Arizona', AR: 'Arkansas', CA: 'California',
+  CO: 'Colorado', CT: 'Connecticut', DE: 'Delaware', FL: 'Florida', GA: 'Georgia',
+  HI: 'Hawaii', ID: 'Idaho', IL: 'Illinois', IN: 'Indiana', IA: 'Iowa',
+  KS: 'Kansas', KY: 'Kentucky', LA: 'Louisiana', ME: 'Maine', MD: 'Maryland',
+  MA: 'Massachusetts', MI: 'Michigan', MN: 'Minnesota', MS: 'Mississippi', MO: 'Missouri',
+  MT: 'Montana', NE: 'Nebraska', NV: 'Nevada', NH: 'New Hampshire', NJ: 'New Jersey',
+  NM: 'New Mexico', NY: 'New York', NC: 'North Carolina', ND: 'North Dakota', OH: 'Ohio',
+  OK: 'Oklahoma', OR: 'Oregon', PA: 'Pennsylvania', RI: 'Rhode Island', SC: 'South Carolina',
+  SD: 'South Dakota', TN: 'Tennessee', TX: 'Texas', UT: 'Utah', VT: 'Vermont',
+  VA: 'Virginia', WA: 'Washington', WV: 'West Virginia', WI: 'Wisconsin', WY: 'Wyoming',
+  DC: 'Washington DC',
+}
+
+/** Parse a "City, ST" or "City ST" location string into a 2-letter state code. */
+function parseState(location: string | null | undefined): string {
+  if (!location) return ''
+  const m = location.trim().match(/(?:,\s*|\s+)([A-Za-z]{2})\s*$/)
+  if (!m) return ''
+  const st = m[1].toUpperCase()
+  return STATE_NAMES[st] ? st : ''
+}
+
 function MarketplaceInner() {
   const searchParams = useSearchParams()
   const [searchQuery, setSearchQuery] = useState(searchParams.get('q') || '')
@@ -76,6 +100,13 @@ function MarketplaceInner() {
   const [services, setServices] = useState<Service[]>([])
   const [vendorRatings, setVendorRatings] = useState<Record<string, VendorRating>>({})
   const [loading, setLoading] = useState(true)
+
+  // ── Second-row filters ──────────────────────────────────────────
+  const [stateFilter, setStateFilter] = useState('all')
+  const [ratingFilter, setRatingFilter] = useState('all')
+  const [serviceAreaFilter, setServiceAreaFilter] = useState('all')
+  const [deliveryFilter, setDeliveryFilter] = useState('all')
+  const [certifiedOnly, setCertifiedOnly] = useState(false)
 
   useEffect(() => { fetchServices() }, [])
 
@@ -136,13 +167,64 @@ function MarketplaceInner() {
         (s.tags || []).some((t: string) => t.toLowerCase().includes(q))
       const matchesCategory = selectedCategory === 'all' || s.category === selectedCategory
       const matchesPrice = s.price >= priceRange[0] && s.price <= priceRange[1]
-      return matchesSearch && matchesCategory && matchesPrice
+
+      // ── Second-row filters ──────────────────────────────────────
+      // State: parse "City, ST" from provider.location
+      const providerState = parseState(s.provider?.location)
+      const matchesState = stateFilter === 'all' || providerState === stateFilter
+
+      // Rating: from vendorRatings
+      const rating = s.provider ? vendorRatings[s.provider.id] : undefined
+      const matchesRating =
+        ratingFilter === 'all' ? true :
+        ratingFilter === 'has-reviews' ? (rating?.count ?? 0) > 0 :
+        (rating?.avg ?? 0) >= Number(ratingFilter)
+
+      // Service area: remote / on-site / both
+      const matchesArea = serviceAreaFilter === 'all' || s.service_area === serviceAreaFilter
+
+      // Delivery time: parse "X days" / "X weeks" / "X months"
+      const matchesDelivery = (() => {
+        if (deliveryFilter === 'all') return true
+        if (!s.delivery_time) return false
+        const m = s.delivery_time.match(/(\d+)\s*(day|week|month)s?/i)
+        if (!m) return false
+        const n = Number(m[1])
+        const unit = m[2].toLowerCase()
+        const days = unit === 'day' ? n : unit === 'week' ? n * 7 : n * 30
+        if (deliveryFilter === '1w') return days <= 7
+        if (deliveryFilter === '2w') return days <= 14
+        if (deliveryFilter === '1m') return days <= 30
+        return true
+      })()
+
+      // Certified only
+      const matchesCertified = !certifiedOnly || (s.certifications && s.certifications.length > 0)
+
+      return matchesSearch && matchesCategory && matchesPrice &&
+        matchesState && matchesRating && matchesArea && matchesDelivery && matchesCertified
     })
     if (sortBy === 'price-low') result.sort((a, b) => a.price - b.price)
     if (sortBy === 'price-high') result.sort((a, b) => b.price - a.price)
     if (sortBy === 'name') result.sort((a, b) => a.title.localeCompare(b.title))
+    if (sortBy === 'rating') result.sort((a, b) => {
+      const ra = a.provider ? (vendorRatings[a.provider.id]?.avg ?? 0) : 0
+      const rb = b.provider ? (vendorRatings[b.provider.id]?.avg ?? 0) : 0
+      return rb - ra
+    })
     return result
-  }, [services, searchQuery, selectedCategory, priceRange, sortBy])
+  }, [services, searchQuery, selectedCategory, priceRange, sortBy,
+      stateFilter, ratingFilter, serviceAreaFilter, deliveryFilter, certifiedOnly, vendorRatings])
+
+  // Distinct states from provider locations (for the state dropdown).
+  const availableStates = useMemo(() => {
+    const set = new Set<string>()
+    for (const s of services) {
+      const st = parseState(s.provider?.location)
+      if (st) set.add(st)
+    }
+    return Array.from(set).sort()
+  }, [services])
 
   const toggleFavorite = (id: string, e: React.MouseEvent) => {
     e.preventDefault(); e.stopPropagation()
@@ -226,6 +308,7 @@ function MarketplaceInner() {
                 <option value="name">Name A–Z</option>
                 <option value="price-low">Price ↑</option>
                 <option value="price-high">Price ↓</option>
+                <option value="rating">Rating</option>
               </select>
               <div className="ml-auto text-sm text-gray-500 font-medium">
                 {loading ? (
@@ -240,7 +323,64 @@ function MarketplaceInner() {
                 )}
               </div>
               {(searchQuery || selectedCategory !== 'all' || priceRange[0] > 0 || priceRange[1] < 50000) && (
-                <button onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]) }}
+                <button onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]); setStateFilter('all'); setRatingFilter('all'); setServiceAreaFilter('all'); setDeliveryFilter('all'); setCertifiedOnly(false) }}
+                  className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors">
+                  <X className="w-3 h-3" /> Clear
+                </button>
+              )}
+            </div>
+
+            {/* Second filter row — location, rating, service area, delivery, certifications */}
+            <div className="flex flex-wrap items-center gap-3 pb-3 border-t border-gray-100 pt-3">
+              <span className="text-[11px] font-bold uppercase tracking-wider text-gray-400 flex items-center gap-1">
+                <MapPin className="w-3.5 h-3.5" /> Refine
+              </span>
+
+              {/* Seller location by state */}
+              <select value={stateFilter} onChange={e => setStateFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none focus:bg-white transition-all">
+                <option value="all">All States</option>
+                {availableStates.map(st => <option key={st} value={st}>{STATE_NAMES[st] || st} ({st})</option>)}
+              </select>
+
+              {/* Seller rating */}
+              <select value={ratingFilter} onChange={e => setRatingFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none focus:bg-white transition-all">
+                <option value="all">Any Rating</option>
+                <option value="has-reviews">Has Reviews</option>
+                <option value="4.5">4.5★ & up</option>
+                <option value="4">4.0★ & up</option>
+                <option value="3.5">3.5★ & up</option>
+              </select>
+
+              {/* Service area */}
+              <select value={serviceAreaFilter} onChange={e => setServiceAreaFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none focus:bg-white transition-all">
+                <option value="all">Any Service Area</option>
+                <option value="remote">Remote</option>
+                <option value="on-site">On-Site</option>
+                <option value="both">Remote & On-Site</option>
+              </select>
+
+              {/* Delivery time */}
+              <select value={deliveryFilter} onChange={e => setDeliveryFilter(e.target.value)}
+                className="px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm font-medium focus:ring-2 focus:ring-blue-500 outline-none focus:bg-white transition-all">
+                <option value="all">Any Delivery</option>
+                <option value="1w">≤ 1 week</option>
+                <option value="2w">≤ 2 weeks</option>
+                <option value="1m">≤ 1 month</option>
+              </select>
+
+              {/* Certified only */}
+              <label className="inline-flex items-center gap-2 px-3 py-2 bg-gray-50 border border-gray-200 rounded-lg text-gray-700 text-sm font-medium cursor-pointer hover:bg-gray-100 transition-all select-none">
+                <input type="checkbox" checked={certifiedOnly} onChange={e => setCertifiedOnly(e.target.checked)}
+                  className="w-4 h-4 accent-[#003D82]" />
+                <Award className="w-3.5 h-3.5 text-amber-500" />
+                Certified only
+              </label>
+
+              {(stateFilter !== 'all' || ratingFilter !== 'all' || serviceAreaFilter !== 'all' || deliveryFilter !== 'all' || certifiedOnly) && (
+                <button onClick={() => { setStateFilter('all'); setRatingFilter('all'); setServiceAreaFilter('all'); setDeliveryFilter('all'); setCertifiedOnly(false) }}
                   className="text-xs text-red-500 hover:text-red-700 font-semibold flex items-center gap-1 bg-red-50 hover:bg-red-100 px-2.5 py-1.5 rounded-lg transition-colors">
                   <X className="w-3 h-3" /> Clear
                 </button>
@@ -263,7 +403,7 @@ function MarketplaceInner() {
               </div>
               <h3 className="text-xl font-bold text-gray-900 mb-2">No matching services</h3>
               <p className="text-gray-500 mb-6 max-w-sm mx-auto text-sm">Try broadening your search or clearing filters.</p>
-              <button onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]) }}
+              <button onClick={() => { setSearchQuery(''); setSelectedCategory('all'); setPriceRange([0, 50000]); setStateFilter('all'); setRatingFilter('all'); setServiceAreaFilter('all'); setDeliveryFilter('all'); setCertifiedOnly(false) }}
                 className="bg-[#003D82] text-white px-6 py-3 rounded-xl hover:bg-[#002960] transition-all font-semibold text-sm">
                 Clear all filters
               </button>
@@ -339,7 +479,7 @@ function MarketplaceInner() {
                           </Link>
                         ) : (
                           <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-gray-900 truncate">Vendor</p>
+                            <p className="text-xs font-semibold text-gray-900 truncate">Supplier</p>
                           </div>
                         )}
                         <CheckCircle2 className="w-4 h-4 text-emerald-500 flex-shrink-0" aria-label="Verified" />

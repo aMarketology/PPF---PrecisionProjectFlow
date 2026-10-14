@@ -1,16 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import Stripe from 'stripe';
+import { getTokenPack } from '@/lib/tokens';
 
 export const dynamic = 'force-dynamic';
-
-// Token packs - calibrated so 100 tokens (1 conversation unlock) ≈ $10.
-// Bulk packs give progressively better value.
-const TOKEN_PACKS: Record<string, { id: string; name: string; tokens: number; price_cents: number; unlocks: number }> = {
-  starter:  { id: 'starter',  name: 'Starter',  tokens: 100,  price_cents: 1000, unlocks: 1  },
-  pro:      { id: 'pro',      name: 'Pro',       tokens: 500,  price_cents: 4500, unlocks: 5  },
-  business: { id: 'business', name: 'Business',  tokens: 1200, price_cents: 9900, unlocks: 12 },
-};
 
 // POST /api/stripe/buy-tokens
 // Creates a Stripe PaymentIntent for a token pack purchase.
@@ -22,7 +15,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'packId is required' }, { status: 400 });
     }
 
-    const pack = TOKEN_PACKS[packId];
+    const pack = getTokenPack(packId);
     if (!pack) {
       return NextResponse.json({ error: 'Token pack not found' }, { status: 404 });
     }

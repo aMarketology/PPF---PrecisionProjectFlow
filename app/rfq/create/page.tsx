@@ -316,11 +316,11 @@ export default function CreateRFQPage() {
                 </div>
                 <div>
                   <p className="font-semibold text-white mb-1">📎 Attach Files</p>
-                  <p>CAD files, drawings, specs, and reference images help vendors quote accurately</p>
+                  <p>CAD files, drawings, specs, and reference images help suppliers quote accurately</p>
                 </div>
                 <div>
                   <p className="font-semibold text-white mb-1">⏱️ Set Realistic Timelines</p>
-                  <p>Clear deadlines help vendors assess capacity and prioritize your project</p>
+                  <p>Clear deadlines help suppliers assess capacity and prioritize your project</p>
                 </div>
               </div>
             </div>
@@ -590,7 +590,7 @@ export default function CreateRFQPage() {
                     <div className="mb-4 flex items-center justify-between gap-4">
                       <div>
                         <h3 className="text-lg font-semibold text-gray-900 flex items-center gap-2"><Package className="w-5 h-5 text-[#003D82]" /> Parts to Quote</h3>
-                        <p className="mt-1 text-xs text-gray-500">Add each unique part number exactly as vendors should quote it.</p>
+                        <p className="mt-1 text-xs text-gray-500">Add each unique part number exactly as suppliers should quote it.</p>
                       </div>
                       <button type="button" onClick={() => setLineItems(items => [...items, emptyLineItem()])}
                         className="inline-flex flex-shrink-0 items-center gap-1.5 rounded-lg bg-[#003D82] px-3 py-2 text-xs font-semibold text-white hover:bg-[#002960]">

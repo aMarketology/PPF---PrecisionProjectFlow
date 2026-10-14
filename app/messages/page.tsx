@@ -20,9 +20,9 @@ import { formatDistanceToNow } from 'date-fns';
 import Link from 'next/link';
 import { Elements, PaymentElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import { loadStripe } from '@stripe/stripe-js';
+import { UNLOCK_COST, TOKEN_PACKS } from '@/lib/tokens';
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!);
-const UNLOCK_COST = 50;
 
 interface UserProfile { id: string; full_name: string; email: string; user_type: string; avatar_url?: string | null; }
 interface Conversation {
@@ -554,11 +554,7 @@ function MessagesPageInner() {
         loadPendingInvites(user.id);
       }
 
-      setTokenPacks([
-        { id: 'starter', name: 'Starter', tokens: 100, price_cents: 1000, unlocks: 1 },
-        { id: 'pro', name: 'Pro', tokens: 500, price_cents: 4500, unlocks: 5 },
-        { id: 'business', name: 'Business', tokens: 1200, price_cents: 9900, unlocks: 12 },
-      ]);
+      setTokenPacks(TOKEN_PACKS.map(p => ({ id: p.id, name: p.name, tokens: p.tokens, price_cents: p.price_cents, unlocks: p.unlocks })));
     } catch (err: any) { console.error('initializeUser:', err); toast.error('Failed to load profile'); }
   };
 
@@ -777,13 +773,11 @@ function MessagesPageInner() {
 
   const isFreeConversation = (conv: Conversation) => {
     if (conv.conversation_type !== 'direct') return true; // channels & groups are always free
-    const isRfqApplicant = messages.some(message =>
-      message.message_type === 'rfq_offer' && message.sender_id === currentUserId
-    );
     // Super-admin threads are free & open unless closed.
     if (isAdmin && !conv.is_closed) return true;
     if (conv.is_closed) return false;
-    return conv.is_unlocked || isRfqApplicant;
+    // Thread stays locked (for both parties) until the buyer responds.
+    return conv.is_unlocked;
   };
 
   const handleSendMessage = async (e: React.FormEvent) => {
@@ -893,7 +887,7 @@ function MessagesPageInner() {
       setMessages(previous => previous.map(item => item.id === message.id ? { ...item, is_paid: true } : item));
       setOfferToReview(offer);
       setShowOfferReview(true);
-      toast.success(data.tokensSpent ? 'RFQ application unlocked for 50 tokens.' : 'RFQ application is already unlocked.');
+      toast.success('RFQ application unlocked.');
     } catch (error: any) {
       toast.error(error.message || 'Failed to unlock RFQ application');
     } finally {
@@ -1013,7 +1007,7 @@ function MessagesPageInner() {
           <div className="mb-3 sm:mb-6 flex items-center justify-between px-1 sm:px-0">
             <div>
               <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Messages</h1>
-              <p className="text-gray-500 text-xs sm:text-sm mt-0.5 hidden sm:block">Connect with engineers and clients</p>
+              <p className="text-gray-500 text-xs sm:text-sm mt-0.5 hidden sm:block">Connect with suppliers and buyers</p>
             </div>
             {tokenBalance !== null && (
               <div className="flex items-center gap-2 bg-white border border-gray-200 rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 shadow-sm">
@@ -1286,13 +1280,13 @@ function MessagesPageInner() {
                                       {isOfferSender ? (
                                         <div className="flex items-center gap-2 border-t border-blue-100 bg-blue-50 px-4 py-3 text-xs font-medium text-[#003D82]">
                                           <Check className="h-3.5 w-3.5 flex-shrink-0" />
-                                          Application sent. The RFQ owner can unlock and review it.
+                                          Application sent. The buyer can review it and reply for free.
                                         </div>
                                       ) : isOfferOwner ? (
                                         <div className="flex flex-col gap-2 border-t border-amber-200 bg-amber-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
                                           <span className="flex items-center gap-2 text-xs font-medium text-amber-800">
                                             <Lock className="h-3.5 w-3.5 flex-shrink-0" />
-                                            {msg.is_paid ? 'Full RFQ application unlocked' : 'Unlock the complete RFQ application'}
+                                            {msg.is_paid ? 'Full RFQ application unlocked' : 'Review the complete RFQ application'}
                                           </span>
                                           <button
                                             onClick={() => handleOfferUnlock(msg, offer)}
@@ -1300,7 +1294,7 @@ function MessagesPageInner() {
                                             className="inline-flex flex-shrink-0 items-center justify-center gap-1.5 rounded-lg bg-[#003D82] px-3 py-2 text-xs font-bold text-white transition-colors hover:bg-[#002960] disabled:opacity-60"
                                           >
                                             {unlockingOfferMessageId === msg.id ? <Loader className="h-3.5 w-3.5 animate-spin" /> : msg.is_paid ? <FileText className="h-3.5 w-3.5" /> : <Unlock className="h-3.5 w-3.5" />}
-                                            {msg.is_paid ? 'Review full application' : 'Unlock application for 50'}
+                                            {msg.is_paid ? 'Review full application' : 'Review application (free)'}
                                           </button>
                                         </div>
                                       ) : null}
@@ -1466,9 +1460,9 @@ function MessagesPageInner() {
                             placeholder="Type a message… (Enter to send)"
                             className="flex-1 px-3 py-2.5 border border-gray-200 rounded-xl focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] resize-none text-sm"
                             rows={2} disabled={isSending || isUploading} />
-                          <button type="submit" disabled={(!replyMessage.trim() && !selectedFile) || isSending || isUploading}
+                          <button type="submit" disabled={!replyMessage.trim() && !selectedFile || isSending || isUploading}
                             className="px-4 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-xl transition-all disabled:opacity-40 flex items-center gap-1.5 self-end">
-                            {isSending || isUploading ? <Loader className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                            {isSending || isUploading ? <Loader className="w-4 h-4 animate-spin" /> : <><Send className="w-4 h-4" />Send</>}
                           </button>
                         </div>
                       </form>
@@ -1478,7 +1472,7 @@ function MessagesPageInner() {
                           <div className="w-9 h-9 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0"><Lock className="w-4 h-4 text-amber-600" /></div>
                           <div className="flex-1 min-w-0">
                             <p className="font-semibold text-gray-900 text-sm">Unlock this conversation</p>
-                            <p className="text-gray-500 text-xs">50 tokens one-time · Free messaging forever after · Both parties can respond</p>
+                            <p className="text-gray-500 text-xs">100 tokens one-time · Free messaging forever after · Both parties can respond</p>
                           </div>
                           <button onClick={() => setShowUnlockModal(true)} className="px-4 py-2 bg-[#003D82] hover:bg-[#002960] text-white text-sm font-semibold rounded-xl flex items-center gap-1.5 transition-colors">
                             <Unlock className="w-3.5 h-3.5" /> Unlock
@@ -1557,7 +1551,7 @@ function MessagesPageInner() {
                         ) : (
                           teamMembers.map((tm: any) => (
                             <div key={tm.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-100 transition-colors">
-                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                              <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mb-1">
                                 {tm.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
                               </div>
                               <div className="min-w-0 flex-1">
@@ -1578,11 +1572,11 @@ function MessagesPageInner() {
                     </div>
                     <p className="font-semibold text-gray-700 text-sm mb-1">No Company</p>
                     <p className="text-xs text-gray-400 mb-4 leading-relaxed">Create or claim your company to unlock team channels and free internal messaging.</p>
-                    <Link href="/companies/create"
+                    <Link href="/company"
                       className="inline-flex items-center gap-1.5 px-4 py-2 bg-[#FF6B35] hover:bg-[#E55A2B] text-white text-xs font-semibold rounded-lg transition-colors">
                       <Building2 className="w-3.5 h-3.5" /> Create Company
                     </Link>
-                    <Link href="/companies"
+                    <Link href="/company"
                       className="inline-flex items-center gap-1.5 mt-2 text-xs text-[#003D82] hover:underline">
                       <Search className="w-3 h-3" /> Claim Existing
                     </Link>
@@ -1675,7 +1669,7 @@ function MessagesPageInner() {
                 <div>
                   <label className="block text-sm font-medium text-gray-700">Search by name or email</label>
                   <div className="relative mt-1">
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2" />
                     <input type="text" value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
                       placeholder="Enter name or email..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
                   </div>
@@ -1701,8 +1695,7 @@ function MessagesPageInner() {
                   </div>
                 )}
                 <div className="flex gap-3 pt-2">
-                  <button type="button" onClick={() => setShowNewConvModal(false)}
-                    className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={() => setShowNewConvModal(false)} className="flex-1 px-4 py-3 border border-gray-300 text-gray-700 font-semibold rounded-lg hover:bg-gray-50">← Back</button>
                   <button type="button" onClick={() => { setSearchQuery(''); setShowNewConvModal(false); }}
                     className="flex-1 px-4 py-3 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg transition-all">
                     <Plus className="w-4 h-4" /> New Message
@@ -1722,9 +1715,9 @@ function MessagesPageInner() {
               className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl" onClick={event => event.stopPropagation()}>
               <div className="flex items-start justify-between gap-4 bg-[#003D82] px-6 py-5 text-white">
                 <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15"><Calendar className="h-5 w-5" /></div>
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15"><Calendar className="h-5 w-5" /></div>
                   <div>
-                    <p className="text-xs font-semibold uppercase text-blue-200">RFQ meeting</p>
+                    <p className="text-xs font-semibold uppercase tracking-wide text-blue-200">RFQ meeting</p>
                     <h3 className="text-lg font-bold">Schedule a Meeting</h3>
                   </div>
                 </div>
@@ -1783,7 +1776,7 @@ function MessagesPageInner() {
                     <h3 className="truncate text-lg font-bold">{offerToReview.title}</h3>
                   </div>
                 </div>
-                <button onClick={() => setShowOfferReview(false)} className="rounded-lg p-2 text-white/80 transition-colors hover:bg-white/15 hover:text-white" title="Close application review"><X className="h-5 w-5" /></button>
+                <button onClick={() => setShowOfferReview(false)} className="rounded-lg p-2 text-white/80 hover:bg-white/15 hover:text-white" title="Close application review"><X className="h-5 w-5" /></button>
               </div>
               <div className="max-h-[calc(90vh-156px)] space-y-6 overflow-y-auto p-6">
                 <div className="grid gap-4 sm:grid-cols-3">
@@ -1874,7 +1867,7 @@ function MessagesPageInner() {
                     </div>
                   )}
                   <div className="relative mt-2">
-                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2" />
                     <input type="text" value={memberSearchQuery} onChange={e => setMemberSearchQuery(e.target.value)}
                       placeholder="Search by name..." className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
                   </div>
@@ -1883,18 +1876,31 @@ function MessagesPageInner() {
                       {isMemberSearching ? (
                         <div className="flex justify-center py-3"><Loader className="w-4 h-4 text-[#003D82] animate-spin" /></div>
                       ) : memberSearchResults.length === 0 ? (
-                        <p className="text-center text-xs text-gray-400 py-3">No users found</p>
+                        <p className="text-center text-xs text-gray-400 py-4">{memberSearchQuery.length < 2 ? 'Type at least 2 characters' : 'No users found'}</p>
                       ) : (
-                        memberSearchResults.map(u => (
-                          <button key={u.id} type="button" onClick={() => toggleSelectedMember(u)}
-                            className="w-full flex items-center gap-2 px-3 py-2 hover:bg-blue-50 text-left">
+                        memberSearchResults.map(u => {
+                          const alreadyInvited = invitedUserIds.has(u.id);
+                          const isThisLoading = invitingUserId === u.id;
+                          return (
+                          <button key={u.id} type="button" onClick={() => !alreadyInvited && !isThisLoading && handleSendInvite(u)} disabled={alreadyInvited || isThisLoading}
+                            className={`w-full flex items-center gap-2 px-3 py-2 text-left disabled:opacity-50 ${alreadyInvited ? 'bg-green-50' : 'hover:bg-blue-50'}`}>
                             <Avatar user={u} size="sm" />
-                            <div className="min-w-0"><p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p><p className="text-xs text-gray-500 truncate">{u.email}</p></div>
+                            <div className="min-w-0">
+                              <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
+                              <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                            </div>
+                            {alreadyInvited ? (
+                              <span className="text-xs text-emerald-600 font-semibold flex items-center gap-1"><Check className="w-4 h-4" /> Invited</span>
+                            ) : isThisLoading ? (
+                              <Loader className="w-4 h-4 animate-spin text-[#003D82]" />
+                            ) : (
+                              <UserPlus className="w-4 h-4 text-[#FF6B35] flex-shrink-0" />
+                            )}
                           </button>
-                        ))
+                        )})
                       )}
                     </div>
-                  )}
+                )}
                 </div>
                 <div className="flex gap-3 pt-2">
                   <button type="button" onClick={() => { setShowCreateChannelModal(false); setSelectedMembers([]); setMemberSearchQuery(''); }}
@@ -1937,9 +1943,7 @@ function MessagesPageInner() {
               className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden" onClick={e => e.stopPropagation()}>
               <div className="p-5 bg-gradient-to-r from-[#001f4d] via-[#003D82] to-[#005BB5] flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-white/20 rounded-lg flex items-center justify-center">
-                    {selectedConversation.conversation_type === 'channel' ? <Hash className="w-5 h-5 text-white" /> : <Briefcase className="w-5 h-5 text-white" />}
-                  </div>
+                  <div className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-xl bg-white/15"><FileText className="h-5 w-5" /></div>
                   <div>
                     <h3 className="text-xl font-bold text-white">{selectedConversation.name || 'Channel'} Settings</h3>
                     <p className="text-blue-100 text-sm capitalize">{selectedConversation.conversation_type}</p>
@@ -1978,8 +1982,8 @@ function MessagesPageInner() {
                       <p className="text-xs text-gray-400 p-3 text-center">Loading members...</p>
                     ) : (
                       channelParticipants.map((p: any) => (
-                        <div key={p.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50">
-                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0">
+                        <div key={p.user_id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-gray-50 transition-colors">
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-[10px] flex-shrink-0 mb-1">
                             {p.profile?.full_name?.charAt(0)?.toUpperCase() || '?'}
                           </div>
                           <div className="min-w-0 flex-1">
@@ -2063,7 +2067,7 @@ function MessagesPageInner() {
                       <button key={u.id} type="button" onClick={() => !alreadyInvited && !isThisLoading && handleSendInvite(u)} disabled={alreadyInvited || isThisLoading}
                         className={`w-full flex items-center gap-2 px-3 py-2 text-left disabled:opacity-50 ${alreadyInvited ? 'bg-green-50' : 'hover:bg-blue-50'}`}>
                         <Avatar user={u} size="sm" />
-                        <div className="min-w-0 flex-1">
+                        <div className="min-w-0">
                           <p className="text-sm font-medium text-gray-900 truncate">{u.full_name}</p>
                           <p className="text-xs text-gray-500 truncate">{u.email}</p>
                         </div>

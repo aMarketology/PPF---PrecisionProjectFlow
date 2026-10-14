@@ -4,11 +4,13 @@ import { createServiceClient } from '@/lib/supabase/service';
 
 export const dynamic = 'force-dynamic';
 
-const RFQ_UNLOCK_COST = 50;
+const RFQ_UNLOCK_COST = 0;
 
 // POST /api/rfq/offer/unlock
-// Unlocks the full RFQ application for its client. This is deliberately
-// independent from whether the direct-message conversation is unlocked.
+// Unlocks the full RFQ application for its buyer (the RFQ owner). Free —
+// the buyer who posted the RFQ never pays to review incoming offers. This
+// is deliberately independent from whether the direct-message conversation
+// is unlocked (the thread stays gated until the buyer responds).
 export async function POST(request: NextRequest) {
   try {
     const { messageId } = await request.json();
@@ -25,7 +27,7 @@ export async function POST(request: NextRequest) {
     const supabase = createServiceClient();
     const { data: offer, error: offerError } = await supabase
       .from('rfq_offers')
-      .select('id, rfq_id, message_id')
+      .select('id, rfq_id, message_id, conversation_id')
       .eq('message_id', messageId)
       .single();
 
@@ -54,22 +56,21 @@ export async function POST(request: NextRequest) {
     }
 
     if (!message.is_paid) {
-      const { data: spendResult, error: spendError } = await supabase.rpc('spend_tokens', {
-        p_user_id: user.id,
-        p_amount: RFQ_UNLOCK_COST,
-        p_description: 'Unlock RFQ application',
-        p_reference_id: offer.id,
-      });
-      if (spendError) throw spendError;
-      if (spendResult === 'insufficient_tokens') {
-        return NextResponse.json({ error: 'Insufficient tokens to unlock this application', unlockCost: RFQ_UNLOCK_COST }, { status: 402 });
-      }
-
+      // Buyer-owned application review is free — no token spend.
       const { error: updateError } = await supabase
         .from('user_messages')
         .update({ is_paid: true })
         .eq('id', messageId);
       if (updateError) throw updateError;
+    }
+
+    // Free, buyer-initiated review also unlocks the conversation thread for
+    // both parties.
+    if (offer.conversation_id) {
+      await supabase
+        .from('user_conversations')
+        .update({ is_unlocked: true, last_message_at: new Date().toISOString() })
+        .eq('id', offer.conversation_id);
     }
 
     const { data: profile } = await supabase

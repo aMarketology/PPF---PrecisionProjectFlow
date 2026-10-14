@@ -72,6 +72,10 @@ export default function CreateCompanyPage() {
           state: state || null,
           specialties: specialties ? specialties.split(',').map(s => s.trim()).filter(Boolean) : null,
           is_verified: false,
+          // The creator is automatically the owner — mark the company claimed.
+          is_claimed: true,
+          claimed_by: user.id,
+          claimed_at: new Date().toISOString(),
         })
         .select('id')
         .single();
@@ -85,6 +89,9 @@ export default function CreateCompanyPage() {
         role: 'owner',
         status: 'active',
       });
+
+      // Link the user's profile to their new company.
+      await supabase.from('profiles').update({ company_id: company.id }).eq('id', user.id);
 
       // Create the company's General channel
       await supabase.rpc('ensure_company_channel', {

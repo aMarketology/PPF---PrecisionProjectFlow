@@ -187,8 +187,8 @@ export default function BlogPostPage({ params }: Props) {
         {/* ── In-line CTA (mid-page) ── */}
         <div className="mt-10 bg-blue-50 border border-blue-100 rounded-2xl p-7 flex flex-col sm:flex-row items-center justify-between gap-5">
           <div>
-            <p className="font-extrabold text-[#003D82] text-lg mb-1">Need an engineer for your project?</p>
-            <p className="text-sm text-gray-600">Browse licensed engineers or post a free RFQ - get proposals within 48 hours.</p>
+            <p className="font-extrabold text-[#003D82] text-lg mb-1">Need a supplier for your project?</p>
+            <p className="text-sm text-gray-600">Browse licensed suppliers or post a free RFQ - get proposals within 48 hours.</p>
           </div>
           <div className="flex gap-3 flex-shrink-0">
             <Link

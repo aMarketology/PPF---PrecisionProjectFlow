@@ -46,6 +46,15 @@ const nextConfig = {
   eslint: {
     ignoreDuringBuilds: false,
   },
+
+  // Legacy get-started routes → clean Buyer/Supplier terminology.
+  async redirects() {
+    return [
+      { source: '/get-started/vendors', destination: '/get-started/supplier', permanent: true },
+      { source: '/get-started/suppliers', destination: '/get-started/supplier', permanent: true },
+      { source: '/get-started/buyers', destination: '/get-started/buyer', permanent: true },
+    ];
+  },
 };
 
 module.exports = nextConfig;

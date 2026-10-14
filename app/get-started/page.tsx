@@ -17,7 +17,7 @@ import {
 const REAL_STATS = [
   { icon: Building2, value: '3,968+', label: 'Companies', desc: 'Engineering firms in our directory' },
   { icon: FileText, value: '8', label: 'Open RFQs', desc: 'Active part requests & repairs' },
-  { icon: Hash, value: '3,980+', label: 'Activities Logged', desc: 'Platform actions in the blockchain ledger' },
+  { icon: Hash, value: '3,980+', label: 'Activities Logged', desc: 'Verified platform activity' },
   { icon: Users, value: '8', label: 'Verified Users', desc: 'Engineers and suppliers onboarded' },
 ];
 
@@ -36,19 +36,19 @@ const FEATURES = [
   },
   {
     title: 'RFQ Marketplace',
-    desc: 'Post part requests and repair needs. Vendors browse open RFQs, view details, and apply via direct message. Real-time feed with category filters, budget sorting, and search.',
+    desc: 'Post part requests and repair needs. Suppliers browse open RFQs, view details, and apply via direct message. Real-time feed with category filters, budget sorting, and search.',
     icon: FileText,
     href: '/rfq',
   },
   {
     title: 'Activity Feed',
-    desc: 'A real-time, searchable ledger of everything happening on the platform. New RFQs, awarded projects, companies joining, team additions, orders, and community posts in one unified stream.',
+    desc: 'A real-time, searchable feed of platform updates. Review RFQs for product and service requests, view awarded projects, track new company listings, and follow community updates in one unified stream.',
     icon: TrendingUp,
     href: '/activity',
   },
   {
-    title: 'Company Teams & Channels',
-    desc: 'Create your company page, invite teammates as owners/admins/members, and get an auto-created General channel. Manage your team from the company dashboard.',
+    title: 'Company Page & Channels',
+    desc: 'Build your company profile, invite team members, and manage roles seamlessly. Access your auto-created General channel and custom team spaces directly from your dashboard.',
     icon: Building2,
     href: '/features#companies-teams',
   },
@@ -59,20 +59,20 @@ const FEATURES = [
     href: '/companies',
   },
   {
-    title: 'Service Listings & Marketplace',
-    desc: 'Engineers list services with pricing and delivery times. Clients browse, compare, and connect directly. Full marketplace for engineering services.',
+    title: 'Products & Services Marketplace',
+    desc: 'Commercial and industrial suppliers list equipment, parts, and technical services with pricing and lead times. Buyers can browse, compare, and connect directly.',
     icon: Briefcase,
     href: '/marketplace',
   },
   {
-    title: 'Blockchain Activity Ledger',
-    desc: 'Every action is cryptographically hashed (SHA256) and chained to the previous one - creating an immutable, verifiable history. Searchable, filterable, and real-time.',
+    title: 'Verified Activity History',
+    desc: 'Every listing, RFQ, and order is recorded in an append-only, verifiable history you can search, filter, and review in real time.',
     icon: Shield,
     href: '/features#activity-feed',
   },
   {
     title: 'User Profiles & Portfolios',
-    desc: 'Rich profiles with bio, company affiliation, avatar, and user type. Engineers can showcase their work; clients can build trust through verified profiles.',
+    desc: 'Rich profiles with bio, company affiliation, avatar, and user type. Suppliers can showcase their work; buyers can build trust through verified profiles.',
     icon: Users,
     href: '/profiles',
   },
@@ -82,7 +82,7 @@ export default function GetStartedPage() {
   const router = useRouter();
 
   const handleGetStarted = (type: 'client' | 'provider') => {
-    router.push(`/signup?type=${type}`);
+    router.push(type === 'client' ? '/get-started/buyer' : '/get-started/supplier');
   };
 
   return (
@@ -95,16 +95,16 @@ export default function GetStartedPage() {
         <div className="relative z-10 max-w-5xl mx-auto px-4 sm:px-6 text-center">
           <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }}>
             <div className="inline-flex items-center gap-2 bg-white/10 border border-white/20 text-white/90 rounded-full px-5 py-1.5 text-sm font-medium mb-6">
-              <Award className="w-4 h-4 text-[#FF6B35]" /> Engineering Marketplace Platform
+              <Award className="w-4 h-4 text-[#FF6B35]" /> Industrial B2B Marketplace
             </div>
             <h1 className="text-4xl md:text-6xl font-extrabold text-white mb-5 leading-tight">
               The B2B Marketplace for<br />
-              <span className="text-[#FF6B35]">Precision Engineering</span>
+              <span className="text-[#FF6B35]">Industrial Products and Resources</span>
             </h1>
             <p className="text-lg md:text-xl text-blue-200 max-w-3xl mx-auto mb-8 leading-relaxed">
-              Connect with verified engineering companies. Post RFQs, message vendors directly, 
-              manage your team with free internal channels, and track every transaction on our 
-              blockchain-verified activity ledger.
+              Connect with Commercial and Industrial Product and Service companies. Post RFQs,
+              message vendors directly, manage your team with free internal channels, and track
+              every transaction on our verified activity ledger.
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center items-center mb-12">
               <motion.button onClick={() => handleGetStarted('client')}
@@ -179,10 +179,10 @@ export default function GetStartedPage() {
           </motion.div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
             {[
-              { step: '01', icon: LogIn, title: 'Sign Up Free', desc: 'Create your account as a vendor or supplier. Set up your profile and company in under 2 minutes.' },
+              { step: '01', icon: LogIn, title: 'Sign Up Free', desc: 'Create your account as a buyer or supplier. Set up your profile and company in under 2 minutes.' },
               { step: '02', icon: Building2, title: 'Join or Create a Company', desc: 'Create your company page or claim an existing one. Invite teammates and get a free internal team channel.' },
               { step: '03', icon: FileText, title: 'Post or Browse RFQs', desc: 'Need parts or repairs? Post an RFQ. Want work? Browse the marketplace and apply via DM.' },
-              { step: '04', icon: MessageCircle, title: 'Connect & Transact', desc: 'Message vendors or clients directly. Same-company is free; cross-company uses tokens. Track everything on the ledger.' },
+              { step: '04', icon: MessageCircle, title: 'Connect & Transact', desc: 'Message suppliers or buyers directly. Same-company is free; cross-company uses tokens. Track everything on the ledger.' },
             ].map((item, i) => {
               const Icon = item.icon;
               return (

@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
 import {
   Building2, Loader2, MapPin, ExternalLink, Users, Shield, CheckCircle2,
-  UserPlus, Trash2, Crown, Search, X, MessageSquare,
+  UserPlus, Trash2, Crown, Search, X, MessageSquare, Mail, ArrowLeftRight, LogOut,
 } from 'lucide-react'
 import { toast } from 'react-hot-toast'
 import { createClient } from '@/lib/supabase/client'
@@ -24,21 +24,41 @@ export default function MyCompanyPage() {
   const [tab, setTab] = useState<'overview' | 'team'>('overview')
 
   const [members, setMembers] = useState<CompanyMember[]>([])
+  const [companyCreatedAt, setCompanyCreatedAt] = useState<string | null>(null)
   const [showInvite, setShowInvite] = useState(false)
   const [inviteSearch, setInviteSearch] = useState('')
   const [inviteResults, setInviteResults] = useState<any[]>([])
   const [inviteSearching, setInviteSearching] = useState(false)
   const [inviting, setInviting] = useState<string | null>(null)
 
+  // Email invite (no account required) + ownership transfer state
+  const [inviteMode, setInviteMode] = useState<'search' | 'email'>('search')
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState<'member' | 'admin'>('member')
+  const [inviteAccountType, setInviteAccountType] = useState<'engineer' | 'client'>('engineer')
+  const [sendingEmailInvite, setSendingEmailInvite] = useState(false)
+  const [transferringId, setTransferringId] = useState<string | null>(null)
+  const [transferTargetId, setTransferTargetId] = useState('')
+
   const company = ctx?.primaryCompany ?? null
   const canManage = ctx ? can(ctx, 'manage_company') : false
+  const isOwner = ctx ? (ctx.primaryCompany?.role === 'owner' || ctx.isAdmin) : false
 
   useEffect(() => {
     (async () => {
       const supabase = createClient()
       const context = await loadAdminContext(supabase)
       setCtx(context)
-      if (context?.primaryCompany) await loadMembers(context.primaryCompany.id)
+      if (context?.primaryCompany) {
+        await loadMembers(context.primaryCompany.id)
+        // Company age (shown next to the team list).
+        const { data: co } = await supabase
+          .from('company_profiles')
+          .select('created_at')
+          .eq('id', context.primaryCompany.id)
+          .maybeSingle()
+        if (co?.created_at) setCompanyCreatedAt(co.created_at)
+      }
       setLoading(false)
     })()
   }, [])
@@ -110,7 +130,8 @@ export default function MyCompanyPage() {
       if (data === 'active') {
         toast.success('Team member added!')
         await loadMembers(company.id)
-        setInviteSearch(''); setInviteResults([]); setShowInvite(false)
+        setInviteSearch(''); setInviteResults([]); setShowInvite(false
+        )
       } else {
         toast.error(data || 'Failed to invite')
       }
@@ -147,6 +168,58 @@ export default function MyCompanyPage() {
       await loadMembers(company.id)
     } catch (err: any) { toast.error(err.message || 'Failed to remove member') }
   }
+
+  const handleEmailInvite = async () => {
+    if (!company) return
+    setSendingEmailInvite(true)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: 'invite-email',
+          email: inviteEmail.trim(),
+          role: inviteRole,
+          accountType: inviteAccountType,
+        }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to send invite')
+      toast.success(json.message || `Invitation sent to ${inviteEmail.trim()}`)
+      setInviteEmail(''); setInviteMode('search')
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to send invite')
+    } finally { setSendingEmailInvite(false) }
+  }
+
+  const handleTransferOwnership = async (memberId: string) => {
+    if (!company) return
+    if (!confirm('Transfer ownership of this company to this member? You will become an admin.')) return
+    setTransferringId(memberId)
+    try {
+      const res = await fetch(`/api/companies/${company.id}/members`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ action: 'transfer-ownership', memberId }),
+      })
+      const json = await res.json()
+      if (!res.ok) throw new Error(json.error || 'Failed to transfer ownership')
+      toast.success(json.message || 'Ownership transferred')
+      await loadMembers(company.id)
+    } catch (err: any) { toast.error(err.message || 'Failed to transfer ownership') }
+    finally { setTransferringId(null) }
+  }
+
+  const companyAge = (() => {
+    if (!companyCreatedAt) return null
+    const created = new Date(companyCreatedAt)
+    const months = Math.max(0, Math.floor((Date.now() - created.getTime()) / (30.44 * 86400000)))
+    if (months < 1) return 'Joined less than a month ago'
+    if (months < 12) return `${months} month${months === 1 ? '' : 's'} old`
+    const years = Math.floor(months / 12)
+    const rem = months % 12
+    return rem === 0 ? `${years} year${years === 1 ? '' : 's'} old` : `${years}y ${rem}m old`
+  })()
 
   if (loading) return <div className="flex justify-center py-20"><Loader2 className="w-8 h-8 animate-spin text-[#003D82]" /></div>
   if (!ctx) return null
@@ -236,6 +309,86 @@ export default function MyCompanyPage() {
                     <MessageSquare className="w-4 h-4" /> Team Chat
                   </Link>
                 </div>
+
+                {/* Team members (including you) */}
+                <div className="mt-6 pt-5 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-bold text-gray-900 text-sm flex items-center gap-2">
+                      <Users className="w-4 h-4 text-[#003D82]" /> Team Members
+                      <span className="text-gray-400 font-medium">{members.length}</span>
+                    </h3>
+                    {companyAge && (
+                      <span className="text-xs text-gray-400 font-medium">Company · {companyAge}</span>
+                    )}
+                  </div>
+
+                  {members.length === 0 ? (
+                    <div className="py-8 text-center text-gray-400">
+                      <Users className="w-8 h-8 mx-auto mb-2 text-gray-200" />
+                      <p className="text-xs">No team members yet</p>
+                    </div>
+                  ) : (
+                    <div className="divide-y divide-gray-50">
+                      {members.map(m => (
+                        <div key={m.id} className="flex items-center gap-3 py-3">
+                          <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                            {m.profile.full_name?.charAt(0)?.toUpperCase() || '?'}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-1.5">
+                              <p className="font-semibold text-gray-900 text-sm truncate">
+                                {m.profile.full_name || 'Unknown'}
+                                {m.user_id === ctx?.userId && <span className="text-xs font-medium text-[#FF6B35]"> (you)</span>}
+                              </p>
+                              {m.role === 'owner' && <Crown className="w-3.5 h-3.5 text-amber-500 flex-shrink-0" />}
+                              {m.role === 'admin' && <Shield className="w-3.5 h-3.5 text-blue-500 flex-shrink-0" />}
+                            </div>
+                            <p className="text-xs text-gray-500 truncate">
+                              {m.profile.email}
+                              {m.profile.job_title ? ` · ${m.profile.job_title}` : ''}
+                            </p>
+                          </div>
+                          <span className={`px-2.5 py-1 rounded-full text-xs font-semibold capitalize ${
+                            m.role === 'owner' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
+                            m.role === 'admin' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                            'bg-gray-50 text-gray-600 border border-gray-200'
+                          }`}>{m.role}</span>
+
+                          {/* Owner-only actions: transfer ownership, remove/fire */}
+                          {isOwner && m.role !== 'owner' && (
+                            <div className="flex items-center gap-1">
+                              <button
+                                onClick={() => handleTransferOwnership(m.id)}
+                                disabled={transferringId === m.id}
+                                className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                                title="Transfer ownership">
+                                {transferringId === m.id
+                                  ? <Loader2 className="w-4 h-4 animate-spin" />
+                                  : <ArrowLeftRight className="w-4 h-4" />}
+                              </button>
+                              <button
+                                onClick={() => handleRemove(m.id, m.profile.full_name)}
+                                className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                                title="Remove member">
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            </div>
+                          )}
+
+                          {/* Non-owner managers can still remove members */}
+                          {canManage && !isOwner && m.role !== 'owner' && (
+                            <button
+                              onClick={() => handleRemove(m.id, m.profile.full_name)}
+                              className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                              title="Remove member">
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
 
               <div className="bg-gradient-to-br from-[#003D82]/5 to-blue-50 border border-[#003D82]/15 rounded-2xl p-5 h-fit">
@@ -301,18 +454,36 @@ export default function MyCompanyPage() {
                       m.role === 'admin' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
                       'bg-gray-50 text-gray-600 border border-gray-200'
                     }`}>{m.role}</span>
-                    {canManage && m.role !== 'owner' && (
+
+                    {/* Owner-only actions: transfer ownership, remove/fire */}
+                    {isOwner && m.role !== 'owner' && (
                       <div className="flex items-center gap-1">
-                        <select value={m.role} onChange={e => handleChangeRole(m.id, e.target.value, m.profile.full_name)}
-                          className="text-xs border border-gray-200 rounded-lg px-2 py-1 bg-white focus:ring-2 focus:ring-[#003D82]/30">
-                          <option value="member">Member</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                        <button onClick={() => handleRemove(m.id, m.profile.full_name)}
-                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors" title="Remove member">
+                        <button
+                          onClick={() => handleTransferOwnership(m.id)}
+                          disabled={transferringId === m.id}
+                          className="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 rounded-lg transition-colors"
+                          title="Transfer ownership">
+                          {transferringId === m.id
+                            ? <Loader2 className="w-4 h-4 animate-spin" />
+                            : <ArrowLeftRight className="w-4 h-4" />}
+                        </button>
+                        <button
+                          onClick={() => handleRemove(m.id, m.profile.full_name)}
+                          className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                          title="Remove member">
                           <Trash2 className="w-4 h-4" />
                         </button>
                       </div>
+                    )}
+
+                    {/* Non-owner managers can still remove members */}
+                    {canManage && !isOwner && m.role !== 'owner' && (
+                      <button
+                        onClick={() => handleRemove(m.id, m.profile.full_name)}
+                        className="p-1.5 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
+                        title="Remove member">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     )}
                   </div>
                 ))}
@@ -340,37 +511,135 @@ export default function MyCompanyPage() {
               <button onClick={() => setShowInvite(false)} className="p-1.5 hover:bg-gray-100 rounded-lg text-gray-400"><X className="w-5 h-5" /></button>
             </div>
             <div className="p-6 space-y-4">
-              <div className="relative">
-                <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
-                <input type="text" value={inviteSearch} onChange={e => setInviteSearch(e.target.value)}
-                  placeholder="Search by name..." autoFocus
-                  className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+              <div className="flex gap-2">
+                <button onClick={() => setInviteMode('search')}
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                    inviteMode === 'search' ? 'bg-[#003D82] text-white shadow-sm shadow-[#003D82]/25' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}>
+                  <Search className="w-4 h-4" />
+                  Invite by Name
+                </button>
+                <button onClick={() => setInviteMode('email')}
+                  className={`flex-1 px-4 py-2.5 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-2 ${
+                    inviteMode === 'email' ? 'bg-[#003D82] text-white shadow-sm shadow-[#003D82]/25' : 'bg-gray-50 text-gray-700 hover:bg-gray-100'
+                  }`}>
+                  <Building2 className="w-4 h-4" />
+                  Invite by Email
+                </button>
               </div>
-              <div className="max-h-60 overflow-y-auto">
-                {inviteSearching ? (
-                  <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-[#003D82] animate-spin" /></div>
-                ) : inviteResults.length === 0 ? (
-                  <p className="text-center text-sm text-gray-400 py-4">
-                    {inviteSearch.length >= 2 ? 'No users found' : 'Type to search for users'}
-                  </p>
-                ) : (
-                  <div className="space-y-1">
-                    {inviteResults.map(u => (
-                      <button key={u.id} onClick={() => handleInvite(u.id)} disabled={inviting === u.id}
-                        className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-50 text-left transition-colors disabled:opacity-50">
-                        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
-                          {u.full_name?.charAt(0)?.toUpperCase() || '?'}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="font-semibold text-gray-900 text-sm truncate">{u.full_name}</p>
-                          <p className="text-xs text-gray-500 truncate">{u.email}</p>
-                        </div>
-                        {inviting === u.id && <Loader2 className="w-4 h-4 animate-spin text-[#003D82] ml-auto" />}
-                      </button>
-                    ))}
+
+              {inviteMode === 'search' && (
+                <>
+                  <div className="relative">
+                    <Search className="w-4 h-4 text-gray-400 absolute left-3 top-1/2 -translate-y-1/2" />
+                    <input type="text" value={inviteSearch} onChange={e => setInviteSearch(e.target.value)}
+                      placeholder="Search by name..." autoFocus
+                      className="w-full pl-9 pr-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
                   </div>
-                )}
-              </div>
+                  <div className="max-h-60 overflow-y-auto">
+                    {inviteSearching ? (
+                      <div className="flex justify-center py-4"><Loader2 className="w-5 h-5 text-[#003D82] animate-spin" /></div>
+                    ) : inviteResults.length === 0 ? (
+                      <p className="text-center text-sm text-gray-400 py-4">
+                        {inviteSearch.length >= 2 ? 'No users found' : 'Type to search for users'}
+                      </p>
+                    ) : (
+                      <div className="space-y-1">
+                        {inviteResults.map(u => (
+                          <button key={u.id} onClick={() => handleInvite(u.id)} disabled={inviting === u.id}
+                            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg hover:bg-blue-50 text-left transition-colors disabled:opacity-50">
+                            <div className="w-9 h-9 rounded-full bg-gradient-to-br from-[#003D82] to-[#005BB5] flex items-center justify-center text-white font-bold text-xs flex-shrink-0">
+                              {u.full_name?.charAt(0)?.toUpperCase() || '?'}
+                            </div>
+                            <div className="min-w-0">
+                              <p className="font-semibold text-gray-900 text-sm truncate">{u.full_name}</p>
+                              <p className="text-xs text-gray-500 truncate">{u.email}</p>
+                            </div>
+                            {inviting === u.id && <Loader2 className="w-4 h-4 animate-spin text-[#003D82] ml-auto" />}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+
+              {inviteMode === 'email' && (
+                <div>
+                  <p className="text-sm text-gray-500 mb-2">Send an invite to a user by email address.</p>
+                  <div className="flex gap-2">
+                    <input type="email" value={inviteEmail} onChange={e => setInviteEmail(e.target.value)}
+                      placeholder="Enter email address" autoFocus
+                      className="flex-1 px-3 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] text-sm" />
+                    <select value={inviteRole} onChange={e => setInviteRole(e.target.value as any)}
+                      className="text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-[#003D82]/30">
+                      <option value="member">Member</option>
+                      <option value="admin">Admin</option>
+                    </select>
+                  </div>
+
+                  {/* Account type pre-selection for signup */}
+                  <div className="mt-3">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1.5">Account type they'll sign up as</label>
+                    <div className="flex gap-2">
+                      <button type="button" onClick={() => setInviteAccountType('engineer')}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border transition-all ${inviteAccountType === 'engineer' ? 'bg-[#003D82] text-white border-[#003D82]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#003D82]/40'}`}>
+                        Supplier
+                      </button>
+                      <button type="button" onClick={() => setInviteAccountType('client')}
+                        className={`flex-1 px-3 py-2 rounded-lg text-sm font-semibold border transition-all ${inviteAccountType === 'client' ? 'bg-[#003D82] text-white border-[#003D82]' : 'bg-white text-gray-600 border-gray-300 hover:border-[#003D82]/40'}`}>
+                        Buyer
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 mt-4">
+                    <button onClick={handleEmailInvite}
+                      className="flex-1 px-4 py-2.5 bg-[#003D82] hover:bg-[#002960] text-white font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                      {sendingEmailInvite ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Mail className="w-4 h-4" />
+                          Send Invite
+                        </>
+                      )}
+                    </button>
+                    <button onClick={() => setInviteMode('search')}
+                      className="flex-1 px-4 py-2.5 bg-gray-100 text-gray-700 hover:bg-gray-200 rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                      <X className="w-4 h-4" />
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isOwner && (
+                <div className="mt-4">
+                  <p className="text-sm text-gray-500 mb-2">Transfer company ownership.</p>
+                  <div className="flex gap-2">
+                    <select value={transferTargetId} onChange={e => setTransferTargetId(e.target.value)}
+                      className="flex-1 text-sm border border-gray-300 rounded-lg px-3 py-2.5 bg-white focus:ring-2 focus:ring-[#003D82]/30">
+                      <option value="">Select a member</option>
+                      {members.filter(m => m.role !== 'owner').map(m => (
+                        <option key={m.id} value={m.id}>
+                          {m.profile.full_name} ({m.profile.email})
+                        </option>
+                      ))}
+                    </select>
+                    <button onClick={() => transferTargetId && handleTransferOwnership(transferTargetId)}
+                      disabled={!transferTargetId || transferringId === transferTargetId}
+                      className="flex-1 px-4 py-2.5 bg-[#FF6B35] hover:bg-[#E55A2B] disabled:opacity-50 text-white font-semibold rounded-lg transition-all text-sm flex items-center justify-center gap-2">
+                      {transferringId === transferTargetId
+                        ? <Loader2 className="w-4 h-4 animate-spin" />
+                        : transferTargetId ? 'Transfer Now' : 'Select a member'}
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
           </div>
         </div>

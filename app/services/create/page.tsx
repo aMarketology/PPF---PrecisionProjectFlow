@@ -275,7 +275,7 @@ export default function CreateServicePage() {
                   className="w-full pl-8 pr-4 py-3 rounded-xl border border-gray-200 focus:border-[#003D82] focus:ring-2 focus:ring-[#003D82]/10 outline-none text-sm"
                 />
               </div>
-              <p className="text-xs text-gray-400 mt-1">Clients can request quotes for custom scopes</p>
+              <p className="text-xs text-gray-400 mt-1">Buyers can request quotes for custom scopes</p>
             </div>
             <div>
               <label className="flex items-center gap-2 text-sm font-semibold text-gray-700 mb-2">
@@ -419,7 +419,7 @@ export default function CreateServicePage() {
           </h3>
           <ul className="text-xs text-gray-600 space-y-1.5 list-disc list-inside">
             <li>Lead with the deliverable: "PE-Stamped Structural Drawings" beats "Engineering Help"</li>
-            <li>Mention specific codes (IBC 2021, ASCE 7-22, NFPA 96) - clients search for these</li>
+            <li>Mention specific codes (IBC 2021, ASCE 7-22, NFPA 96) - buyers search for these</li>
             <li>Include 5+ tags so your listing surfaces in more filters</li>
             <li>Add certifications - verified credentials boost click-through by 3×</li>
           </ul>

@@ -17,6 +17,7 @@ import Navigation from '../components/Navigation'
 import Footer from '../components/Footer'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
+import { sendSignupWelcomeEmail } from '@/app/actions/auth'
 
 // ── Schemas ───────────────────────────────────────────────────────────────────
 const accountSchema = z.object({
@@ -112,9 +113,9 @@ function ValuePanel({ userType }: { userType: 'client' | 'engineer' }) {
     { icon: <Shield className="w-5 h-5" />,     text: 'Respond to live RFQs in your category' },
   ]
   const clientPoints = [
-    { icon: <Users className="w-5 h-5" />,      text: '500+ verified engineering firms ready' },
+    { icon: <Users className="w-5 h-5" />,      text: '500+ verified suppliers ready' },
     { icon: <Star className="w-5 h-5" />,        text: 'Post RFQs and get quotes in 24 hrs' },
-    { icon: <Shield className="w-5 h-5" />,      text: 'All vendors are background-checked' },
+    { icon: <Shield className="w-5 h-5" />,      text: 'All suppliers are background-checked' },
     { icon: <TrendingUp className="w-5 h-5" />,  text: 'Token-based messaging - no spam' },
   ]
   const points = userType === 'engineer' ? engineerPoints : clientPoints
@@ -129,12 +130,12 @@ function ValuePanel({ userType }: { userType: 'client' | 'engineer' }) {
           {userType === 'engineer' ? <Briefcase className="w-6 h-6 text-white" /> : <Building2 className="w-6 h-6 text-white" />}
         </div>
         <h2 className="text-2xl font-extrabold text-white mb-2">
-          {userType === 'engineer' ? 'Grow your engineering business' : 'Find the right engineering partner'}
+          {userType === 'engineer' ? 'Grow your supplier business' : 'Find the right supplier'}
         </h2>
         <p className="text-blue-200 text-sm mb-8">
           {userType === 'engineer'
-            ? 'PPF connects you with qualified clients actively searching for your expertise.'
-            : 'PPF connects you with verified engineers, vendors, and suppliers - fast.'}
+            ? 'PPF connects you with qualified buyers actively searching for your expertise.'
+            : 'PPF connects you with verified suppliers, vendors, and manufacturers - fast.'}
         </p>
         <div className="space-y-4">
           {points.map((p, i) => (
@@ -146,10 +147,6 @@ function ValuePanel({ userType }: { userType: 'client' | 'engineer' }) {
             </div>
           ))}
         </div>
-        <div className="mt-10 pt-6 border-t border-white/10">
-          <p className="text-xs text-blue-300">Trusted by engineering teams at</p>
-          <p className="text-sm font-bold text-white mt-1">AECOM · Bechtel · Fluor · Jacobs · HDR</p>
-        </div>
       </div>
     </div>
   )
@@ -160,6 +157,7 @@ function SignUpContent() {
   const router       = useRouter()
   const searchParams = useSearchParams()
   const urlType      = searchParams.get('type')
+  const inviteToken  = searchParams.get('invite')
 
   const [step, setStep]               = useState(1)
   const [userType, setUserType]       = useState<'client' | 'engineer'>(urlType === 'client' ? 'client' : 'engineer')
@@ -180,6 +178,16 @@ function SignUpContent() {
   useEffect(() => { setUserType(watchedType) }, [watchedType])
 
   const STEPS = ['Account', userType === 'engineer' ? 'Your Profile' : 'Your Needs', 'Done']
+
+  // After signup, auto-accept a pending email invite (if ?invite= is present).
+  const acceptInviteIfPresent = async (supabase: any) => {
+    if (!inviteToken) return null
+    try {
+      const { data, error } = await supabase.rpc('accept_email_invite', { p_token: inviteToken })
+      if (error) { console.error('[invite] accept failed:', error.message); return error.message }
+      return data
+    } catch (e: any) { console.error('[invite] accept error:', e); return null }
+  }
 
   // ── Step 1 ──
   const onAccountSubmit: SubmitHandler<AccountData> = (data) => {
@@ -212,6 +220,15 @@ function SignUpContent() {
         bio: data.bio,
         location: data.location,
       }).eq('id', authData.user.id)
+
+      await acceptInviteIfPresent(supabase)
+
+      // Welcome email (Resend, fire-and-forget via server action).
+      sendSignupWelcomeEmail({
+        email: accountData.email,
+        fullName: accountData.fullName,
+        userType: 'engineer',
+      }).catch(() => {})
 
       toast.success('Welcome to PPF! 🎉')
       setStep(3)
@@ -246,6 +263,15 @@ function SignUpContent() {
         company_name: data.companyName || null,
         location: data.location,
       }).eq('id', authData.user.id)
+
+      await acceptInviteIfPresent(supabase)
+
+      // Welcome email (Resend, fire-and-forget via server action).
+      sendSignupWelcomeEmail({
+        email: accountData.email,
+        fullName: accountData.fullName,
+        userType: 'client',
+      }).catch(() => {})
 
       toast.success('Welcome to PPF! 🎉')
       setStep(3)
@@ -304,8 +330,8 @@ function SignUpContent() {
                 {/* User type selector */}
                 <div className="grid grid-cols-2 gap-3 mb-7">
                   {([
-                    ['engineer', 'Vendor / Engineer', 'List services & respond to RFQs', Briefcase] as const,
-                    ['client',   'Client / Buyer',     'Post RFQs & hire engineers',       Building2] as const,
+                    ['engineer', 'Supplier', 'List services & respond to RFQs', Briefcase] as const,
+                    ['client',   'Buyer',    'Post RFQs & hire suppliers',      Building2] as const,
                   ]).map(([val, title, desc, Icon]) => (
                     <button key={val} type="button"
                       onClick={() => { accountForm.setValue('userType', val); setUserType(val) }}
@@ -405,8 +431,8 @@ function SignUpContent() {
             {step === 2 && accountData?.userType === 'engineer' && (
               <motion.div key="step2-eng" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-8">
-                <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Build your vendor profile</h2>
-                <p className="text-sm text-gray-500 mb-7">This is what clients see when they find you - make it count.</p>
+                <h2 className="text-2xl font-extrabold text-gray-900 mb-1">Build your supplier profile</h2>
+                <p className="text-sm text-gray-500 mb-7">This is what buyers see when they find you - make it count.</p>
 
                 <form onSubmit={engineerForm.handleSubmit(onEngineerSubmit)} className="space-y-5">
                   <Field label="Company or Display Name *" error={engineerForm.formState.errors.companyName?.message}>
@@ -546,8 +572,8 @@ function SignUpContent() {
                 <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Welcome to PPF! 🎉</h2>
                 <p className="text-gray-500 text-sm mb-8 max-w-xs mx-auto">
                   {accountData?.userType === 'engineer'
-                    ? 'Your vendor profile is live. Head to your dashboard to add services and start responding to RFQs.'
-                    : 'Your account is ready. Browse verified engineers or post your first RFQ to get quotes fast.'}
+                    ? 'Your supplier profile is live. Head to your dashboard to add services and start responding to RFQs.'
+                    : 'Your account is ready. Browse verified suppliers or post your first RFQ to get quotes fast.'}
                 </p>
                 <div className="bg-[#F8FAFC] rounded-xl p-5 text-left mb-6">
                   <p className="text-xs font-bold text-gray-500 uppercase tracking-wide mb-3">Suggested next steps</p>
@@ -559,7 +585,7 @@ function SignUpContent() {
                     ] : [
                       ['Browse the marketplace', '/marketplace'],
                       ['Post your first RFQ', '/rfq/create'],
-                      ['Explore engineer profiles', '/profiles'],
+                      ['Explore supplier profiles', '/profiles'],
                     ]).map(([label, href]) => (
                       <li key={label}>
                         <Link href={href} className="flex items-center gap-2 text-sm text-[#003D82] font-semibold hover:underline">

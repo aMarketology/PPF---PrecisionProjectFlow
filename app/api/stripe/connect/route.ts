@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { createConnectAccountLink, updateConnectAccountStatus } from '@/lib/stripe/connect';
+import { createConnectAccountLink, updateConnectAccountStatus, getConnectAccountRequirements } from '@/lib/stripe/connect';
 
 // Mark this route as dynamic to prevent build-time execution
 export const dynamic = 'force-dynamic';
@@ -53,10 +53,26 @@ export async function POST(request: NextRequest) {
       // Update account status from Stripe
       const accountDetails = await updateConnectAccountStatus(companyId);
 
-      return NextResponse.json({ 
+      return NextResponse.json({
         success: true,
         account: accountDetails
       });
+    }
+
+    if (action === 'requirements') {
+      // Fetch outstanding onboarding requirements from Stripe
+      const { data: stripeAccount } = await supabase
+        .from('stripe_connect_accounts')
+        .select('stripe_account_id')
+        .eq('company_id', companyId)
+        .single();
+
+      if (!stripeAccount?.stripe_account_id) {
+        return NextResponse.json({ error: 'No Stripe account found' }, { status: 404 });
+      }
+
+      const requirements = await getConnectAccountRequirements(stripeAccount.stripe_account_id);
+      return NextResponse.json({ success: true, requirements });
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

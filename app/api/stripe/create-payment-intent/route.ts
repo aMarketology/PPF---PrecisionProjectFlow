@@ -65,7 +65,8 @@ export async function POST(request: NextRequest) {
       price = Number(product.price);
       category = product.category;
       sellerCompanyId = product.company_id;
-      sellerId = product.company?.owner_id ?? null;
+      const productCompany = product.company as any;
+      sellerId = Array.isArray(productCompany) ? (productCompany[0]?.owner_id ?? null) : (productCompany?.owner_id ?? null);
     } else {
       const { data: service, error } = await supabase
         .from('services')

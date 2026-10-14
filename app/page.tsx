@@ -293,7 +293,7 @@ export default function HomePage() {
               <div className="text-center py-12 bg-white rounded-2xl border border-gray-100">
                 <Hash className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                 <p className="font-semibold text-gray-600 text-sm">No activity yet</p>
-                <p className="text-xs text-gray-400 mt-1">Activity will appear as vendors post RFQs, submit offers, and complete orders.</p>
+                <p className="text-xs text-gray-400 mt-1">Activity will appear as suppliers post RFQs, submit offers, and complete orders.</p>
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -430,7 +430,7 @@ export default function HomePage() {
               Browse by Engineering Category
             </h2>
             <p className="text-xl text-gray-600">
-              Find engineers and vendors across every major discipline
+              Find suppliers across every major discipline
             </p>
           </div>
 
@@ -558,7 +558,7 @@ export default function HomePage() {
 
                   {/* CTA */}
                   <div className="flex gap-2 mt-auto pt-4 border-t border-gray-100">
-                    <button className="flex-1 bg-[#003D82] hover:bg-[#0052A3] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
+                    <button className="flex-1 bg-[#003D82] hover:bg-[#005A3] text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors">
                       Request Quote
                     </button>
                     <button className="flex-1 border-2 border-gray-300 hover:border-[#003D82] text-gray-700 hover:text-[#003D82] px-4 py-2 rounded-lg text-sm font-medium transition-colors">

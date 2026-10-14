@@ -190,6 +190,7 @@ export default function AdminOverviewPage() {
             {([
               { label: 'Manage Users', desc: 'View profiles, grant access, and moderate accounts', href: '/admin/users', icon: Users },
               { label: 'Manage Companies', desc: 'Send claim invites, toggle claims, message owners', href: '/admin/companies', icon: Building2 },
+              { label: 'Company Directory', desc: 'Browse all companies with filters, sort, and export', href: '/admin/directory', icon: Building2 },
               { label: 'Review Claims', desc: 'Approve or reject pending company claims', href: '/admin/claims', icon: Shield },
               { label: 'Manage RFQs', desc: 'See all posted requests and message requestors', href: '/admin/rfqs', icon: FileText },
               { label: 'Manage Services', desc: 'Review and moderate service listings', href: '/admin/services', icon: ShoppingCart },

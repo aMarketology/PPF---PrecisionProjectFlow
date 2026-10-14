@@ -5,6 +5,29 @@ import { createClient } from '@/lib/supabase/server';
 export const dynamic = 'force-dynamic';
 
 /**
+ * Resolve the current user from either the auth cookie (browser) or an
+ * Authorization: Bearer token (CLI / server-to-server). Returns null when
+ * neither is present or valid.
+ */
+async function getCurrentUser(request: NextRequest) {
+  // 1. Bearer token (programmatic access — admin-cli, e2e tests)
+  const authHeader = request.headers.get('authorization');
+  if (authHeader?.startsWith('Bearer ')) {
+    const token = authHeader.slice(7).trim();
+    if (token) {
+      const serviceSupabase = createServiceClient();
+      const { data: { user }, error } = await serviceSupabase.auth.getUser(token);
+      if (!error && user) return user;
+    }
+  }
+
+  // 2. Auth cookie (browser session)
+  const serverSupabase = await createClient();
+  const { data: { user } } = await serverSupabase.auth.getUser();
+  return user ?? null;
+}
+
+/**
  * GET /api/admin?action=check
  *   Returns { isAdmin: boolean } for the current user
  *
@@ -19,9 +42,8 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url);
     const action = searchParams.get('action') ?? 'check';
 
-    // Use the server client (reads auth cookie) to get the current user
-    const serverSupabase = await createClient();
-    const { data: { user } } = await serverSupabase.auth.getUser();
+    // Use the shared helper (cookie OR Bearer token)
+    const user = await getCurrentUser(request);
     if (!user) {
       return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
     }
@@ -71,12 +93,74 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ admins: admins ?? [] });
     }
 
+    // ── Filter facets for /admin/directory ─────────────────────────
+    if (action === 'directory-facets') {
+      const [industries, states, sources] = await Promise.all([
+        supabase.from('company_profiles').select('industry'),
+        supabase.from('company_profiles').select('state'),
+        supabase.from('company_profiles').select('source'),
+      ]);
+
+      const count = (rows: any[], key: string) => {
+        const m = new Map<string, number>();
+        for (const r of rows) {
+          const v = r?.[key];
+          if (!v) continue;
+          m.set(v, (m.get(v) || 0) + 1);
+        }
+        return Array.from(m.entries())
+          .map(([value, count]) => ({ value, count }))
+          .sort((a, b) => b.count - a.count);
+      };
+
+      return NextResponse.json({
+        industries: count(industries.data ?? [], 'industry'),
+        states: count(states.data ?? [], 'state'),
+        sources: count(sources.data ?? [], 'source'),
+      });
+    }
+
+    // ── Single company detail for /admin/directory/[id] ────────────
+    if (action === 'company-detail') {
+      const companyId = searchParams.get('id');
+      if (!companyId) return NextResponse.json({ error: 'id required' }, { status: 400 });
+
+      const { data: company, error } = await supabase
+        .from('company_profiles')
+        .select('*')
+        .eq('id', companyId)
+        .single();
+      if (error || !company) {
+        return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      }
+
+      // Resolve owner profile (if claimed).
+      let owner: any = null;
+      if (company.owner_id) {
+        const { data: ownerProfile } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, user_type, is_admin')
+          .eq('id', company.owner_id)
+          .maybeSingle();
+        owner = ownerProfile ?? null;
+      }
+
+      // Count active team members.
+      const { count: memberCount } = await supabase
+        .from('company_members')
+        .select('id', { count: 'exact', head: true })
+        .eq('company_id', companyId)
+        .eq('status', 'active');
+
+      return NextResponse.json({ company, owner, memberCount: memberCount ?? 0 });
+    }
+
     // ── Full user detail for /admin/users/[id] ─────────────────────
     if (action === 'user-detail') {
       const userId = searchParams.get('id');
       if (!userId) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-      const [{ data: prof, error: profErr }, { data: memberships }, { data: owned }, { data: authUser }, { data: rfqs }, { data: services }, { data: messagesCount }] = await Promise.all([
+      const [{ data: prof, error: profErr }, { data: memberships }, { data: owned }, { data: authUser }, { data: rfqs }, { data: services }, messagesCountRes] = await Promise.all([
         supabase.from('profiles').select('*').eq('id', userId).single(),
         supabase.from('company_members').select('id, company_id, role, status, created_at, company:company_profiles(id, company_name)').eq('user_id', userId).order('created_at', { ascending: false }),
         supabase.from('company_profiles').select('id, company_name').eq('owner_id', userId),
@@ -85,6 +169,7 @@ export async function GET(request: NextRequest) {
         supabase.from('services').select('id, title, category, active, created_at').eq('provider_id', userId).order('created_at', { ascending: false }).limit(5),
         supabase.from('user_messages').select('id', { count: 'exact', head: true }).eq('sender_id', userId),
       ]);
+      const messagesCount = (messagesCountRes as { count: number | null }).count ?? 0;
 
       if (profErr || !prof) {
         return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -117,7 +202,7 @@ export async function GET(request: NextRequest) {
         } : null,
         recentRfqs: rfqs ?? [],
         recentServices: services ?? [],
-        messagesSent: messagesCount?.count ?? 0,
+        messagesSent: messagesCount,
       });
     }
 
@@ -130,7 +215,7 @@ export async function GET(request: NextRequest) {
 
       const [ordersRes, profilesRes, servicesRes, productsRes, rfqsRes, offersRes, reportsRes] =
         await Promise.all([
-          supabase.from('marketplace_orders').select('id, status, total_amount, fee_amount, created_at, order_type, seller_id, buyer_id, seller_company_id'),
+          supabase.from('marketplace_orders').select('id, status, total_amount, fee_amount, created_at, order_type, source_table, source_order_id, seller_id, buyer_id, seller_company_id'),
           supabase.from('profiles').select('id, full_name, email, user_type, created_at'),
           supabase.from('services').select('id, title, category, price, provider_id, active'),
           supabase.from('products').select('id, name, category, price, company_id, is_active'),
@@ -166,15 +251,20 @@ export async function GET(request: NextRequest) {
       const completed = orders.filter(o => ['completed', 'delivered'].includes(o.status)).length;
       const completionRate = orders.length > 0 ? Math.round((completed / orders.length) * 1000) / 10 : 0;
 
-      // Top categories by revenue (products/services resolved to their category)
+      // Top categories by revenue (products/services resolved to their category).
+      // marketplace_orders references the source row via source_table + source_order_id.
       const serviceById = new Map(services.map(s => [s.id, s]));
       const productById = new Map(products.map(p => [p.id, p]));
       const catRevenue = new Map<string, number>();
       for (const o of orders) {
         let cat = 'Uncategorized';
-        if (o.order_type === 'service') cat = serviceById.get(o.service_id)?.category || 'Services';
-        else if (o.order_type === 'product') cat = productById.get(o.product_id)?.category || 'Products';
-        else cat = 'RFQ Contract';
+        if ((o.source_table || o.order_type) === 'service') {
+          cat = serviceById.get(o.source_order_id)?.category || 'Services';
+        } else if ((o.source_table || o.order_type) === 'product') {
+          cat = productById.get(o.source_order_id)?.category || 'Products';
+        } else {
+          cat = 'RFQ Contract';
+        }
         catRevenue.set(cat, (catRevenue.get(cat) || 0) + Number(o.total_amount || 0));
       }
       const totalCatRevenue = Array.from(catRevenue.values()).reduce((a, b) => a + b, 0);
@@ -254,6 +344,55 @@ export async function GET(request: NextRequest) {
         case 'users':
           result = await supabase.from('profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
           break;
+        case 'directory': {
+          // Server-side filtered company directory (~4k rows). Filters are
+          // applied in Postgres so pagination stays correct.
+          let query = supabase.from('company_profiles').select('*', { count: 'exact' });
+
+          const search = searchParams.get('search')?.trim();
+          if (search) {
+            const q = search.replace(/'/g, "''");
+            query = query.or(
+              `company_name.ilike.%${q}%,city.ilike.%${q}%,state.ilike.%${q}%,industry.ilike.%${q}%,contact_name.ilike.%${q}%,contact_email.ilike.%${q}%,contact_title.ilike.%${q}%`
+            );
+          }
+
+          const industry = searchParams.get('industry');
+          if (industry && industry !== 'all') query = query.eq('industry', industry);
+
+          const state = searchParams.get('state');
+          if (state && state !== 'all') query = query.eq('state', state);
+
+          const source = searchParams.get('source');
+          if (source && source !== 'all') {
+            if (source === 'none') query = query.is('source', null);
+            else query = query.eq('source', source);
+          }
+
+          const claimed = searchParams.get('claimed');
+          if (claimed === 'claimed') query = query.eq('is_claimed', true);
+          if (claimed === 'unclaimed') query = query.eq('is_claimed', false);
+
+          const verified = searchParams.get('verified');
+          if (verified === 'verified') query = query.eq('is_verified', true);
+          if (verified === 'unverified') query = query.eq('is_verified', false);
+
+          const hasContact = searchParams.get('hasContact');
+          if (hasContact === 'true') query = query.not('contact_email', 'is', null);
+          if (hasContact === 'false') query = query.is('contact_email', null);
+
+          const outreachStatus = searchParams.get('outreachStatus');
+          if (outreachStatus && outreachStatus !== 'all') query = query.eq('outreach_status', outreachStatus);
+
+          const sort = searchParams.get('sort') ?? 'newest';
+          if (sort === 'name') query = query.order('company_name', { ascending: true });
+          else if (sort === 'oldest') query = query.order('created_at', { ascending: true });
+          else query = query.order('created_at', { ascending: false });
+
+          query = query.range(from, to);
+          result = await query;
+          break;
+        }
         case 'companies':
           result = await supabase.from('company_profiles').select('*', { count: 'exact' }).order('created_at', { ascending: false }).range(from, to);
           break;
@@ -332,9 +471,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'action and id required' }, { status: 400 });
     }
 
-    // Get user from server client (reads auth cookie)
-    const serverSupabase = await createClient();
-    const { data: { user } } = await serverSupabase.auth.getUser();
+    // Get user from cookie OR Bearer token
+    const user = await getCurrentUser(request);
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 });
 
     // Use service client for DB queries
@@ -344,10 +482,19 @@ export async function POST(request: NextRequest) {
     if (!profile?.is_admin) return NextResponse.json({ error: 'Access denied' }, { status: 403 });
 
     if (action === 'delete') {
-      const table = tab === 'companies' ? 'company_profiles'
-        : tab === 'rfqs' ? 'rfqs'
-        : tab === 'users' ? 'profiles'
-        : tab ?? 'profiles';
+      // Explicit allowlist — never pass an arbitrary tab straight through
+      // as a table name (would allow deleting any table in the schema).
+      const DELETE_ALLOWLIST: Record<string, string> = {
+        companies: 'company_profiles',
+        rfqs: 'rfqs',
+        users: 'profiles',
+        products: 'products',
+        services: 'services',
+      };
+      const table = DELETE_ALLOWLIST[tab ?? ''];
+      if (!table) {
+        return NextResponse.json({ error: `Delete not allowed for tab "${tab}"` }, { status: 400 });
+      }
       const { error } = await supabase.from(table).delete().eq('id', id);
       if (error) throw error;
       return NextResponse.json({ success: true });
@@ -384,15 +531,6 @@ export async function POST(request: NextRequest) {
     }
 
     // ── Admin role management ──────────────────────────────────────
-    if (action === 'promote' || action === 'demote') {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ is_admin: action === 'promote' })
-        .eq('id', id);
-      if (error) throw error;
-      return NextResponse.json({ success: true });
-    }
-
     // ── Account status (suspend/reactivate/deactivate) ─────────────
     if (action === 'set-account-status') {
       const body = await request.json().catch(() => ({}));
@@ -426,24 +564,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, status });
     }
 
-    if (action === 'invite-claim') {
-      const body = await request.json().catch(() => ({}));
-      const email = body.email;
-      if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
-      const { data: target } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('email', email)
-        .maybeSingle();
-      if (!target) return NextResponse.json({ error: 'No account with that email' }, { status: 404 });
-      const { error } = await supabase
-        .from('company_profiles')
-        .update({ owner_id: target.id, is_claimed: true, claimed_by: target.id, claimed_at: new Date().toISOString() })
-        .eq('id', id);
-      if (error) throw error;
-      return NextResponse.json({ success: true, user: target });
-    }
-
     if (action === 'reset-company-claim') {
       const { data: company, error: companyError } = await supabase
         .from('company_profiles')
@@ -475,6 +595,51 @@ export async function POST(request: NextRequest) {
       if (claimsError) throw claimsError;
 
       return NextResponse.json({ success: true });
+    }
+
+    // ── Update company (super-admin directory workflow) ────────────
+    if (action === 'update-company') {
+      const body = await request.json().catch(() => ({}));
+      if (!body || typeof body !== 'object') {
+        return NextResponse.json({ error: 'Invalid body' }, { status: 400 });
+      }
+
+      // Whitelist of editable columns — never allow id/owner_id/claimed_by
+      // to be changed from here (use reset-company-claim / invite-claim).
+      const allowed = [
+        'company_name', 'description', 'website', 'email', 'phone',
+        'address', 'city', 'state', 'zip_code', 'industry',
+        'specialties', 'certifications', 'is_verified',
+        'contact_name', 'contact_title', 'contact_email', 'contact_phone',
+        'contact_mobile', 'contact_linkedin',
+        'notes', 'outreach_status', 'last_contacted_at',
+      ] as const;
+
+      const patch: Record<string, unknown> = {};
+      for (const key of allowed) {
+        if (key in body) patch[key] = body[key];
+      }
+      if (Object.keys(patch).length === 0) {
+        return NextResponse.json({ error: 'No editable fields provided' }, { status: 400 });
+      }
+
+      // Validate outreach_status if present.
+      if ('outreach_status' in patch) {
+        const valid = ['new', 'contacted', 'replied', 'meeting', 'converted', 'dead'];
+        if (!valid.includes(patch.outreach_status as string)) {
+          return NextResponse.json({ error: 'Invalid outreach_status' }, { status: 400 });
+        }
+      }
+
+      const { data, error } = await supabase
+        .from('company_profiles')
+        .update({ ...patch, updated_at: new Date().toISOString() })
+        .eq('id', id)
+        .select()
+        .single();
+      if (error) throw error;
+
+      return NextResponse.json({ success: true, company: data });
     }
 
     // ── Super-admin management ──────────────────────────────────────
@@ -526,52 +691,66 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: true, message: `${target.full_name || email} is no longer a super admin.` });
     }
 
-    if (action === 'invite-claim') {
+    // ── Category-targeted broadcast (super-admin) ──────────────────
+    // Sends a system DM to suppliers/buyers with listings or RFQs in a
+    // category. Used for high-priority RFQ / category announcements.
+    if (action === 'broadcast') {
       const body = await request.json().catch(() => ({}));
-      const email = (body?.email ?? '').trim().toLowerCase();
-      if (!email) return NextResponse.json({ error: 'email required' }, { status: 400 });
+      const category = (body.category ?? '').trim();
+      const message = (body.message ?? '').trim();
+      const targetRole: 'all' | 'engineer' | 'client' =
+        body.targetRole === 'client' ? 'client' : body.targetRole === 'all' ? 'all' : 'engineer';
 
-      const { data: company, error: compErr } = await supabase
-        .from('company_profiles')
-        .select('id, company_name, slug')
-        .eq('id', id)
-        .maybeSingle();
-      if (compErr) throw compErr;
-      if (!company) return NextResponse.json({ error: 'Company not found' }, { status: 404 });
+      if (!category || !message) {
+        return NextResponse.json({ error: 'category and message are required' }, { status: 400 });
+      }
 
-      // If the invitee already has an account, send them a DM with the claim link.
-      const { data: invitee } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .ilike('email', email)
-        .maybeSingle();
+      const recipients = new Set<string>();
 
-      const claimUrl = `/claim-company?company=${company.slug || company.id}`;
+      // Suppliers: active service providers + owners of companies with active products.
+      if (targetRole === 'engineer' || targetRole === 'all') {
+        const [servicesRes, productsRes] = await Promise.all([
+          supabase.from('services').select('provider_id').eq('category', category).eq('active', true),
+          supabase.from('products').select('company_id').eq('category', category).eq('is_active', true),
+        ]);
+        for (const s of servicesRes.data ?? []) if (s.provider_id) recipients.add(s.provider_id);
 
-      if (invitee?.id) {
-        const { data: convId, error: convErr } = await supabase.rpc('get_or_create_conversation', {
-          user_one_id: user.id,
-          user_two_id: invitee.id,
-        });
-        if (convErr) throw convErr;
-        if (convId) {
-          const { error: msgErr } = await supabase.from('user_messages').insert({
-            conversation_id: convId,
-            sender_id: user.id,
-            content: `You have been invited to claim the "${company.company_name}" listing on Precision Project Flow. Claim it here: ${claimUrl}`,
-            is_system_message: true,
-          });
-          if (msgErr) throw msgErr;
-          return NextResponse.json({ success: true, method: 'dm', message: `DM sent to ${invitee.full_name || email}` });
+        const companyIds = Array.from(new Set((productsRes.data ?? []).map(p => p.company_id).filter(Boolean)));
+        if (companyIds.length > 0) {
+          const { data: owners } = await supabase.from('company_profiles').select('owner_id').in('id', companyIds);
+          for (const o of owners ?? []) if (o.owner_id) recipients.add(o.owner_id);
         }
       }
 
-      // No account yet: record the outreach so it can be followed up.
-      return NextResponse.json({
-        success: true,
-        method: 'email',
-        message: `No account found for ${email}. Share this claim link: ${claimUrl}`,
-      });
+      // Buyers: clients who posted RFQs in the category.
+      if (targetRole === 'client' || targetRole === 'all') {
+        const { data: rfqs } = await supabase.from('rfqs').select('client_id').eq('category', category);
+        for (const r of rfqs ?? []) if (r.client_id) recipients.add(r.client_id);
+      }
+
+      // Never message yourself.
+      recipients.delete(user.id);
+
+      let sent = 0;
+      let skipped = 0;
+      for (const targetId of Array.from(recipients)) {
+        const { data: convId, error: convErr } = await supabase.rpc('get_or_create_conversation', {
+          user_one_id: user.id,
+          user_two_id: targetId,
+        });
+        if (convErr || !convId) { skipped += 1; continue; }
+
+        const { error: msgErr } = await supabase.from('user_messages').insert({
+          conversation_id: convId,
+          sender_id: user.id,
+          content: message,
+          is_system_message: true,
+        });
+        if (msgErr) { skipped += 1; continue; }
+        sent += 1;
+      }
+
+      return NextResponse.json({ success: true, sent, skipped });
     }
 
     return NextResponse.json({ error: 'Unknown action' }, { status: 400 });

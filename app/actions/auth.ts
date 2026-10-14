@@ -64,6 +64,28 @@ export async function signUp(formData: {
   return { success: true, userId: authData.user.id }
 }
 
+/**
+ * Fire the welcome email from the server (Resend). Used by the direct
+ * client-side signup flow which bypasses signUp() above.
+ */
+export async function sendSignupWelcomeEmail(formData: {
+  email: string
+  fullName: string
+  userType: 'client' | 'engineer'
+}) {
+  try {
+    await sendWelcomeEmail({
+      to: formData.email,
+      name: formData.fullName,
+      userType: formData.userType,
+    })
+    return { success: true }
+  } catch (err: any) {
+    console.error('[email] welcome failed:', err)
+    return { success: false, error: err.message || 'Failed to send welcome email' }
+  }
+}
+
 export async function signIn(formData: { email: string; password: string }) {
   const supabase = await createClient()
 

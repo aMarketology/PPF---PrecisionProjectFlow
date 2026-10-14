@@ -460,7 +460,7 @@ export default function RFQDetailPage() {
                         </div>
                         <div>
                           <h2 className="text-lg font-bold text-white">Submit Your Offer</h2>
-                          <p className="text-sm text-orange-100">Send your proposal to the client</p>
+                          <p className="text-sm text-orange-100">Send your proposal to the buyer</p>
                         </div>
                       </div>
                       <button onClick={() => setShowOfferForm(false)} className="text-white/80 hover:text-white transition-colors">

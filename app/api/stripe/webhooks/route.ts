@@ -224,6 +224,7 @@ async function handlePaymentSuccess(
 
     return;
   }
+}
 
 /**
  * Handle failed payment

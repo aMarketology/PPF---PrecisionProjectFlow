@@ -3,20 +3,40 @@ import { createServerClient, type CookieOptions } from '@supabase/ssr'
 import { NextResponse, type NextRequest } from 'next/server'
 
 export async function middleware(request: NextRequest) {
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) { return request.cookies.get(name)?.value },
+        set() {}, remove() {}, // read-only in middleware
+      },
+    }
+  )
+
+  const { data: { user } } = await supabase.auth.getUser()
+
+  // ── Account status enforcement ──────────────────────────────────
+  // Suspended/deactivated accounts are blocked from the whole app.
+  // Auth + notice paths stay reachable so the user is never trapped.
+  if (user) {
+    const pathname = request.nextUrl.pathname
+    const exempt = ['/login', '/signup', '/forgot-password', '/reset-password', '/account-suspended', '/api/auth']
+    const isExempt = exempt.some(p => pathname === p || pathname.startsWith(`${p}/`))
+    if (!isExempt) {
+      const { data: isActive } = await supabase.rpc('is_account_active', { user_id: user.id })
+      if (isActive === false) {
+        // API clients expect a JSON error, not an HTML redirect.
+        if (pathname.startsWith('/api/')) {
+          return NextResponse.json({ error: 'Account suspended' }, { status: 403 })
+        }
+        return NextResponse.redirect(new URL('/account-suspended', request.url))
+      }
+    }
+  }
+
   // ── Admin route protection ──────────────────────────────────────
   if (request.nextUrl.pathname.startsWith('/admin')) {
-    const supabase = createServerClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-      {
-        cookies: {
-          get(name: string) { return request.cookies.get(name)?.value },
-          set() {}, remove() {}, // read-only in middleware
-        },
-      }
-    )
-
-    const { data: { user } } = await supabase.auth.getUser()
     if (!user) {
       return NextResponse.redirect(new URL('/login?redirect=/admin', request.url))
     }
@@ -24,9 +44,9 @@ export async function middleware(request: NextRequest) {
     // Every authenticated user gets a personal /admin panel. Only the
     // platform-wide management subpaths require super-admin (profiles.is_admin).
     const superAdminOnly = [
-      '/admin/users', '/admin/companies', '/admin/claims', '/admin/products',
+      '/admin/users', '/admin/companies', '/admin/directory', '/admin/claims', '/admin/products',
       '/admin/services', '/admin/orders', '/admin/rfqs', '/admin/reports',
-      '/admin/settings',
+      '/admin/settings', '/admin/outreach',
     ]
     const needsSuperAdmin = superAdminOnly.some(
       p => request.nextUrl.pathname === p || request.nextUrl.pathname.startsWith(`${p}/`)

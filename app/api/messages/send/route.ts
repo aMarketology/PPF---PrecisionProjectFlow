@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { createServiceClient } from '@/lib/supabase/service';
 import { sendNewMessageEmail } from '@/lib/email';
+import { UNLOCK_COST } from '@/lib/tokens';
 
 export const dynamic = 'force-dynamic';
 
@@ -118,7 +119,7 @@ export async function POST(request: NextRequest) {
 
     if (!isFree) {
       return NextResponse.json(
-        { error: 'conversation_locked', unlockCost: 100 },
+        { error: 'conversation_locked', unlockCost: UNLOCK_COST },
         { status: 402 }
       );
     }

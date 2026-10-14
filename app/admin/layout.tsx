@@ -6,7 +6,7 @@ import { useRouter, usePathname } from 'next/navigation'
 import {
   Shield, Users, FileText, Building2, Package,
   BarChart3, Settings, ShoppingCart, Loader2, LayoutDashboard, LogOut, TrendingUp,
-  MessageSquare,
+  MessageSquare, Send,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { loadAdminContext, can, type AdminContext } from '@/lib/admin/context'
@@ -73,6 +73,8 @@ export default function AdminLayout({
   const platformItems = [
     { name: 'Users', href: '/admin/users', icon: Users },
     { name: 'Companies', href: '/admin/companies', icon: Building2 },
+    { name: 'Directory', href: '/admin/directory', icon: Building2 },
+    { name: 'Outreach', href: '/admin/outreach', icon: Send },
     { name: 'Claims', href: '/admin/claims', icon: FileText },
     { name: 'Products', href: '/admin/products', icon: Package },
     { name: 'Services', href: '/admin/services', icon: Settings },

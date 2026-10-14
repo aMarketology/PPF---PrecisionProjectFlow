@@ -2,8 +2,10 @@
 import { Resend } from 'resend'
 
 const APP_URL   = process.env.NEXT_PUBLIC_APP_URL || 'https://precisionprojectflow.com'
+// info@amarketology.com is the only domain verified in Resend right now.
+// Keep PPF branding in the display name + body, but send from the verified addr.
 const FROM_NAME = 'Precision Project Flow'
-const FROM_ADDR = 'no-reply@precisionprojectflow.com'
+const FROM_ADDR = 'info@amarketology.com'
 
 // Lazily construct the Resend client so importing this module never throws
 // when RESEND_API_KEY is absent (e.g. tests, local builds without email).
@@ -63,13 +65,13 @@ export async function sendWelcomeEmail({ to, name, userType }: {
   const dashUrl = isEng ? `${APP_URL}/admin` : `${APP_URL}/admin`
   const list = isEng
     ? `<li>Complete your public profile (avatar, bio, location)</li><li>Add your first service listing</li><li>Connect your Stripe account to receive payouts</li><li>Browse open RFQs and respond to relevant ones</li>`
-    : `<li>Browse the marketplace and discover engineering services</li><li>Message a vendor about your project</li><li>Post an RFQ to get multiple quotes at once</li>`
+    : `<li>Browse the marketplace and discover engineering services</li><li>Message a supplier about your project</li><li>Post an RFQ to get multiple quotes at once</li>`
   const body =
     h1(`Welcome to PPF, ${name}!`) +
     sub("Your account is live — here's how to get started.") +
     pp(isEng
-      ? "You've joined as an <strong>engineer / vendor</strong>. List your services, respond to RFQs, and get paid directly."
-      : "You've joined as a <strong>client</strong>. Browse services, post RFQs, and message vendors directly.") +
+      ? "You've joined as a <strong>supplier</strong>. List your services, respond to RFQs, and get paid directly."
+      : "You've joined as a <strong>buyer</strong>. Browse services, post RFQs, and message suppliers directly.") +
     btn('Go to your Dashboard', dashUrl) +
     divider() +
     `<p style="margin:0 0 12px;font-size:13px;font-weight:700;color:#0f172a;">Quick-start checklist</p>` +
@@ -112,12 +114,12 @@ export async function sendNewOrderEmailVendor({ to, vendorName, clientName, serv
     sub(`${clientName} just purchased one of your services on PPF.`) +
     infoBox([
       { label: 'Service', value: serviceTitle },
-      { label: 'Client',  value: clientName },
+      { label: 'Buyer',   value: clientName },
       { label: 'Amount',  value: `$${(orderAmount / 100).toFixed(2)}` },
       { label: 'Order',   value: orderId.slice(0, 8).toUpperCase() },
     ]) +
     btn('View Order Details', `${APP_URL}/orders/sales/${orderId}`) +
-    pp('Please confirm the order and reach out to the client if you need any clarification.')
+    pp('Please confirm the order and reach out to the buyer if you need any clarification.')
   return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `New order: ${serviceTitle}`,
@@ -132,15 +134,15 @@ export async function sendOrderConfirmationEmail({ to, clientName, vendorName, s
 }) {
   const body =
     h1('Order confirmed!') +
-    sub(`Hi ${clientName}, your order is confirmed and the vendor has been notified.`) +
+    sub(`Hi ${clientName}, your order is confirmed and the supplier has been notified.`) +
     infoBox([
-      { label: 'Service', value: serviceTitle },
-      { label: 'Vendor',  value: vendorName },
-      { label: 'Amount',  value: `$${(orderAmount / 100).toFixed(2)}` },
-      { label: 'Order',   value: orderId.slice(0, 8).toUpperCase() },
+      { label: 'Service',  value: serviceTitle },
+      { label: 'Supplier', value: vendorName },
+      { label: 'Amount',   value: `$${(orderAmount / 100).toFixed(2)}` },
+      { label: 'Order',    value: orderId.slice(0, 8).toUpperCase() },
     ]) +
     btn('Track Your Order', `${APP_URL}/orders/${orderId}`) +
-    pp('The vendor will typically confirm within 24 hours. You can message them directly if you have questions.') +
+    pp('The supplier will typically confirm within 24 hours. You can message them directly if you have questions.') +
     pp('If anything goes wrong, reply to this email and our team will help.')
   return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
@@ -197,13 +199,88 @@ export async function sendRFQAlertEmail({ to, engineerName, clientName, rfqTitle
       { label: 'Project',  value: rfqTitle },
       { label: 'Category', value: rfqCategory || 'General' },
       { label: 'Budget',   value: budgetLabel },
-      { label: 'Client',   value: clientName || 'A client' },
+      { label: 'Buyer',    value: clientName || 'A buyer' },
     ]) +
     btn('View & Submit a Quote', `${APP_URL}/rfq`) +
-    pp('Responding early improves your chances of winning the project. You can message the client directly from the RFQ page.')
+    pp('Responding early improves your chances of winning the project. You can message the buyer directly from the RFQ page.')
   return getResend().emails.send({
     from: `${FROM_NAME} <${FROM_ADDR}>`, to,
     subject: `New RFQ: ${rfqTitle}`,
     html: emailBase(body),
+  })
+}
+
+// ── 7. Company team invitation (email, no account required) ────────────────
+
+export async function sendCompanyInviteEmail({ to, inviteeName, companyName, accountType, inviteToken }: {
+  to: string
+  inviteeName: string
+  companyName: string
+  accountType: 'engineer' | 'client'
+  inviteToken: string
+}) {
+  const isSupplier = accountType === 'engineer'
+  const roleLabel = isSupplier ? 'Supplier' : 'Buyer'
+  const signupUrl = `${APP_URL}/signup?type=${accountType}&invite=${inviteToken}`
+  const body =
+    h1(`You've been invited to join ${companyName}`) +
+    sub(`Hi ${inviteeName}, a team member invited you to join "${companyName}" on Precision Project Flow.`) +
+    pp(`You'll be joining as a <strong>${roleLabel}</strong> account. Your account type is pre-selected so you can get set up in minutes.`) +
+    btn('Accept Invitation', signupUrl, true) +
+    divider() +
+    pp(`If you already have a Precision Project Flow account, sign in with this same email address and your invitation will be waiting for you.`) +
+    pp(`Didn't expect this? You can ignore this email — no account will be created.`)
+  return getResend().emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`,
+    to,
+    subject: `You're invited to join ${companyName} on Precision Project Flow`,
+    html: emailBase(body),
+  })
+}
+
+// ── 8. Ownership transfer notification ──────────────────────────────────────
+
+export async function sendOwnershipTransferEmail({ to, recipientName, companyName }: {
+  to: string
+  recipientName: string
+  companyName: string
+}) {
+  const body =
+    h1(`You're now the owner of ${companyName}`) +
+    sub(`Hi ${recipientName}, ownership of "${companyName}" has been transferred to you.`) +
+    pp(`You now have full control over the company profile, team management, listings, and payouts.`) +
+    btn('Go to your Company', `${APP_URL}/admin/company`) +
+    pp(`If you weren't expecting this, contact support right away.`)
+  return getResend().emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`,
+    to,
+    subject: `You're now the owner of ${companyName}`,
+    html: emailBase(body),
+  })
+}
+
+// ── 9. Cold outreach (plain-text for maximum deliverability) ───────────────
+
+export async function sendColdOutreachEmail({ to, companyName, contactName, subject, message, signature }: {
+  to: string | string[]
+  companyName: string
+  contactName: string | null
+  subject: string
+  message: string
+  signature?: string
+}) {
+  const name = contactName || 'there'
+  const sig = signature ?? `\n\n— The Precision Project Flow Team\ninfo@amarketology.com`
+
+  // Plain-text body: no images, no links-heavy HTML — better inbox placement.
+  const text = `Hi ${name},\n\n${message.trim()}\n\n${sig.trim()}\n`
+
+  return getResend().emails.send({
+    from: `${FROM_NAME} <${FROM_ADDR}>`,
+    to,
+    subject,
+    text,
+    // Minimal fallback HTML (no styling) so non-plain-text clients still render.
+    html: `<html><body style="font-family:Arial,sans-serif;color:#111;line-height:1.6;white-space:pre-wrap;">${text.replace(/\n/g, '<br/>')}</body></html>`,
   })
 }

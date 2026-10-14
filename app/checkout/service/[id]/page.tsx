@@ -148,7 +148,7 @@ export default function ServiceCheckoutPage() {
                   <ShieldCheck className="w-10 h-10 text-slate-500" />
                 </div>
                 <h3 className="font-semibold text-white mb-1">{service.title}</h3>
-                <p className="text-sm text-slate-400">{service.provider?.full_name || 'Vendor'}</p>
+                <p className="text-sm text-slate-400">{service.provider?.full_name || 'Supplier'}</p>
                 <span className="inline-block mt-2 px-2 py-1 bg-blue-500/20 text-blue-400 text-xs rounded">
                   {service.category}
                 </span>

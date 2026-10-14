@@ -338,7 +338,7 @@ export default function EditServicePage() {
           {/* Active toggle */}
           <div className="flex items-center justify-between p-4 rounded-xl border border-gray-100 bg-gray-50">
             <div>
-              <p className="text-sm font-semibold text-gray-900">Listing visible to clients</p>
+              <p className="text-sm font-semibold text-gray-900">Listing visible to buyers</p>
               <p className="text-xs text-gray-500">Toggle off to temporarily hide without deleting.</p>
             </div>
             <button type="button" onClick={() => setActive(!active)}

@@ -14,7 +14,7 @@ export default function Footer() {
 
   const quickLinks = [
     { name: 'Home', href: '/' },
-    { name: 'Find Engineers', href: '/services' },
+    { name: 'Find Suppliers', href: '/services' },
     { name: 'How It Works', href: '/about' },
     { name: 'About Us', href: '/about' },
     { name: 'Contact', href: '/contact' },
@@ -44,7 +44,7 @@ export default function Footer() {
               </div>
             </motion.div>
             <p className="text-gray-600 mb-6 text-sm leading-relaxed">
-              Connecting clients with professional engineers worldwide. Quality engineering services for every project need.
+              Connecting buyers with professional suppliers worldwide. Quality engineering services for every project need.
             </p>
             <div className="flex gap-4">
               <motion.a
@@ -72,7 +72,7 @@ export default function Footer() {
 
           {/* Quick Links */}
           <div>
-            <h3 className="text-lg font-bold mb-6 text-gray-900">For Clients</h3>
+            <h3 className="text-lg font-bold mb-6 text-gray-900">For Buyers</h3>
             <ul className="space-y-3">
               {quickLinks.map((link, index) => (
                 <motion.li
@@ -96,7 +96,7 @@ export default function Footer() {
 
           {/* Services */}
           <div>
-            <h3 className="text-lg font-bold mb-6 text-gray-900">Vendor Services</h3>
+            <h3 className="text-lg font-bold mb-6 text-gray-900">Supplier Services</h3>
             <ul className="space-y-3">
               {services.map((service, index) => (
                 <motion.li
@@ -132,7 +132,7 @@ export default function Footer() {
                 </Link>
               </li>
               <li className="text-gray-600 text-sm">
-                <p className="font-semibold text-gray-900 mb-2">For Vendors:</p>
+                <p className="font-semibold text-gray-900 mb-2">For Suppliers:</p>
                 <ul className="space-y-2">
                   {forEngineers.map((item, index) => (
                     <li key={index}>

@@ -247,8 +247,8 @@ export default function ContractDetailPage() {
                     {contract.vendor?.full_name?.charAt(0) || 'V'}
                   </div>
                   <div>
-                    <p className="font-semibold text-gray-900 text-sm">{contract.vendor?.full_name || 'Vendor'}</p>
-                    <p className="text-xs text-gray-400">Vendor{contract.vendor?.company_name ? ` · ${contract.vendor.company_name}` : ''}</p>
+                    <p className="font-semibold text-gray-900 text-sm">{contract.vendor?.full_name || 'Supplier'}</p>
+                    <p className="text-xs text-gray-400">Supplier{contract.vendor?.company_name ? ` · ${contract.vendor.company_name}` : ''}</p>
                   </div>
                 </div>
               </div>

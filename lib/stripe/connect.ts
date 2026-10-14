@@ -68,7 +68,7 @@ export async function createConnectAccountLink(
  */
 export async function getConnectAccountDetails(stripeAccountId: string) {
   const account = await stripe.accounts.retrieve(stripeAccountId);
-  
+
   return {
     id: account.id,
     chargesEnabled: account.charges_enabled,
@@ -76,6 +76,21 @@ export async function getConnectAccountDetails(stripeAccountId: string) {
     detailsSubmitted: account.details_submitted,
     country: account.country,
     defaultCurrency: account.default_currency,
+    requirements: account.requirements ?? null,
+  };
+}
+
+/**
+ * Get the outstanding onboarding requirements for a Connect account.
+ * Returns the list of currently-due requirement strings (empty = done).
+ */
+export async function getConnectAccountRequirements(stripeAccountId: string) {
+  const account = await stripe.accounts.retrieve(stripeAccountId);
+  return {
+    currentlyDue: account.requirements?.currently_due ?? [],
+    eventuallyDue: account.requirements?.eventually_due ?? [],
+    pendingVerification: account.requirements?.pending_verification ?? null,
+    disabledReason: account.requirements?.disabled_reason ?? null,
   };
 }
 
@@ -98,6 +113,8 @@ export async function updateConnectAccountStatus(companyId: string) {
 
   const accountDetails = await getConnectAccountDetails(connectAccount.stripe_account_id);
 
+  const fullyOnboarded = accountDetails.chargesEnabled && accountDetails.payoutsEnabled;
+
   await supabase
     .from('stripe_connect_accounts')
     .update({
@@ -106,6 +123,8 @@ export async function updateConnectAccountStatus(companyId: string) {
       details_submitted: accountDetails.detailsSubmitted,
       country: accountDetails.country,
       default_currency: accountDetails.defaultCurrency,
+      requirements_due: accountDetails.requirements,
+      onboarded_at: fullyOnboarded ? new Date().toISOString() : null,
     })
     .eq('company_id', companyId);
 

@@ -357,7 +357,7 @@ export default function ServiceDetailPage() {
             {service.provider && (
               <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
                 className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6">
-                <h2 className="text-xl font-extrabold text-gray-900 mb-4">About the Vendor</h2>
+                <h2 className="text-xl font-extrabold text-gray-900 mb-4">About the Supplier</h2>
                 <Link href={`/profiles/${service.provider.id}`} className="flex items-start gap-4 group/vendor">
                   {service.provider.avatar_url ? (
                     <img src={service.provider.avatar_url} alt={service.provider.full_name}
@@ -392,7 +392,7 @@ export default function ServiceDetailPage() {
                         <span className="text-xs text-gray-400">No reviews yet</span>
                       )}
                       <span className="text-xs text-gray-400">·</span>
-                      <span className="text-xs text-gray-500">Verified Vendor</span>
+                      <span className="text-xs text-gray-500">Verified Supplier</span>
                     </div>
                   </div>
                 </Link>
@@ -477,7 +477,7 @@ export default function ServiceDetailPage() {
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <BadgeCheck className="w-4 h-4 text-[#003D82] flex-shrink-0" />
-                    <span className="text-xs">Verified professional vendor</span>
+                    <span className="text-xs">Verified professional supplier</span>
                   </div>
                   <div className="flex items-center gap-3 text-gray-600">
                     <CheckCircle2 className="w-4 h-4 text-[#003D82] flex-shrink-0" />

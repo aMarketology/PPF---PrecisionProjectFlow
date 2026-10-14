@@ -10,6 +10,7 @@ import Navigation from '@/app/components/Navigation'
 import Footer from '@/app/components/Footer'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter } from 'next/navigation'
+import { TOKEN_PACKS } from '@/lib/tokens'
 import {
   Coins, CheckCircle2, Zap, Briefcase, Building2,
   ArrowRight, Loader2, Lock, ChevronLeft, Star
@@ -17,41 +18,20 @@ import {
 
 const stripePromise = loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
 
-const PACKS = [
-  {
-    id: 'starter',
-    name: 'Starter',
-    tokens: 100,
-    price: 10,
-    unlocks: 1,
-    icon: <Zap className="w-6 h-6" />,
-    color: 'border-blue-200 hover:border-[#003D82]',
-    badge: null,
-    perks: ['1 conversation unlock', 'Send unlimited messages in that thread', 'Never expires'],
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    tokens: 500,
-    price: 45,
-    unlocks: 5,
-    icon: <Briefcase className="w-6 h-6" />,
-    color: 'border-[#003D82] ring-2 ring-[#003D82]/20',
-    badge: 'Most Popular',
-    perks: ['5 conversation unlocks', 'Save 10% vs Starter', 'Never expires'],
-  },
-  {
-    id: 'business',
-    name: 'Business',
-    tokens: 1200,
-    price: 99,
-    unlocks: 12,
-    icon: <Building2 className="w-6 h-6" />,
-    color: 'border-orange-200 hover:border-[#FF6B35]',
-    badge: 'Best Value',
-    perks: ['12 conversation unlocks', 'Save 17% vs Starter', 'Never expires'],
-  },
-]
+// UI presentation of the canonical packs (token/price values come from
+// lib/tokens.ts — the single source of truth).
+const PACKS = TOKEN_PACKS.map(p => ({
+  ...p,
+  price: p.price_cents / 100,
+  icon: p.id === 'starter' ? <Zap className="w-6 h-6" /> : p.id === 'pro' ? <Briefcase className="w-6 h-6" /> : <Building2 className="w-6 h-6" />,
+  color: p.id === 'starter' ? 'border-blue-200 hover:border-[#003D82]' : p.id === 'pro' ? 'border-[#003D82] ring-2 ring-[#003D82]/20' : 'border-orange-200 hover:border-[#FF6B35]',
+  badge: p.id === 'pro' ? 'Most Popular' : p.id === 'business' ? 'Best Value' : null,
+  perks: p.id === 'starter'
+    ? ['1 conversation unlock', 'Send unlimited messages in that thread', 'Never expires']
+    : p.id === 'pro'
+      ? ['5 conversation unlocks', 'Save 10% vs Starter', 'Never expires']
+      : ['12 conversation unlocks', 'Save 17% vs Starter', 'Never expires'],
+}))
 
 // ── Inner checkout form ────────────────────────────────────────────────────
 function CheckoutForm({
@@ -218,7 +198,7 @@ export default function TokensPage() {
             <Coins className="w-3.5 h-3.5 text-yellow-300" /> $ProjectFlow Tokens
           </div>
           <h1 className="text-4xl font-extrabold text-white mb-3">Buy Tokens, Start Conversations</h1>
-          <p className="text-blue-200 text-lg mb-6">Each token pack unlocks direct messaging with engineers and vendors. Tokens never expire.</p>
+          <p className="text-blue-200 text-lg mb-6">Each token pack unlocks direct messaging with suppliers and vendors. Tokens never expire.</p>
           {user && (
             <div className="inline-flex items-center gap-2 bg-white/15 border border-white/25 text-white px-4 py-2 rounded-full text-sm font-semibold">
               <Coins className="w-4 h-4 text-yellow-300" />

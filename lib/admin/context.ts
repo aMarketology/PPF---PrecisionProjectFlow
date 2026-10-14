@@ -132,9 +132,9 @@ function deriveBadges(
 
   // Account-type badge.
   if (ctx.profile?.user_type === 'engineer') {
-    badges.push({ key: 'engineer', label: 'Engineer', tone: 'emerald', hint: 'Vendor / engineer account.' });
+    badges.push({ key: 'engineer', label: 'Supplier', tone: 'emerald', hint: 'Supplier / vendor account.' });
   } else if (ctx.profile?.user_type === 'client') {
-    badges.push({ key: 'client', label: 'Client', tone: 'gray', hint: 'Client / buyer account.' });
+    badges.push({ key: 'client', label: 'Buyer', tone: 'gray', hint: 'Buyer account.' });
   }
 
   // Capability badges.
@@ -206,7 +206,7 @@ function deriveIdentity(ctx: Omit<AdminContext, 'primaryCompany' | 'roleLabel' |
 
   return {
     primaryCompany: null,
-    roleLabel: ctx.profile?.user_type === 'engineer' ? 'Engineer' : 'Client',
+    roleLabel: ctx.profile?.user_type === 'engineer' ? 'Supplier' : 'Buyer',
     roleDescription: 'Personal account — not part of a company yet.',
     badges,
   };
@@ -265,6 +265,7 @@ export async function loadAdminContext(supabase: SupabaseClient): Promise<AdminC
 export const SUPER_ADMIN_ONLY_PATHS = [
   '/admin/users',
   '/admin/companies',
+  '/admin/directory',
   '/admin/claims',
   '/admin/products',
   '/admin/services',
@@ -272,6 +273,7 @@ export const SUPER_ADMIN_ONLY_PATHS = [
   '/admin/rfqs',
   '/admin/reports',
   '/admin/settings',
+  '/admin/outreach',
 ];
 
 export function isSuperAdminOnlyPath(pathname: string): boolean {

@@ -228,7 +228,7 @@ export default function RFQMarketplacePage() {
                   <Gavel className="w-3.5 h-3.5 text-[#FF6B35]" /> Live Request Marketplace
                 </div>
                 <h1 className="text-2xl md:text-3xl font-extrabold text-white">RFQ Marketplace</h1>
-                <p className="text-blue-200 text-sm mt-1">Post what you need, compare offers from verified vendors, and award with confidence.</p>
+                <p className="text-blue-200 text-sm mt-1">Post what you need, compare offers from verified suppliers, and award with confidence.</p>
               </div>
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
@@ -640,7 +640,7 @@ function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
 
           {/* Note */}
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Note to Client <span className="text-gray-400 font-normal">(optional)</span></label>
+            <label className="block text-sm font-semibold text-gray-700 mb-1.5">Note to Buyer <span className="text-gray-400 font-normal">(optional)</span></label>
             <textarea value={note} onChange={e => setNote(e.target.value)} placeholder="Describe your approach, timeline, or relevant experience..."
               className="w-full px-4 py-3 border-2 border-gray-200 rounded-xl text-sm focus:ring-2 focus:ring-[#003D82]/30 focus:border-[#003D82] outline-none resize-none" rows={3} maxLength={1000} />
           </div>
@@ -659,7 +659,7 @@ function OfferModal({ rfq, currentUserId, onClose, onOfferPlaced }: {
             {submitting ? <Loader2 className="w-5 h-5 animate-spin" /> : <Send className="w-5 h-5" />}
             {submitting ? 'Submitting...' : 'Submit Offer - 50 Tokens'}
           </button>
-          <p className="text-xs text-gray-400 text-center">Your offer will be sent to the client. You can withdraw it anytime.</p>
+          <p className="text-xs text-gray-400 text-center">Your offer will be sent to the buyer. You can withdraw it anytime.</p>
         </form>
       </motion.div>
     </motion.div>
@@ -879,9 +879,9 @@ function LinearRFQCard({ rfq, i, currentUserId, onApply, onOfferPlaced, matchSco
                       <div key={offer.id} className={`flex items-center justify-between gap-3 p-2.5 rounded-lg ${oi === 0 ? 'bg-emerald-50 border border-emerald-100' : 'bg-gray-50'}`}>
                         <div className="flex items-center gap-2.5 min-w-0">
                           {oi === 0 && <Award className="w-3.5 h-3.5 text-emerald-600" />}
-                          <AvatarImg src={offer.vendor?.avatar_url} name={offer.vendor?.full_name || 'Vendor'} size={7} />
+                          <AvatarImg src={offer.vendor?.avatar_url} name={offer.vendor?.full_name || 'Supplier'} size={7} />
                           <div className="min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{offer.vendor?.full_name || 'Vendor'}</p>
+                            <p className="text-sm font-semibold text-gray-900 truncate">{offer.vendor?.full_name || 'Supplier'}</p>
                             {offer.note && <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{offer.note}</p>}
                           </div>
                         </div>

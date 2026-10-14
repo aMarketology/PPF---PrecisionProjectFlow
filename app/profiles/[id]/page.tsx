@@ -444,7 +444,7 @@ export default function CompanyProfilePage() {
                   <Shield className="w-4.5 h-4.5 text-emerald-600" />
                 </div>
                 <div>
-                  <p className="text-xs font-bold text-emerald-700">Verified Engineer</p>
+                  <p className="text-xs font-bold text-emerald-700">Verified Supplier</p>
                   <p className="text-[11px] text-gray-400">Identity verified by PPF</p>
                 </div>
               </div>

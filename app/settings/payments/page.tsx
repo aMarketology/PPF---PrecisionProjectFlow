@@ -16,6 +16,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useRouter } from 'next/navigation';
 import Navigation from '@/app/components/Navigation';
 import Footer from '@/app/components/Footer';
+import StripeOnboardingSteps from '@/app/components/StripeOnboardingSteps';
 
 interface StripeAccount {
   id: string;
@@ -156,6 +157,9 @@ export default function PaymentsSettingsPage() {
             <h1 className="text-4xl font-bold text-gray-900 mb-2">Payment Settings</h1>
             <p className="text-gray-600">Manage your Stripe Connect account to receive payments</p>
           </div>
+
+          {/* Step-by-step onboarding */}
+          <StripeOnboardingSteps />
 
           {loading ? (
             <div className="flex items-center justify-center p-12 bg-white rounded-2xl shadow-xl">

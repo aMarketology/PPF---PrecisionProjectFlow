@@ -251,7 +251,7 @@ export default function ProfilesPage() {
       <div className="bg-gradient-to-r from-[#003D82] to-[#005BB5] py-16">
         <div className="max-w-3xl mx-auto px-4 text-center">
           <h2 className="text-3xl font-extrabold text-white mb-3">Is your company listed?</h2>
-          <p className="text-blue-200 mb-6">Join PPF and connect with clients seeking engineering services</p>
+          <p className="text-blue-200 mb-6">Join PPF and connect with buyers seeking engineering services</p>
           <Link href="/signup"
             className="inline-flex items-center gap-2 px-7 py-3 bg-[#FF6B35] hover:bg-[#E55A2B] text-white font-bold rounded-xl text-sm transition-all shadow-lg">
             Register Your Company <ChevronRight className="w-4 h-4" />
